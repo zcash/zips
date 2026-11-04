@@ -462,8 +462,7 @@ Transaction Format
 $(\mathsf{BundleType}, \mathsf{AssetUuid})$. Lookups in this map are denoted
 with the syntax
 $\mathsf{mValuePoolDeltas}[(\mathsf{BundleType}, \mathsf{AssetUuid})].$ A
-lookup for a key that is not present yields 0, consistent with the requirement
-that a record having zero value is elided from the encoding.
+lookup for a key that is not present yields 0.
 
 ``mEffectBundles`` and ``mAuthBundles`` are interpreted as maps keyed by
 ``bundleType``.
@@ -574,6 +573,33 @@ understand, the corresponding 32-byte ``bundle_effects_digest`` value as
 described in `Implications for Wallets`_), and to enumerate the transparent
 value flows of the transaction at the granularity of bundle types.
 
+Let ``CoinbaseBundleId``, ``SaplingBundleId``, ``OrchardBundleId``,
+``IronwoodBundleId``, and ``FeeBundleId`` be the identifiers of the coinbase,
+Sapling, Orchard, Ironwood, and fee bundles, respectively. In V7 transactions,
+$\mathsf{CoinbaseBundleId} = 1$, $\mathsf{SaplingBundleId} = 2$,
+$\mathsf{OrchardBundleId} = 3$, $\mathsf{IronwoodBundleId} = 4$, and
+$\mathsf{FeeBundleId} = 5$ as defined in the table above.
+
+Shielded balancing values
+`````````````````````````
+
+The logical Sapling, Orchard, and Ironwood balancing values are signed integers
+measured in zatoshis, as defined in the 'Balance and Binding Signature' sections
+of the protocol specification. [#protocol-saplingbalance]_ [#protocol-orchardbalance]_
+They are obtained from the V7 encoding as follows:
+
+.. math::
+
+   \begin{aligned}
+   \mathsf{v}^{\textit{SaplingPoolBalance}} &= \mathsf{mValuePoolDeltas}[(\mathsf{SaplingBundleId}, \mathsf{Zec})] \\
+   \mathsf{v}^{\textit{OrchardPoolBalance}} &= \mathsf{mValuePoolDeltas}[(\mathsf{OrchardBundleId}, \mathsf{Zec})] \\
+   \mathsf{v}^{\textit{IronwoodPoolBalance}} &= \mathsf{mValuePoolDeltas}[(\mathsf{IronwoodBundleId}, \mathsf{Zec})]
+   \end{aligned}
+
+Each balancing value has the sign convention defined for its pool: a positive
+value takes net value from the corresponding chain value pool and adds it to the
+transparent transaction value pool; a negative value does the reverse.
+
 
 Consensus Rules
 ---------------
@@ -582,11 +608,6 @@ This ZIP requires the following modifications to the consensus rules in the
 Zcash Protocol Specification. These rules are additional to the parsing rules
 above; a transaction that satisfies the parsing rules but violates any of
 these consensus rules is well-formed but invalid.
-
-Let ``CoinbaseBundleId`` be the identifier of the coinbase bundle, and
-``FeeBundleId`` be the identifier of the fee bundle. In V7 transactions,
-$\mathsf{CoinbaseBundleId} = 1$ and $\mathsf{FeeBundleId} = 5$ as defined in
-the table above.
 
 Bundle availability
 ```````````````````
@@ -612,6 +633,20 @@ that the rule applies to.
 * A bundle type MUST NOT appear in any map for which the corresponding column
   of the `V7 Transaction Bundle Type Registry`_ is marked ❌, and MUST NOT
   appear in any map at all if its row in the registry is marked as Reserved.
+
+* For variant 0 of the transparent, Sapling, Orchard, and Ironwood bundles,
+  each corresponding entry in ``mValuePoolDeltas`` MUST have ``assetClass = 0``
+  (ZEC).
+
+* Each entry in ``mValuePoolDeltas`` for variant 0 of the transparent, Sapling,
+  Orchard, or Ironwood bundle MUST have a corresponding entry in
+  ``mEffectBundles``.
+
+* If a transparent effecting bundle has ``tx_in_count > 0``, a corresponding
+  entry in ``mAuthBundles`` MUST be present.
+
+* Every Sapling, Orchard, or Ironwood effecting bundle MUST have a corresponding
+  entry in ``mAuthBundles``.
 
 * The ``assetClass`` value for any entry in ``mValuePoolDeltas`` having
   ``bundleType = FeeBundleId`` MUST be 0 (fee amounts are denominated in ZEC
@@ -697,6 +732,204 @@ full validators.
   .. math::
 
       \forall \mathsf{a}. \sum_{\mathsf{d} \in \mathsf{mValuePoolDeltas} | \mathsf{AssetUuid}(\mathsf{d}) = \mathsf{a}} \mathsf{d.value} = 0
+
+Signature hash references
+`````````````````````````
+
+In § 4.10 'SIGHASH Transaction Hashing', [#protocol-sighash]_ change:
+
+  The means of authorization differs between transparent inputs, inputs to
+  Sprout JoinSplit transfers, and Sapling Spend transfers or Orchard Action
+  transfers, but for a given transaction version the same SIGHASH transaction
+  hash algorithm is used.
+
+to:
+
+  The means of authorization differs between transparent inputs, inputs to
+  Sprout JoinSplit transfers, and Sapling Spend transfers or Orchard Action
+  transfers. For a given pre-V7 transaction version the same SIGHASH transaction
+  hash algorithm is used. For V7 transactions, the algorithm is selected for
+  each signer as specified in `ZIP 248, 'Sighash Versioning' <zip-0248.rst#sighash-versioning>`_.
+
+In the same section, after:
+
+  [NU6.3 onward] The SIGHASH algorithm used for version 6 transactions is
+  defined in ZIP 229.
+
+add:
+
+  The SIGHASH algorithms used for V7 transactions are defined in ZIP 248.
+
+In § 4.13 'Balance and Binding Signature (Sapling)', [#protocol-saplingbalance]_
+change:
+
+  Let $\mathsf{SigHash}$ be the SIGHASH transaction hash for the appropriate
+  transaction version, not associated with an input, using the SIGHASH type
+  $\mathsf{SIGHASH\_ALL}$. This is defined in ZIP 243 for a version 4 transaction,
+  or in ZIP 244 for a version 5 transaction, or in ZIP 229 for a version 6
+  transaction.
+
+to:
+
+  For a pre-V7 transaction, let $\mathsf{SigHash}$ be the SIGHASH transaction
+  hash for the appropriate transaction version, not associated with an input,
+  using the SIGHASH type $\mathsf{SIGHASH\_ALL}$. This is defined in ZIP 243 for
+  a version 4 transaction, or in ZIP 244 for a version 5 transaction, or in
+  ZIP 229 for a version 6 transaction.
+
+  For a V7 transaction, let $\mathsf{SigHash}$ be the digest selected by the
+  binding signature's ``sighashInfo``, as specified in
+  `ZIP 248, 'Sapling Sighash Algorithms' <zip-0248.rst#sapling-sighash-algorithms>`_.
+
+In § 4.14 'Balance and Binding Signature (Orchard)', [#protocol-orchardbalance]_
+change:
+
+  Let $\mathsf{SigHash}$ be the SIGHASH transaction hash for the appropriate
+  transaction version, not associated with an input, using the SIGHASH type
+  $\mathsf{SIGHASH\_ALL}$. This is defined in ZIP 244 for a version 5 transaction,
+  or in ZIP 229 for a version 6 transaction.
+
+to:
+
+  For a pre-V7 transaction, let $\mathsf{SigHash}$ be the SIGHASH transaction
+  hash for the appropriate transaction version, not associated with an input,
+  using the SIGHASH type $\mathsf{SIGHASH\_ALL}$. This is defined in ZIP 244 for
+  a version 5 transaction, or in ZIP 229 for a version 6 transaction.
+
+  For a V7 transaction, let $\mathsf{SigHash}$ be the digest selected by the
+  binding signature's ``sighashInfo``, as specified in
+  `ZIP 248, 'Orchard Protocol Sighash Algorithms' <zip-0248.rst#orchard-protocol-sighash-algorithms>`_.
+
+In § 4.15 'Spend Authorization Signature (Sapling and Orchard)',
+[#protocol-spendauthsig]_ change:
+
+  Let $\mathsf{SigHash}$ be the SIGHASH transaction hash as defined in ZIP 243 or
+  as defined in ZIP 244 modified by ZIP 225, not associated with an input,
+  using the SIGHASH type $\mathsf{SIGHASH\_ALL}$.
+
+to:
+
+  For a pre-V7 transaction, let $\mathsf{SigHash}$ be the SIGHASH transaction
+  hash as defined in ZIP 243 or as defined in ZIP 244 modified by ZIP 225,
+  not associated with an input, using the SIGHASH type $\mathsf{SIGHASH\_ALL}$.
+
+  For a V7 transaction, let $\mathsf{SigHash}$ be the digest selected by the
+  spend authorization signature's ``sighashInfo``, as specified in
+  `ZIP 248, 'Sapling Sighash Algorithms'`_ for Sapling signatures or
+  `ZIP 248, 'Orchard Protocol Sighash Algorithms'`_ for Orchard and Ironwood
+  signatures.
+
+Changes to the Protocol Specification
+-------------------------------------
+
+Shielded balance encoding
+`````````````````````````
+
+In § 4.13 'Balance and Binding Signature (Sapling)', [#protocol-saplingbalance]_
+change:
+
+  $\mathsf{v}^{\textit{SaplingPoolBalance}}$ is encoded in a transaction as the
+  field ``valueBalanceSapling``. For a v4 transaction,
+  $\mathsf{v}^{\textit{SaplingPoolBalance}}$ is always explicitly encoded.
+  For v5, $\mathsf{v}^{\textit{SaplingPoolBalance}}$ is implicitly zero if the
+  transaction has no Spend descriptions or Output descriptions. Transaction
+  fields are described in § 7.1 'Transaction Encoding and Consensus'.
+
+to:
+
+  For a pre-V7 transaction, $\mathsf{v}^{\textit{SaplingPoolBalance}}$ is encoded
+  in the transaction as the field ``valueBalanceSapling``. For a v4 transaction,
+  $\mathsf{v}^{\textit{SaplingPoolBalance}}$ is always explicitly encoded.
+  For v5, $\mathsf{v}^{\textit{SaplingPoolBalance}}$ is implicitly zero if the
+  transaction has no Spend descriptions or Output descriptions. Transaction
+  fields are described in § 7.1 'Transaction Encoding and Consensus'.
+
+  For a V7 transaction, $\mathsf{v}^{\textit{SaplingPoolBalance}}$ is obtained as
+  specified in `ZIP 248, 'Shielded balancing values' <zip-0248.rst#shielded-balancing-values>`_.
+
+In § 4.14 'Balance and Binding Signature (Orchard)', [#protocol-orchardbalance]_
+using $\textit{pool}$ as defined there, change:
+
+  $\mathsf{v}^{\textit{poolBalance}}$ is encoded in a transaction as the field
+  ``valueBalanceOrchard/Ironwood``. If a transaction has no Action descriptions
+  for $\textit{pool}$, $\mathsf{v}^{\textit{poolBalance}}$ is implicitly zero.
+  Transaction fields are described in § 7.1 'Transaction Encoding and Consensus'.
+
+to:
+
+  For a pre-V7 transaction, $\mathsf{v}^{\textit{poolBalance}}$ is encoded in the
+  transaction as the field ``valueBalanceOrchard/Ironwood``. If a pre-V7
+  transaction has no Action descriptions for $\textit{pool}$, $\mathsf{v}^{\textit{poolBalance}}$ is
+  implicitly zero. Transaction fields are described in § 7.1 'Transaction
+  Encoding and Consensus'.
+
+  For a V7 transaction, $\mathsf{v}^{\textit{poolBalance}}$ is obtained as
+  specified in `ZIP 248, 'Shielded balancing values'`_.
+
+Shielded balance ranges
+```````````````````````
+
+In § 7.1.2 'Transaction Consensus Rules', [#protocol-txnconsensus]_ change:
+
+  * [Sapling onward] ``valueBalanceSapling``, if it exists, MUST be in the range
+    $\{-\mathsf{MAX\_MONEY} \,..\, \mathsf{MAX\_MONEY}\}$.
+  * [NU5 onward] ``valueBalanceOrchard``, if it exists, MUST be in the range
+    $\{-\mathsf{MAX\_MONEY} \,..\, \mathsf{MAX\_MONEY}\}$.
+  * [NU6.3 onward] ``valueBalanceIronwood``, if it exists, MUST be in the range
+    $\{-\mathsf{MAX\_MONEY} \,..\, \mathsf{MAX\_MONEY}\}$.
+  * [NU6.3 onward] ``valueBalanceOrchard``, if it exists, MUST be nonnegative.
+
+to:
+
+  * [Sapling onward] $\mathsf{v}^{\textit{SaplingPoolBalance}}$ MUST be in the
+    range $\{-\mathsf{MAX\_MONEY} \,..\, \mathsf{MAX\_MONEY}\}$.
+  * [NU5 onward] $\mathsf{v}^{\textit{OrchardPoolBalance}}$ MUST be in the range
+    $\{-\mathsf{MAX\_MONEY} \,..\, \mathsf{MAX\_MONEY}\}$.
+  * [NU6.3 onward] $\mathsf{v}^{\textit{IronwoodPoolBalance}}$ MUST be in the
+    range $\{-\mathsf{MAX\_MONEY} \,..\, \mathsf{MAX\_MONEY}\}$.
+  * [NU6.3 onward] $\mathsf{v}^{\textit{OrchardPoolBalance}}$ MUST be nonnegative.
+
+Chain value pool balance definitions
+````````````````````````````````````
+
+In § 4.17 'Chain Value Pool Balances', [#protocol-chainvaluepoolbalances]_
+change:
+
+  As defined in ZIP 209, the Sapling chain value pool balance for a given block
+  chain is the negation of the sum of all ``valueBalanceSapling`` values for
+  transactions in the chain.
+
+to:
+
+  As defined in ZIP 209, the Sapling chain value pool balance for a given block
+  chain is the negation of the sum of all
+  $\mathsf{v}^{\textit{SaplingPoolBalance}}$ values for transactions in the chain.
+
+In the same section, change:
+
+  Similarly to the Sapling chain value pool balance defined in ZIP 209, the
+  Orchard chain value pool balance for a given block chain is the negation of
+  the sum of all ``valueBalanceOrchard`` field values for transactions in the
+  chain.
+
+to:
+
+  Similarly to the Sapling chain value pool balance defined in ZIP 209, the
+  Orchard chain value pool balance for a given block chain is the negation of
+  the sum of all $\mathsf{v}^{\textit{OrchardPoolBalance}}$ values for transactions
+  in the chain.
+
+In the same section, change:
+
+  The Ironwood chain value pool balance for a given block chain is the negation
+  of the sum of all ``valueBalanceIronwood`` field values for transactions in
+  the block chain.
+
+to:
+
+  The Ironwood chain value pool balance for a given block chain is the negation
+  of the sum of all $\mathsf{v}^{\textit{IronwoodPoolBalance}}$ values for
+  transactions in the block chain.
 
 Sighash Versioning
 -------------------
@@ -2262,6 +2495,12 @@ References
 .. [#protocol-blockchain] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.3: The Block Chain <protocol/protocol.pdf#blockchain>`_
 .. [#protocol-transactions] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.4: Transactions and Treestates <protocol/protocol.pdf#transactions>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-saplingbalance] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.13: Balance and Binding Signature (Sapling) <protocol/protocol.pdf#saplingbalance>`_
+.. [#protocol-orchardbalance] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.14: Balance and Binding Signature (Orchard) <protocol/protocol.pdf#orchardbalance>`_
+.. [#protocol-chainvaluepoolbalances] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.17: Chain Value Pool Balances <protocol/protocol.pdf#chainvaluepoolbalances>`_
+.. [#protocol-txnconsensus] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.1.2: Transaction Consensus Rules <protocol/protocol.pdf#txnconsensus>`_
+.. [#protocol-sighash] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.10: SIGHASH Transaction Hashing <protocol/protocol.pdf#sighash>`_
+.. [#protocol-spendauthsig] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.15: Spend Authorization Signature (Sapling and Orchard) <protocol/protocol.pdf#spendauthsig>`_
 .. [#protocol-subsidies] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 7.8: Block Subsidy and Founders' Reward <protocol/protocol.pdf#subsidies>`_
 .. [#protocol-fundingstreams] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 7.10: Payment of Funding Streams, Deferred Lockbox, and Lockbox Disbursement <protocol/protocol.pdf#fundingstreams>`_
 .. [#zip-0203] `ZIP 203: Transaction Expiry <zip-0203.rst>`_
