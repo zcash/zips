@@ -373,7 +373,7 @@ default. [^zebra]
 
 [^bip-0152]: [BIP 152: Compact Block Relay](https://github.com/bitcoin/bips/blob/master/bip-0152.mediawiki)
 
-[^zebra]: [Zebra pull request #12184: implement the compact block relay ZIP](https://github.com/ZcashFoundation/zebra/pull/12184)
+[^zebra]: [Zebra pull request #12186: negotiate compact block relay with its ZIP service bit, on by default](https://github.com/ZcashFoundation/zebra/pull/12186)
 
 [^zebra-codec]: [Zebra P2P message codec](https://github.com/ZcashFoundation/zebra/blob/4b8a202e41d41b8ab84a703c72ef77fd03d4d000/zebra-network/src/protocol/external/codec.rs)
 
