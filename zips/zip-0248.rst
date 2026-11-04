@@ -1167,6 +1167,27 @@ is::
 
   BLAKE2b-256("ZTxIdEffBnd_Hash", [])
 
+Rationale for Per-Bundle Effects Digests
+''''''''''''''''''''''''''''''''''''''''
+
+.. raw:: html
+
+   <details>
+   <summary>Click to show/hide</summary>
+
+Each effecting bundle contributes a fixed-size digest to this hash. A wallet
+can therefore use a supplied digest for an unsupported bundle without parsing
+its internal structure, while computing the other bundle digests itself.
+The ``bundleType`` and ``bundleVariant`` tags remain committed to alongside
+each digest, and the header and complete value pool delta map remain separate
+commitments in the transaction identifier. This permits bundle-specific hash
+trees, including the subtrees used in compact representations, without
+requiring every receiving wallet to understand every bundle's hash tree.
+
+.. raw:: html
+
+   </details>
+
 v0 Signature Digest
 ```````````````````
 
@@ -1362,9 +1383,16 @@ wallet is aware of, but in a way the wallet does not fully understand.
 For each unsupported ``(bundleType, bundleVariant)`` pair in
 ``mEffectBundles``, a wallet needs the corresponding 32-byte
 ``bundle_effects_digest`` value in order to compute the transaction identifier.
-This includes an unsupported variant of a recognized bundle type. With those
-values, the wallet can recompute the understood parts of the digest tree and
-combine them with the supplied bundle digests.
+This includes an unsupported variant of a recognized bundle type. For each
+such bundle, the wallet uses the supplied digest as T.3c, together with the
+``bundleType`` and ``bundleVariant`` encoded in that transaction's
+``mEffectBundles`` entry, in `T.3: effects_bundles_digest`_. It computes the
+digests of supported bundles normally and includes all bundles in transaction
+order. The header and complete value pool delta map are hashed as specified
+in T.1 and T.2. Thus access to the unsupported bundles' digests enables the
+wallet to compute the transaction identifier without interpreting those
+bundles' internal payloads. How those digests are made available to the
+wallet is outside the scope of this ZIP.
 
 The supplied digests act as commitments to subtrees that the wallet does not
 need to compute. If the resulting transaction identifier matches one obtained
@@ -2594,35 +2622,6 @@ Questions
       you see that in the fee bundle's value balance.
     * When sending, you need to understand all bundles you are including,
       and then you can calculate the fee.
-
-* Can wallets still compute the txid and wtxid of an arbitrary transaction?
-
-  * Yes, provided that effecting and authorizing data is separated. Then they
-    can hash the effecting data even without understanding it to compute the
-    txid, and they can hash the authorizing data even without understanding
-    it to compute the authorizing data commitment part of the wtxid (ZIP
-    239 [#zip-0239]_).
-  * *However*, this reintroduces a more direct linkage between the [w]txid
-    computation and the transaction encoding. It's arguably fine, and
-    potentially simpler -- since the [w]txid computation need not change at
-    all for most protocol changes.
-  * If the hashing uses flat hashes over the effectingData and
-    authorizingData of each bundle (which it has to because the internal
-    structure is not known), then it might be more difficult to do Merkle
-    proofs over subsets of the data within a bundle. We haven't used that so
-    far; is it really needed?
-
-  * Should the authorizing data be entirely separate from the effecting data,
-    and encoded at the end of the transaction in a batch, so that pruning is
-    simply truncation?
-
-* The light wallet protocol will be updated to allow the client to specify the
-  set of bundle types that the client understands. In the case that this
-  information is provided, the light client server will then send the root
-  hashes for each bundle type that the client **does not** understand when
-  returning raw transaction data, so that the light client can correctly
-  recompute and validate the txid; also, the compact transactions can be pruned
-  to exclude bundles of bundle types. that the client will not understand.
 
 TODO
 ====
