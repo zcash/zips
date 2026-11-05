@@ -1,6 +1,6 @@
 
     ZIP: Unassigned
-    Title: 20-second Block Target Spacing
+    Title: Reduce Block Target Spacing from 25 to 20 Seconds
     Owners: Dev Ojha <dev@valargroup.dev>
             Evan Forbes <evan@valargroup.dev>
     Status: Draft
@@ -11,389 +11,348 @@
 
 # Terminology
 
-The key words "MUST", "MUST NOT", "SHOULD", and "SHOULD NOT" in this document
-are to be interpreted as described in BCP 14 [^BCP14] when, and only when,
-they appear in all capitals.
+The key words "MUST", "MUST NOT", and "SHOULD" in this document are to be
+interpreted as described in BCP 14 [^BCP14] when, and only when, they appear
+in all capitals.
 
-The terms "block chain", "consensus rule change", "consensus branch", and
-"network upgrade" follow ZIP 200. [^zip-0200]
+The terms "block chain", "consensus branch", and "network upgrade" follow
+ZIP 200. [^zip-0200] The character § refers to sections of the Zcash Protocol
+Specification. [^protocol]
 
 "Block target spacing" means the interval between blocks targeted by the
 difficulty adjustment algorithm. Actual block intervals vary.
 
-The character § refers to sections of the Zcash Protocol Specification.
-The terms "Mainnet" and "Testnet" follow § 3.12. [^protocol-networks]
+The "25-second baseline" means the rules after NU7, including ZIP 218's
+25-second target spacing and ZIP 237's subsidy definitions. [^zip-0218]
+[^zip-0237] This is the baseline for the proposed transition, rather than
+a claim that NU7 has already activated on every network.
 
 A "stale block" is a valid mined block that does not remain on the selected
-chain. A "stale block rate" is the fraction of valid mined blocks that become
-stale over a stated measurement interval.
+chain. This document reports "stale blocks per accepted block" separately
+from the fraction of all mined blocks that become stale.
+
+"Reach 90%" means the time for a block to reach 90% of the specified node
+sample. "Effective old-tip mining time" means the accumulated mining work
+spent on the old tip, expressed as seconds of the whole network's mining power.
 
 MB means 1,000,000 bytes. TPS means transactions per second.
 
 
 # Abstract
 
-This proposal reduces Zcash's block target spacing from 75 seconds to
-20 seconds at NU7 activation. It follows the 25-second proposal's approach
-to subsidy scaling, difficulty adjustment, and shielded pool action limits.
-[^25-second-proposal] The 20-second target replaces the proposed 25-second
-target; this ZIP does not assume an intervening upgrade to 25-second blocks.
+This proposal reduces Zcash's block target spacing from 25 seconds to
+20 seconds in a network upgrade after NU7. It builds on ZIP 218, which
+specifies the 25-second target for NU7. [^zip-0218] [^zip-0259]
 
-The change reduces the expected wait for a first confirmation and increases
-block capacity per unit of time. It retains the 2 MB block size limit and
-the earlier proposal's per-block shielded limits: a global budget of 330,
-330 Orchard actions, 300 Sapling inputs plus outputs, and 25 Sprout
-JoinSplits. These limits support up to 8.25 two-action Orchard transactions
-per second under an Orchard-only workload.
+The change reduces the expected wait for a first confirmation by 20%.
+It provides 25% more blocks per unit of time. The proposal inherits the
+2 MB block size limit and ZIP 218's shielded action limits. With those limits,
+two-action Orchard capacity rises from 6.6 to 8.25 transactions per second.
+The corresponding maximum daily compact sync payload also rises by 25%.
 
-The proposal scales the subsidy and halving interval to preserve the
-expected issuance schedule, subject to integer rounding. It increases the
-difficulty averaging window to 64 blocks to approximate the existing
-wall-clock window. It also updates node defaults that represent durations.
+The proposal extends the halving interval by a factor of 5/4 and scales the
+scheduled subsidy by 4/5 before integer rounding. It adjusts ZIP 237's
+reissuance fraction to the new interval. It increases the difficulty averaging
+window from 102 to 128 blocks to preserve approximately its existing duration.
+It also adjusts node defaults that represent durations.
 
-The shielded limits constrain wallet sync work under sustained load.
-Shorter blocks can change transaction timing information visible to
-observers. This draft leaves slots for measurements of 20-second block
-propagation, stale blocks, verification, wallet sync, and difficulty recovery.
+The proposal preserves the shielded transaction formats and action accounting
+of the baseline. Shorter inclusion intervals can change timing information
+visible to observers. This draft leaves deployment-dependent funding and
+reissuance schedules, implementation vectors, and new measurements open for
+completion before submission for Proposed status.
 
 
 # Motivation
 
-Users who need one confirmation currently wait an average of 75 seconds
-under stable conditions. A 20-second target reduces that expected wait by
-73.3%. Relative to the proposed 25-second target, it reduces the wait by
-20% and provides 25% more blocks per unit of time.
+With a 25-second target, a user who needs one confirmation waits about
+25 seconds under stable conditions. A 20-second target reduces that wait
+by five seconds. Applications that need a small number of confirmations
+benefit from the shorter intervals.
 
-At the same 2 MB block size limit, the network can carry 3.75 times as many
-block bytes per unit of time as at 75 seconds. The shielded action limits
-constrain the shielded portion of that capacity. With the same per-block
-limits as the 25-second proposal, the additional blocks also provide 25%
-more shielded capacity per unit of time.
+The proposal adds capacity through 25% more blocks per unit of time. It
+retains the per-block limits already established by ZIP 218. This raises
+both capacity and sustained processing costs by 25% relative to the
+25-second baseline. The incremental cost is the central trade-off for this ZIP.
 
-This proposal retains the earlier proposal's scope and analysis categories.
-The additional measurements will establish how much validation and
-propagation margin remains at 20 seconds. The proposal does not add a
-finality mechanism or prescribe a reduction in confirmation counts.
-Applications still need confirmation policies suited to their rollback risk.
+ZIP 218 established the initial block-spacing reduction and shielded resource
+limits. This proposal asks whether the network has sufficient propagation
+and validation margin for a further reduction to 20 seconds. It does not
+prescribe lower confirmation counts or add a finality mechanism.
 
 
 # Privacy Implications
 
-This proposal does not change shielded transaction encryption or proof
-systems. More frequent blocks can give observers finer information about
-transaction inclusion times. Fewer transactions per block at a fixed demand
-can also affect timing analysis. The privacy review should assess these
-effects without treating a block as the boundary of the shielded anonymity set.
+This proposal preserves the baseline's shielded encryption and proof systems.
+More frequent blocks can give observers finer information about inclusion
+times. Fewer transactions per block at a fixed demand can also affect timing
+analysis. Privacy review should assess those effects without treating a block
+as the boundary of the shielded anonymity set.
 
-The action limits constrain the work that an attacker can impose on wallets
-through shielded sync. The bandwidth estimates below cover compact Sapling
-and Orchard fields. They do not establish a bound on all wallet traffic.
+The inherited action limits continue to constrain work per block. The higher
+block frequency raises the maximum daily wallet sync work by 25%. The analysis
+below distinguishes compact-field payload from all wallet traffic.
 
 
 # Requirements
 
-- Reduce the expected wait for a first confirmation to 20 seconds under
-  stable hash rate and network conditions.
-- Preserve the expected issuance and halving schedule in wall-clock time,
-  subject to integer rounding.
-- Retain the 2 MB block size limit and the 25-second proposal's shielded
-  action limits.
-- Keep worst-case shielded sync work below the pre-upgrade baseline under
-  the same workload and accounting model.
-- Preserve approximately the existing difficulty averaging duration.
-- Define the activation behavior for Mainnet and Testnet.
+- Reduce block target spacing from 25 seconds to 20 seconds after NU7.
+- Preserve the expected scheduled issuance and halving durations, subject to
+  integer rounding, including progress through the halving interval at activation.
+- Preserve ZIP 218's block size limit and shielded action accounting.
+- Preserve approximately the baseline's difficulty averaging duration.
+- Account for the 25% increase in maximum sustained processing and sync work.
+- Integrate the transition with ZIP 237 and active funding-stream schedules.
+- Leave historical consensus rules intact.
 
 
 # Specification
 
-This section specifies changes to the Zcash Protocol Specification.
-[^protocol] Rules before NU7 activation remain unchanged.
+This section applies to the post-NU7 rules of ZIPs 218 and 237.
+[^zip-0218] [^zip-0237] Implementations MUST retain all pre-activation rules
+at heights below the new activation height.
 
-All activation heights, halving intervals, averaging windows, and action
-limits defined here are nonnegative integers. Target spacings are positive
-integer numbers of seconds. The spacing ratio is a positive rational number.
-Block subsidies are nonnegative integer numbers of zatoshi.
+## Activation and target spacing
 
-## Consensus changes
+Define the following constants:
 
-### Block target spacing
+$$\mathsf{TwentySecondActivationHeight} : \mathbb{N}$$
+$$\mathsf{TwentySecondPoWTargetSpacing} : \mathbb{N} := 20 \text{ seconds}$$
+$$\mathsf{TwentySecondSpacingRatio} : \mathbb{Q}_{>0} := 25/20 = 5/4$$
 
-In § 2 'Notation', add $\mathsf{NU7ActivationHeight}$
-and $\mathsf{PostNU7PoWTargetSpacing}$ to the list of
-integer constants.
+A separate deployment ZIP will assign $\mathsf{TwentySecondActivationHeight}$
+for each network. It MUST be strictly greater than that network's
+$\mathsf{NU7ActivationHeight}$. No NU7 activation constant changes.
 
-In § 5.3 'Constants', define:
+For a height $h \in \mathbb{N}$ at or above this activation height, define:
 
-$$\mathsf{PostNU7PoWTargetSpacing} := 20 \text{ seconds}$$
+$$\mathsf{PoWTargetSpacing}(h) := \mathsf{TwentySecondPoWTargetSpacing}.$$
 
-For a given network (production or test), define
-$\mathsf{NU7ActivationHeight}$ as the height at which
-this network upgrade activates on that network, as specified in a
-separate deployment ZIP.
+At earlier heights, retain ZIP 218's definition of $\mathsf{PoWTargetSpacing}$.
+In particular, $\mathsf{PostNU7PoWTargetSpacing}$ remains 25 seconds.
 
-Define:
-
-$$\mathsf{NU7PoWTargetSpacingRatio} := \mathsf{PostBlossomPoWTargetSpacing} \;/\; \mathsf{PostNU7PoWTargetSpacing} = 15/4$$
-
-Define $\mathsf{IsNU7Activated}(\mathsf{height})$ to
-return true if
-$\mathsf{height} \geq \mathsf{NU7ActivationHeight}$,
-otherwise false.
-
-In § 7.7.3 'Difficulty adjustment', redefine $\mathsf{PoWTargetSpacing}$
-as:
-
-$$
-\mathsf{PoWTargetSpacing}(\mathsf{height}) :=
-  \begin{cases}
-    \mathsf{PreBlossomPoWTargetSpacing},                  &\text{if not } \mathsf{IsBlossomActivated}(\mathsf{height}) \\\\
-    \mathsf{PostBlossomPoWTargetSpacing},                  &\text{if } \mathsf{IsBlossomActivated}(\mathsf{height}) \text{ and not } \mathsf{IsNU7Activated}(\mathsf{height}) \\\\
-    \mathsf{PostNU7PoWTargetSpacing}        &\text{otherwise}
-  \end{cases}
-$$
-
-### Averaging window [averaging-window]
-
-In § 2 'Notation', add $\mathsf{PostNU7PoWAveragingWindow}$ to the
-list of integer constants.
-
-In § 5.3 'Constants', define:
-
-$$\mathsf{PostNU7PoWAveragingWindow} := 64$$
-
-In § 7.7.3 'Difficulty adjustment', redefine
-$\mathsf{PoWAveragingWindow}$ as a height-dependent function:
-
-$$
-\mathsf{PoWAveragingWindow}(\mathsf{height}) :=
-  \begin{cases}
-    17,                                  &\text{if not } \mathsf{IsNU7Activated}(\mathsf{height}) \\\\
-    \mathsf{PostNU7PoWAveragingWindow}   &\text{otherwise}
-  \end{cases}
-$$
-
-All other references to $\mathsf{PoWAveragingWindow}$ in
-§ 7.7.3 'Difficulty adjustment' that previously took the constant
-value 17 are reinterpreted as
-$\mathsf{PoWAveragingWindow}(\mathsf{height})$ for the height of the
-block under consideration. This includes the size of the averaging
-window used to compute the average target threshold and the average
-block timespan.
-
-### Halving interval and block subsidy
+## Difficulty averaging window
 
 Define:
 
-$$\mathsf{PostNU7HalvingInterval} := \lfloor \mathsf{PostBlossomHalvingInterval} \cdot \mathsf{NU7PoWTargetSpacingRatio} \rfloor = 6{,}300{,}000$$
+$$\mathsf{TwentySecondPoWAveragingWindow} : \mathbb{N} := 128.$$
 
-For heights below $\mathsf{SlowStartShift}$, retain
-$\mathsf{Halving}(\mathsf{height}) = 0$. For all other heights, redefine
-the $\mathsf{Halving}$ function as:
+For $h \geq \mathsf{TwentySecondActivationHeight}$, define:
+
+$$\mathsf{PoWAveragingWindow}(h) := \mathsf{TwentySecondPoWAveragingWindow}.$$
+
+At earlier heights, retain ZIP 218's definition, including its 102-block
+post-NU7 window. All uses of this function in the difficulty algorithm use
+the height of the block under consideration.
+
+The averaging window includes pre-activation blocks when its lookback crosses
+the activation height. Implementations MUST NOT reset it at activation.
+The median-time span and adjustment bounds remain unchanged. The difficulty
+algorithm moves toward the new spacing through ordinary retargeting.
+
+## Halving interval and scheduled subsidy
+
+Define:
+
+$$\mathsf{TwentySecondHalvingInterval} : \mathbb{N}
+:= \mathsf{PostNU7HalvingInterval}\cdot 5/4 = 6{,}300{,}000.$$
+
+For the following formula, let $A_{20} = \mathsf{TwentySecondActivationHeight}$,
+$A_7 = \mathsf{NU7ActivationHeight}$, and
+$A_B = \mathsf{BlossomActivationHeight}$. These are nonnegative integer heights.
+For $h \geq A_{20}$, define:
 
 $$
-\mathsf{Halving}(\mathsf{height}) :=
-  \begin{cases}
-    \left\lfloor \dfrac{\mathsf{height} - \mathsf{SlowStartShift}}{\mathsf{PreBlossomHalvingInterval}} \right\rfloor,
-      &\text{if not } \mathsf{IsBlossomActivated}(\mathsf{height}) \\\\[1.5ex]
-    \left\lfloor \dfrac{\mathsf{BlossomActivationHeight} - \mathsf{SlowStartShift}}{\mathsf{PreBlossomHalvingInterval}}
-      + \dfrac{\mathsf{height} - \mathsf{BlossomActivationHeight}}{\mathsf{PostBlossomHalvingInterval}} \right\rfloor,
-      &\text{if } \mathsf{IsBlossomActivated}(\mathsf{height}) \text{ and not } \mathsf{IsNU7Activated}(\mathsf{height}) \\\\[1.5ex]
-    \left\lfloor \dfrac{\mathsf{BlossomActivationHeight} - \mathsf{SlowStartShift}}{\mathsf{PreBlossomHalvingInterval}}
-      + \dfrac{\mathsf{NU7ActivationHeight} - \mathsf{BlossomActivationHeight}}{\mathsf{PostBlossomHalvingInterval}}
-      + \dfrac{\mathsf{height} - \mathsf{NU7ActivationHeight}}{\mathsf{PostNU7HalvingInterval}} \right\rfloor,
-      &\text{otherwise}
-  \end{cases}
+\mathsf{Halving}(h) := \left\lfloor
+\frac{A_B-\mathsf{SlowStartShift}}{\mathsf{PreBlossomHalvingInterval}}
++\frac{A_7-A_B}{\mathsf{PostBlossomHalvingInterval}}
++\frac{A_{20}-A_7}{\mathsf{PostNU7HalvingInterval}}
++\frac{h-A_{20}}{\mathsf{TwentySecondHalvingInterval}}
+\right\rfloor.
 $$
 
-Redefine $\mathsf{BlockSubsidy}$ to add a case for post-activation
-heights. The prior Blossom case in § 7.8 'Calculation of Block Subsidy
-and Founders' Reward', currently written as "otherwise", must be
-amended to "if $\mathsf{IsBlossomActivated}(\mathsf{height})$ and not
-$\mathsf{IsNU7Activated}(\mathsf{height})$":
+For $h < A_{20}$, retain the prior halving function, including its slow-start
+cases. Implementations MUST preserve the fractional progress through the
+halving interval at activation. They MUST NOT restart an interval at $A_{20}$.
+
+For $h \geq A_{20}$, replace ZIP 237's scheduled subsidy with:
 
 $$
-\mathsf{BlockSubsidy}(\mathsf{height}) :=
-  \begin{cases}
-    \ldots &\text{(prior cases, with the Blossom case amended as above)} \\\\[1ex]
-    \mathsf{floor}\left(\dfrac{\mathsf{MaxBlockSubsidy}}{\mathsf{BlossomPoWTargetSpacingRatio} \cdot \mathsf{NU7PoWTargetSpacingRatio} \cdot 2^{\mathsf{Halving}(\mathsf{height})}}\right),
-      &\text{if } \mathsf{IsNU7Activated}(\mathsf{height})
-  \end{cases}
+\mathsf{ScheduledBlockSubsidy}(h) := \left\lfloor
+\frac{\mathsf{MaxBlockSubsidy}}
+{\mathsf{BlossomPoWTargetSpacingRatio}\cdot
+ \mathsf{NU7PoWTargetSpacingRatio}\cdot
+ \mathsf{TwentySecondSpacingRatio}\cdot 2^{\mathsf{Halving}(h)}}
+\right\rfloor.
 $$
 
-Implementations MUST evaluate the spacing ratio as the exact rational number
-$15/4$. They MUST apply the floor only after evaluating the complete subsidy
-expression. Integer division of 75 by 20 before this calculation would give
-an incorrect subsidy.
+The result is a nonnegative integer number of zatoshi. Implementations MUST
+use the exact rational ratio $5/4$ and apply the floor only to the complete
+expression. Multiplying an already-rounded 25-second subsidy by $4/5$ can
+produce a different answer.
 
-For example, at halving index 2, the post-Blossom subsidy is 156,250,000
-zatoshi. The post-NU7 subsidy becomes:
+For example, at halving index 3 the scheduled subsidy changes from
+26,041,666 zatoshi to 20,833,333 zatoshi. Flooring
+$26{,}041{,}666\times4/5$ would incorrectly produce 20,833,332 zatoshi.
 
-$$\left\lfloor 156{,}250{,}000 \times 4 / 15 \right\rfloor
-  = 41{,}666{,}666 \text{ zatoshi}.$$
+## Integration with ZIP 237
 
-Rounding removes $2/3$ zatoshi per block in this example. Over a full
-6,300,000-block interval at that subsidy, the difference from the unrounded
-schedule is 0.042 ZEC. The formula uses the actual halving index at each
-height; this example does not fix the activation height.
+For $h \geq A_{20}$, redefine ZIP 237's $\mathsf{HalvingInterval}(h)$ to return
+$\mathsf{TwentySecondHalvingInterval}$. Retain its earlier cases for $h<A_{20}$.
+Its existing fraction formula then gives:
 
-### Shielded pool action limits
+$$\mathsf{BLOCK\_SUBSIDY\_FRACTION}(h)
+= \frac{\lfloor 6{,}931{,}680{,}000 / 6{,}300{,}000\rfloor}{10^{10}}
+= \frac{1100}{10^{10}}.$$
 
-Define the following constants in § 5.3 'Constants':
+Retain ZIP 237's definition:
 
-$$\mathsf{GlobalShieldedBudget} := 330$$
-$$\mathsf{OrchardBlockActionLimit} := 330$$
-$$\mathsf{SaplingBlockIOLimit} := 300$$
-$$\mathsf{SproutBlockJoinSplitLimit} := 25$$
+$$\mathsf{BlockSubsidy}(h) := \mathsf{ScheduledBlockSubsidy}(h)
++ \mathsf{AdditionalBlockSubsidy}(h).$$
 
-For each block at height $\mathsf{height}$ where
-$\mathsf{IsNU7Activated}(\mathsf{height})$, validators MUST enforce the following limits:
+Implementations MUST carry the existing NSM Value Balance through activation.
+They MUST NOT reseed it or recompute historical balances under the new spacing.
+ZIP 237's additional-subsidy ceiling and balance-update rules continue to apply.
 
-**Per-pool limits:**
+**Open specification item:** If this upgrade precedes NSM reissuance, its
+reissuance-height rule needs an explicit amendment using the new scheduled
+issuance curve and fraction. ZIP 259's fixed heights were calculated for
+25-second blocks. This draft does not yet choose the amended trigger.
+If reissuance has already started, the transition must retain that activated
+state. Resolve both cases before this ZIP advances to Proposed status.
 
-- The total number of Orchard actions across all transactions in the
-  block MUST NOT exceed $\mathsf{OrchardBlockActionLimit}$. That is,
-  $\sum_{\mathit{tx} \in \mathit{block}} \mathit{nActionsOrchard}(\mathit{tx}) \leq 330$.
+## Inherited shielded limits
 
-- The total number of Sapling inputs and outputs across all
-  transactions in the block MUST NOT exceed
-  $\mathsf{SaplingBlockIOLimit}$. That is,
-  $\sum_{\mathit{tx} \in \mathit{block}} (\mathit{nSpendsSapling}(\mathit{tx}) + \mathit{nOutputsSapling}(\mathit{tx})) \leq 300$.
+Implementations MUST continue to enforce ZIP 218's shielded action limits
+and global budget. This proposal introduces no new action accounting.
+The inherited parameters are:
 
-- The total number of Sprout JoinSplits across all transactions in
-  the block MUST NOT exceed $\mathsf{SproutBlockJoinSplitLimit}$. That
-  is,
-  $\sum_{\mathit{tx} \in \mathit{block}} \mathit{nJoinSplit}(\mathit{tx}) \leq 25$.
+| Parameter | Value before and after this upgrade |
+|-----------|-------------------------------------|
+| Global shielded budget | 330 |
+| Orchard-protocol action limit per pool | 330 |
+| Sapling inputs plus outputs | 300 |
+| Sprout JoinSplits | 0 |
+| Block size limit | 2,000,000 bytes |
 
-**Global shielded budget:**
-
-In addition to the per-pool limits, the total shielded cost across all
-pools in a block MUST NOT exceed $\mathsf{GlobalShieldedBudget}$. The
-shielded cost of a block is defined as:
-
-$$\sum_{\mathit{tx}} \mathit{nActionsOrchard}(\mathit{tx}) \;+\; \sum_{\mathit{tx}} (\mathit{nSpendsSapling}(\mathit{tx}) + \mathit{nOutputsSapling}(\mathit{tx})) \;+\; 2 \times \sum_{\mathit{tx}} \mathit{nJoinSplit}(\mathit{tx}) \;\leq\; 330$$
-
-where the factor of 2 for Sprout JoinSplits reflects that each
-JoinSplit produces 2 shielded outputs.
-
-This global budget bounds the combined shielded counts regardless of which
-combination of pools a block contains.
-
-These limits do not apply to the transparent components of
-transactions. The overall 2 MB block size limit continues to apply as
-before.
-
-
-## Effect on difficulty adjustment
-
-The difficulty adjustment algorithm uses the new target spacing and
-averaging window starting with the activation block. Its lookback includes
-pre-activation blocks where the window crosses the activation height.
-Implementations MUST NOT reset the window at activation or require that
-all 64 blocks come from the new consensus branch.
-
-The parameter $\mathsf{PoWMedianBlockSpan}$ remains unchanged.
-The existing adjustment bounds continue to apply. The algorithm adjusts
-the difficulty toward the new spacing through ordinary retargeting;
-this proposal does not introduce a separate difficulty reset.
+Orchard and Ironwood actions share the global budget as specified in ZIP 218.
+This proposal does not activate any transaction format or pool.
 
 ## Minimum difficulty blocks on Testnet
 
-The Testnet minimum-difficulty threshold continues to use
-$6 \cdot \mathsf{PoWTargetSpacing}(\mathsf{height})$ seconds, following
-ZIP 205 and ZIP 208. [^zip-0205] [^zip-0208]
-After activation, this threshold is $6 \times 20 = 120$ seconds.
+Retain ZIP 218's 450-second elapsed-time threshold after this upgrade.
+A block qualifies only if its timestamp is strictly more than 450 seconds
+after the preceding block's timestamp. In that case its `nBits` MUST equal
+$\mathsf{ToCompact}(\mathsf{PoWLimit})$, following ZIP 218.
+
+At and after $A_{20}$, this fixed threshold replaces the expression
+$18\cdot\mathsf{PoWTargetSpacing}(h)$. Thus 450 seconds does not qualify,
+while 451 seconds does. This rule does not affect Mainnet.
 
 ## Non-consensus node behaviour
 
-### Default expiry delta
+### Transaction expiry
 
-Node implementations that create transactions SHOULD change the default
-expiry delta from 40 to 150 blocks after activation. This preserves an
-expected expiry duration of 50 minutes. If the user sets `-txexpirydelta`,
-implementations SHOULD use that value before and after activation.
+Wallets SHOULD increase the default expiry delta from 120 to 150 blocks.
+Choose the default using the transaction's target height, which is the next
+block height after the chain tip. Use 150 when that height is at or above
+$A_{20}$; otherwise retain the prior default. Compute expiry relative to the
+target height as specified by ZIP 218. Wallets SHOULD preserve an explicit
+user-configured delta across activation.
 
-### Block-count-based constants
+### Block-count-based defaults
 
 Implementations SHOULD use the following post-activation defaults where
-they expose the corresponding settings. These defaults scale duration-based
-values by $15/4$ and retain the earlier proposal's other values.
-Implementations SHOULD NOT interpret these defaults as a change to
-consensus rules.
+they expose the corresponding settings. The table scales duration-based
+values by $5/4$ relative to ZIP 218. Larger rollback windows conform.
 
-| Constant | Before activation | After activation | Rationale |
-|----------|-------------------|------------------|-----------|
-| `COINBASE_MATURITY` | 100 | 100 | Retain the consensus maturity rule |
-| `MAX_REORG_LENGTH` | 99 | 99 | Retain the relationship to coinbase maturity |
-| `TX_EXPIRING_SOON_THRESHOLD` | 3 | 3 | Retain the block-count threshold |
-| `MAX_BLOCKS_IN_TRANSIT_PER_PEER` | 16 | 60 | Scale by 15/4 |
-| `BLOCK_DOWNLOAD_WINDOW` | 1024 | 3840 | Scale by 15/4 |
-| `MIN_BLOCKS_TO_KEEP` | 288 | 1080 | Preserve about six hours of blocks |
-| `NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD` | 1728 | 1728 | Retain the block-count period |
+| Constant | 25-second baseline | 20-second recommendation |
+|----------|--------------------|--------------------------|
+| `MAX_REORG_LENGTH` | At least 600 | At least 750 |
+| `MAX_BLOCKS_IN_TRANSIT_PER_PEER` | 48 | 60 |
+| `BLOCK_DOWNLOAD_WINDOW` | 3072 | 3840 |
+| `MIN_BLOCKS_TO_KEEP` | 864 | 1080 |
+
+The consensus coinbase maturity remains 100 blocks. This proposal leaves
+`TX_EXPIRING_SOON_THRESHOLD` at 3 and
+`NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD` at 1728, following ZIP 218.
 
 ### Anchor selection depth
 
-Wallets SHOULD retain ZIP 315's recommended anchor selection depth of
-3 blocks. [^zip-0315] At 20 seconds, that depth represents an expected
-60 seconds instead of 225 seconds at 75 seconds or 75 seconds at 25 seconds.
+Wallets SHOULD retain ZIP 315's recommended anchor depth of 3 blocks.
+[^zip-0315] Its expected duration changes from 75 to 60 seconds.
 This recommendation does not guarantee protection against reorganizations.
 
 
 # Rationale
 
-## Choice of 20 seconds
+## Incremental benefits and costs
 
-The proposal carries forward the 25-second design with a shorter target.
-The shorter target provides another 20% reduction in the expected wait for
-a block. Retaining the same per-block shielded limits also raises their
-per-day capacity and cost by 25% relative to the 25-second proposal.
+The relevant comparison is 25 seconds versus 20 seconds. The upgrade reduces
+the expected wait for a block by 20% and increases capacity per unit of time
+by 25%. Retaining the per-block action limits also increases maximum daily
+shielded sync work by 25%.
 
-Reducing the action limits in proportion to the target spacing would retain
-the 25-second proposal's daily shielded capacity. This draft instead retains
-the per-block limits to obtain the additional throughput. The measurements
-below will support review of this choice.
+Scaling the action limits down by 20% would preserve the prior daily shielded
+capacity. This draft instead retains those limits to obtain the additional
+throughput. New measurements should assess the resulting sustained load.
 
-## Stale block rate
+## Stale blocks and effective propagation time
 
-Shorter block intervals give miners less time to receive and validate a
-block before another miner finds a competing block. The relevant evidence
-includes propagation latency, validation latency, hash rate distribution,
-and network topology.
+The initial investigation uses the previous post's model:
+$\phi = \tau_{\mathrm{eff}}/T$, where $T$ is target spacing and $\phi$ is
+expected stale blocks per accepted block. [^propagation-report]
 
-The 25-second proposal provides historical context. Its results are not
-measurements of this proposal. An Ethereum proof-of-work stale block rate
-is a comparison point, not a universal safety threshold.
+Effective old-tip mining time accumulates the mining work still spent on
+the old tip during propagation. For example, half the network mining the
+old tip for one second contributes 0.5 effective seconds.
 
-**TODO: insert the 20-second experiment results.** Record the source
-revisions, node implementations, node count, regions, CPU allocations,
-mining calibration, block composition, measurement duration, and trace
-coverage. Report observed block spacing, stale block rate, the definition
-and rate of forks, reorganization depths, and propagation percentiles.
-Include a comparable 25-second run where available.
+If dissemination rises linearly from 0% to 90% over 1.56 seconds, the
+old-tip mining share falls from 100% to 10%. Its average is 55%, giving:
+
+$$\tau_{\mathrm{eff}}\approx1.56\times0.55=0.858\text{ seconds}.$$
+
+At 20 seconds, this gives $\phi\approx0.858/20=4.29\%$. It assumes nodes
+represent mining work and omits any material tail after reaching 90%.
+Remaining old-tip mining after that percentile adds to the effective time.
+
+Under Poisson discovery, the chance of another block anywhere within
+1.56 seconds is $1-e^{-1.56/20}\approx7.50\%$. That includes blocks found
+by miners who already received the new tip. The effective-time model counts
+only old-tip work. Its probability of at least one competitor is
+$1-e^{-0.858/20}\approx4.20\%$, distinct from the expected count of 4.29%.
+
+The rough 25-second baseline is about 3.2%. Scaling that rounded value alone
+gives 4.0% at 20 seconds. The initial near-full-block analysis gives a mean
+reach-90% time near 1.56 seconds, corresponding to 3.43% at 25 seconds and
+4.29% at 20 seconds under the same proxy. These are theoretical estimates,
+not measured 20-second stale rates.
+
+**TODO: publish the reproducible near-full-block analysis and add a stable
+reference.** Its current filter is height at least 400 and block body size
+at least 1,990,000 bytes, with 621 block hashes. State the observed-node
+coverage and propagation timestamp semantics. Add matched 25-second and
+20-second runs, propagation percentiles, the tail, stale counts, and
+reorganization depths. The reach proxy does not predict reorganization depth.
 
 ## Block processing time
 
-The per-block shielded limits match the 25-second proposal. The shorter
-spacing therefore increases the frequency of worst-case blocks without
-increasing their permitted shielded action counts. The network must sustain
-25% more block-processing work per unit of time than under that proposal.
+The inherited limits preserve per-block validation bounds. The shorter target
+requires processing 25% more worst-case blocks per unit of time. Full 2 MB
+blocks contribute 100,000 bytes per second at 20 seconds, versus 80,000 at
+25 seconds, before protocol overhead and retransmission.
 
-Full 2 MB blocks at 20-second spacing contribute 100,000 bytes per second
-(0.8 Mbit/s) of block data before protocol overhead and retransmission.
-A full node also needs capacity for transaction relay, peer fanout, state
-updates, and catching up after downtime.
-
-**TODO: insert current block verification benchmarks.** Cover Orchard,
-Sapling, Sprout, mixed-pool, and transparent workloads within the limits.
-Report hardware, software revisions, thread counts, block composition,
-sample counts, and timing distributions. Distinguish cold verification from
-verification that uses transactions already verified in the mempool.
+**TODO: insert current verification and sustained-load measurements.** Cover
+Orchard, Sapling, mixed-pool, and transparent workloads. Record revisions,
+hardware, thread counts, block composition, and timing distributions.
+Distinguish cold verification from use of transactions verified in the mempool.
 
 ## Shielded sync bandwidth analysis
 
-The estimates below use the 25-second proposal's compact-field model:
+The estimates below use the ZIP 218's compact-field model:
 148 bytes per Orchard action, 32 bytes per Sapling spend, 116 bytes per
 Sapling output, and approximately 90 bytes per compact block header.
-[^25-second-proposal] They exclude transaction framing, serialization
+[^zip-0218] They exclude transaction framing, serialization
 overhead, memos, full-transaction fetches, and transport overhead.
 
 An Orchard-only block contributes at most $330 \times 148 = 48{,}840$
@@ -402,7 +361,7 @@ $300 \times 116 = 34{,}800$ bytes. These maxima cannot occur in the same
 block because both pools consume the global budget. Under this field model,
 Orchard maximizes compact Sapling-and-Orchard payload per budget unit.
 
-| Metric | 25-second proposal | 20-second proposal |
+| Metric | ZIP 218 baseline (25 seconds) | This proposal (20 seconds) |
 |--------|--------------------|--------------------|
 | Expected blocks/day | 3,456 | 4,320 |
 | Orchard compact action fields/day | 168.79104 MB | 210.98880 MB |
@@ -411,10 +370,10 @@ Orchard maximizes compact Sapling-and-Orchard payload per budget unit.
 | Maximum compact fields plus headers/day in this model | 169.10208 MB | 211.37760 MB |
 | Trial decryptions/day, two IVKs per Orchard action | 2,280,960 | 2,851,200 |
 
-The 20-second estimate is approximately 21.9% below the earlier proposal's
-pre-upgrade baseline of 270.5 MB/day under its accounting assumptions.
-The extra compact header traffic relative to 75-second blocks is about
-0.28512 MB/day. These estimates do not bound Sprout wallet synchronization.
+The 20-second estimate increases the 25-second baseline by 25%, from
+169.10208 MB/day to 211.37760 MB/day under this field model. Compact header
+traffic increases by 0.07776 MB/day. These are capacity estimates for the
+specified workloads, not forecasts of ordinary wallet traffic.
 
 **TODO: insert updated wallet sync measurements.** Validate the baseline,
 serialized compact block sizes, trial decryption counts, and workload
@@ -447,78 +406,81 @@ uses four budget units but contributes two Sapling logical actions to the
 fee calculation. Equal fees per budget unit across pools do not follow from
 ZIP 317. This proposal leaves fee policy unchanged.
 
-## Difficulty averaging window [difficulty-averaging-window]
+## Difficulty averaging duration
 
-The 75-second target with a 17-block window spans an expected 1,275 seconds.
-The 25-second proposal preserves that duration exactly with 51 blocks.
-At 20 seconds, the equivalent count would be 63.75 blocks.
+ZIP 218's 102-block window at 25 seconds spans an expected 2,550 seconds.
+The equivalent count at 20 seconds is 127.5 blocks. This proposal rounds
+up to 128, giving 2,560 seconds, about 0.39% longer. A 127-block window
+would give 2,540 seconds. Keeping 102 blocks would shorten the duration
+to 2,040 seconds.
 
-This proposal rounds up to 64 blocks, giving an expected duration of
-1,280 seconds. That differs from the existing duration by five seconds,
-or approximately 0.39%. A 63-block window would span 1,260 seconds.
-Retaining 17 blocks would shorten the duration to 340 seconds.
+**TODO: simulate activation from the 25-second target and 102-block window
+to the 20-second target and 128-block window.** Include hash rate shocks,
+network splits, timestamp effects, and recovery criteria.
 
-The longer window approximates the existing smoothing duration. It does
-not prevent difficulty from falling during a sustained loss of hash rate
-or network split. Recovery time depends on the complete adjustment
-algorithm and the sequence of observed blocks.
+## Issuance and schedule continuity
 
-**TODO: insert difficulty adjustment simulations for the 20-second target
-and 64-block window.** Cover activation from 75 seconds, hash rate increases
-and decreases, and sustained network splits. Report transient spacing,
-recovery criteria, block counts, elapsed time, and effects of timestamp
-rules. The earlier 25-second simulations do not establish these results.
+The interval change preserves its expected duration:
 
-## Issuance and height-based schedules
+$$6{,}300{,}000\times20=5{,}040{,}000\times25\text{ seconds}.$$
 
-The ratio $75/20 = 15/4$ requires exact rational arithmetic. Scaling the
-halving interval to 6,300,000 blocks preserves its expected duration:
+The halving formula retains progress through the 25-second era. Scaling the
+unrounded scheduled subsidy by $4/5$ preserves the expected issuance rate
+before rounding. Integer rounding changes the realized schedule.
 
-$$6{,}300{,}000 \times 20 = 1{,}680{,}000 \times 75 \text{ seconds}.$$
+The NSM fraction changes from $1375/10^{10}$ to $1100/10^{10}$, also a factor
+of $4/5$. ZIP 237's ceiling and evolving balance mean this does not establish
+exact equality of reissuance per unit of wall-clock time.
 
-Scaling the subsidy by $4/15$ preserves expected issuance before rounding.
-The halving formula accounts for elapsed intervals before activation.
-
-**TODO: reconcile this draft with the final NU7 issuance and funding-stream
-ZIPs.** Audit funding periods, lockbox rules, and other height-based schedules
-against the chosen activation height. Include subsidy vectors immediately
-before and after activation and each affected halving boundary.
+**Open specification item:** amend the funding-stream end heights and address
+period calculations in ZIPs 207 and 214 for a second spacing transition.
+[^zip-0207] [^zip-0214] Preserve elapsed periods and define rounding of
+remaining durations at activation. Audit address-list bounds and other
+height-based schedules. The new deployment height and schedule amendments
+must be settled together; changing NU7 constants retroactively is invalid.
 
 
 # Reference implementation
 
-**TODO: link the implementation of the 20-second target, 64-block averaging
-window, subsidy calculation, and action limits.** Include activation-boundary
-and mixed-pool budget test vectors. Experiment-specific configurations alone
-do not establish an interoperable consensus implementation.
+**TODO: link the implementation and activation vectors.** Cover the 25-to-20
+transition, 102-to-128 averaging window, exact subsidy rounding, partial
+halving intervals, funding schedules, NSM state continuity, and Testnet's
+450/451-second boundary. Experiment configurations alone do not establish
+an interoperable consensus implementation.
 
 
 # Deployment
 
-This proposal targets NU7, subject to community agreement and the network
-upgrade process. A separate deployment ZIP will specify Mainnet and Testnet
-activation heights and consensus branch IDs.
+Deploy this proposal in a separate network upgrade after NU7. ZIP 259 defines
+NU7's deployment; this proposal does not replace that deployment. [^zip-0259]
+A future deployment ZIP will assign activation heights and consensus branch
+IDs for this upgrade. This draft does not assign a network upgrade number.
 
-This draft replaces the 25-second target under discussion. It does not
-schedule a second transition after a 25-second upgrade.
+Before this ZIP advances to Proposed status, resolve the funding-stream and
+NSM reissuance-height specification items. Complete the activation and
+rounding analysis against the selected deployment parameters.
 
 
 # References
 
 [^BCP14]: [Information on BCP 14](https://www.rfc-editor.org/info/bcp14)
 
-[^25-second-proposal]: [25-second Block Target Spacing](draft-valargroup-blocktime-reduction.md)
-
 [^protocol]: [Zcash Protocol Specification](protocol/protocol.pdf)
-
-[^protocol-networks]: [Zcash Protocol Specification, § 3.12: Mainnet and Testnet](protocol/protocol.pdf#networks)
 
 [^zip-0200]: [ZIP 200: Network Upgrade Mechanism](zip-0200.rst)
 
-[^zip-0205]: [ZIP 205: Deployment of the Sapling Network Upgrade](zip-0205.rst)
+[^zip-0207]: [ZIP 207: Funding Streams](https://zips.z.cash/zip-0207)
 
-[^zip-0208]: [ZIP 208: Shorter Block Target Spacing](zip-0208.rst)
+[^zip-0214]: [ZIP 214: Consensus rules for a Zcash Development Fund](https://zips.z.cash/zip-0214)
+
+[^zip-0218]: [ZIP 218: 25-second Block Target Spacing](https://zips.z.cash/zip-0218)
+
+[^zip-0237]: [ZIP 237: Network Sustainability Mechanism: Halving-Preserving Issuance](https://zips.z.cash/zip-0237)
+
+[^zip-0259]: [ZIP 259: Deployment of the NU7 Network Upgrade](https://zips.z.cash/zip-0259)
 
 [^zip-0315]: [ZIP 315: Best Practices for Wallet Implementations](zip-0315.rst)
 
 [^zip-0317]: [ZIP 317: Proportional Transfer Fee Mechanism](zip-0317.rst)
+
+[^propagation-report]: [Zcash Block Time Reduction Appears Safe for NU7 w/ Zebra Only Devnet](https://forum.zcashcommunity.com/t/zcash-block-time-reduction-appears-safe-for-nu7-w-zebra-only-devnet/55586)
