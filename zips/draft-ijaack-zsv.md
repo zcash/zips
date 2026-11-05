@@ -6,6 +6,7 @@
     Created: 2026-11-05
     License: MIT
     Discussions-To: <https://github.com/iJaack/zsv/issues/1>
+    Pull-Request: <https://github.com/zcash/zips/pull/1438>
 
 No ZIP number or network upgrade has been assigned. Deployment allocations and outstanding
 review are listed below.
