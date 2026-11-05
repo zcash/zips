@@ -35,76 +35,42 @@ from the fraction of all mined blocks that become stale.
 sample. "Effective old-tip mining time" means the accumulated mining work
 spent on the old tip, expressed as seconds of the whole network's mining power.
 
-MB means 1,000,000 bytes. TPS means transactions per second.
+MB means 1,000,000 bytes.
 
 
 # Abstract
 
-This proposal reduces Zcash's block target spacing from 25 seconds to
-20 seconds in a network upgrade after NU7. It builds on ZIP 218, which
-specifies the 25-second target for NU7. [^zip-0218] [^zip-0259]
+This proposal reduces block target spacing from 25 to 20 seconds in a
+network upgrade after NU7. It builds on ZIP 218 without changing its action
+limits or block size limit. [^zip-0218] [^zip-0259]
 
-The change reduces the expected wait for a first confirmation by 20%.
-It provides 25% more blocks per unit of time. The proposal inherits the
-2 MB block size limit and ZIP 218's shielded action limits. With those limits,
-two-action Orchard capacity rises from 6.6 to 8.25 transactions per second.
-The corresponding maximum daily compact sync payload also rises by 25%.
-
-The proposal extends the halving interval by a factor of 5/4 and scales the
-scheduled subsidy by 4/5 before integer rounding. It adjusts ZIP 237's
-reissuance fraction to the new interval. It increases the difficulty averaging
-window from 102 to 128 blocks to preserve approximately its existing duration.
-It also adjusts node defaults that represent durations.
-
-The proposal preserves the shielded transaction formats and action accounting
-of the baseline. Shorter inclusion intervals can change timing information
-visible to observers. This draft leaves deployment-dependent funding and
-reissuance schedules, implementation vectors, and new measurements open for
-completion before submission for Proposed status.
-
+The change reduces the expected wait for a block by 20% and increases
+capacity and maximum sustained processing work by 25%. It adjusts the
+difficulty averaging window, issuance parameters, and duration-based node
+defaults to the new spacing. Shorter inclusion intervals can expose finer
+transaction timing information.
 
 # Motivation
 
-With a 25-second target, a user who needs one confirmation waits about
-25 seconds under stable conditions. A 20-second target reduces that wait
-by five seconds. Applications that need a small number of confirmations
-benefit from the shorter intervals.
-
-The proposal adds capacity through 25% more blocks per unit of time. It
-retains the per-block limits already established by ZIP 218. This raises
-both capacity and sustained processing costs by 25% relative to the
-25-second baseline. The incremental cost is the central trade-off for this ZIP.
-
-ZIP 218 established the initial block-spacing reduction and shielded resource
-limits. This proposal asks whether the network has sufficient propagation
-and validation margin for a further reduction to 20 seconds. It does not
-prescribe lower confirmation counts or add a finality mechanism.
+A 20-second target reduces the expected wait for a first confirmation by
+five seconds. With unchanged per-block limits, it provides 25% more capacity
+at the cost of 25% more maximum sustained validation and wallet sync work.
+This proposal evaluates that incremental trade-off from ZIP 218's baseline.
 
 
 # Privacy Implications
 
-This proposal preserves the baseline's shielded encryption and proof systems.
-More frequent blocks can give observers finer information about inclusion
-times. Fewer transactions per block at a fixed demand can also affect timing
-analysis. Privacy review should assess those effects without treating a block
-as the boundary of the shielded anonymity set.
-
-The inherited action limits continue to constrain work per block. The higher
-block frequency raises the maximum daily wallet sync work by 25%. The analysis
-below distinguishes compact-field payload from all wallet traffic.
-
+The proposal preserves shielded encryption and proof systems. More frequent
+blocks can expose finer inclusion timing and reduce transactions per block
+at a fixed demand. Privacy review should assess those effects.
 
 # Requirements
 
-- Reduce block target spacing from 25 seconds to 20 seconds after NU7.
-- Preserve the expected scheduled issuance and halving durations, subject to
-  integer rounding, including progress through the halving interval at activation.
-- Preserve ZIP 218's block size limit and shielded action accounting.
-- Preserve approximately the baseline's difficulty averaging duration.
-- Account for the 25% increase in maximum sustained processing and sync work.
-- Integrate the transition with ZIP 237 and active funding-stream schedules.
-- Leave historical consensus rules intact.
-
+- Reduce target spacing from 25 to 20 seconds after NU7.
+- Preserve approximately the difficulty averaging duration and issuance schedule,
+  including partial halving intervals, subject to integer rounding.
+- Preserve historical consensus rules and integrate the transition with ZIP 237
+  and active funding-stream schedules.
 
 # Specification
 
@@ -147,8 +113,16 @@ the height of the block under consideration.
 
 The averaging window includes pre-activation blocks when its lookback crosses
 the activation height. Implementations MUST NOT reset it at activation.
-The median-time span and adjustment bounds remain unchanged. The difficulty
-algorithm moves toward the new spacing through ordinary retargeting.
+ZIP 218's difficulty formulae therefore use:
+
+- a 128-block lookback for $\mathsf{MeanTarget}(h)$;
+- $\mathsf{ActualTimespan}(h) = \mathsf{MedianTime}(h) - \mathsf{MedianTime}(h-128)$;
+- $\mathsf{AveragingWindowTimespan}(h) = 128\times20 = 2{,}560$ seconds.
+
+The median-time span, damping factor, adjustment bounds, and proof-of-work
+limit remain unchanged. Implementations MUST apply the existing difficulty
+algorithm with these height-dependent inputs from the activation block;
+there is no separate difficulty reset.
 
 ## Halving interval and scheduled subsidy
 
@@ -221,22 +195,10 @@ issuance curve and fraction. ZIP 259's fixed heights were calculated for
 If reissuance has already started, the transition must retain that activated
 state. Resolve both cases before this ZIP advances to Proposed status.
 
-## Inherited shielded limits
+## Action limits
 
-Implementations MUST continue to enforce ZIP 218's shielded action limits
-and global budget. This proposal introduces no new action accounting.
-The inherited parameters are:
-
-| Parameter | Value before and after this upgrade |
-|-----------|-------------------------------------|
-| Global shielded budget | 330 |
-| Orchard-protocol action limit per pool | 330 |
-| Sapling inputs plus outputs | 300 |
-| Sprout JoinSplits | 0 |
-| Block size limit | 2,000,000 bytes |
-
-Orchard and Ironwood actions share the global budget as specified in ZIP 218.
-This proposal does not activate any transaction format or pool.
+This proposal does not change ZIP 218's action limits, global shielded budget,
+or block size limit. Implementations MUST continue to enforce them.
 
 ## Minimum difficulty blocks on Testnet
 
@@ -286,16 +248,15 @@ This recommendation does not guarantee protection against reorganizations.
 
 # Rationale
 
-## Incremental benefits and costs
+## Capacity and resource costs
 
-The relevant comparison is 25 seconds versus 20 seconds. The upgrade reduces
-the expected wait for a block by 20% and increases capacity per unit of time
-by 25%. Retaining the per-block action limits also increases maximum daily
-shielded sync work by 25%.
+With unchanged per-block limits, maximum sustained processing and sync work
+increase by 25%. Two-action Orchard capacity rises from 6.6 to 8.25 transactions
+per second. ZIP 218's compact-field model rises from approximately 169.10 to
+211.38 MB/day; it excludes serialization and transport overhead. [^zip-0218]
 
-Scaling the action limits down by 20% would preserve the prior daily shielded
-capacity. This draft instead retains those limits to obtain the additional
-throughput. New measurements should assess the resulting sustained load.
+**TODO:** add matched 25-second and 20-second verification, propagation, and
+wallet sync measurements under sustained near-full-block workloads.
 
 ## Stale blocks and effective propagation time
 
@@ -322,89 +283,14 @@ by miners who already received the new tip. The effective-time model counts
 only old-tip work. Its probability of at least one competitor is
 $1-e^{-0.858/20}\approx4.20\%$, distinct from the expected count of 4.29%.
 
-The rough 25-second baseline is about 3.2%. Scaling that rounded value alone
-gives 4.0% at 20 seconds. The initial near-full-block analysis gives a mean
-reach-90% time near 1.56 seconds, corresponding to 3.43% at 25 seconds and
-4.29% at 20 seconds under the same proxy. These are theoretical estimates,
-not measured 20-second stale rates.
+The rough 3.2% baseline scales to 4.0% at 20 seconds. The near-full-block
+sample instead gives 1.56 seconds to reach 90%, yielding 3.43% at 25 seconds
+and 4.29% at 20 seconds. These are theoretical estimates.
 
-**TODO: publish the reproducible near-full-block analysis and add a stable
-reference.** Its current filter is height at least 400 and block body size
-at least 1,990,000 bytes, with 621 block hashes. State the observed-node
-coverage and propagation timestamp semantics. Add matched 25-second and
-20-second runs, propagation percentiles, the tail, stale counts, and
-reorganization depths. The reach proxy does not predict reorganization depth.
-
-## Block processing time
-
-The inherited limits preserve per-block validation bounds. The shorter target
-requires processing 25% more worst-case blocks per unit of time. Full 2 MB
-blocks contribute 100,000 bytes per second at 20 seconds, versus 80,000 at
-25 seconds, before protocol overhead and retransmission.
-
-**TODO: insert current verification and sustained-load measurements.** Cover
-Orchard, Sapling, mixed-pool, and transparent workloads. Record revisions,
-hardware, thread counts, block composition, and timing distributions.
-Distinguish cold verification from use of transactions verified in the mempool.
-
-## Shielded sync bandwidth analysis
-
-The estimates below use the ZIP 218's compact-field model:
-148 bytes per Orchard action, 32 bytes per Sapling spend, 116 bytes per
-Sapling output, and approximately 90 bytes per compact block header.
-[^zip-0218] They exclude transaction framing, serialization
-overhead, memos, full-transaction fetches, and transport overhead.
-
-An Orchard-only block contributes at most $330 \times 148 = 48{,}840$
-bytes of compact action fields. An all-output Sapling block contributes
-$300 \times 116 = 34{,}800$ bytes. These maxima cannot occur in the same
-block because both pools consume the global budget. Under this field model,
-Orchard maximizes compact Sapling-and-Orchard payload per budget unit.
-
-| Metric | ZIP 218 baseline (25 seconds) | This proposal (20 seconds) |
-|--------|--------------------|--------------------|
-| Expected blocks/day | 3,456 | 4,320 |
-| Orchard compact action fields/day | 168.79104 MB | 210.98880 MB |
-| Sapling compact output fields/day, all-output workload | 120.26880 MB | 150.33600 MB |
-| Approximate compact headers/day | 0.31104 MB | 0.38880 MB |
-| Maximum compact fields plus headers/day in this model | 169.10208 MB | 211.37760 MB |
-| Trial decryptions/day, two IVKs per Orchard action | 2,280,960 | 2,851,200 |
-
-The 20-second estimate increases the 25-second baseline by 25%, from
-169.10208 MB/day to 211.37760 MB/day under this field model. Compact header
-traffic increases by 0.07776 MB/day. These are capacity estimates for the
-specified workloads, not forecasts of ordinary wallet traffic.
-
-**TODO: insert updated wallet sync measurements.** Validate the baseline,
-serialized compact block sizes, trial decryption counts, and workload
-assumptions. Include mixed-pool workloads and account separately for traffic
-outside the compact-field model.
-
-## Normal transaction throughput
-
-For two-action Orchard transactions, the limit permits
-$\lfloor 330 / 2 \rfloor = 165$ transactions per block:
-
-$$165 / 20 = 8.25 \text{ TPS}.$$
-
-The corresponding 25-second capacity is 6.6 TPS. For Sapling transactions
-with two spends and two outputs, the limit permits 75 transactions per
-block, or 3.75 TPS at 20 seconds instead of 3 TPS at 25 seconds.
-These are separate single-pool capacities. Mixed-pool workloads share the
-global budget and remain subject to the block size limit.
-
-## Fee incentives and DoS resistance
-
-The global budget bounds shielded counts regardless of the fee a miner
-accepts. It does not reserve capacity for a particular pool or guarantee
-transaction inclusion.
-
-ZIP 317's conventional fee counts Sapling logical actions using the maximum
-of spends and outputs. This proposal's Sapling budget counts their sum.
-[^zip-0317] A transaction with two Sapling spends and two outputs therefore
-uses four budget units but contributes two Sapling logical actions to the
-fee calculation. Equal fees per budget unit across pools do not follow from
-ZIP 317. This proposal leaves fee policy unchanged.
+**TODO:** publish the reproducible near-full-block analysis. Its filter is
+height at least 400 and body size at least 1,990,000 bytes, with 621 block
+hashes. Report node coverage and timestamp semantics. The reach proxy does
+not predict reorganization depth.
 
 ## Difficulty averaging duration
 
@@ -480,7 +366,5 @@ rounding analysis against the selected deployment parameters.
 [^zip-0259]: [ZIP 259: Deployment of the NU7 Network Upgrade](https://zips.z.cash/zip-0259)
 
 [^zip-0315]: [ZIP 315: Best Practices for Wallet Implementations](zip-0315.rst)
-
-[^zip-0317]: [ZIP 317: Proportional Transfer Fee Mechanism](zip-0317.rst)
 
 [^propagation-report]: [Zcash Block Time Reduction Appears Safe for NU7 w/ Zebra Only Devnet](https://forum.zcashcommunity.com/t/zcash-block-time-reduction-appears-safe-for-nu7-w-zebra-only-devnet/55586)
