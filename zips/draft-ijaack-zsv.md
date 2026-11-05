@@ -5,7 +5,7 @@
     Category: Consensus
     Created: 2026-11-05
     License: MIT
-    Discussions-To: <https://github.com/iJaack/zsv/issues/1>
+    Discussions-To: <https://forum.zcashcommunity.com/t/zip-draft-zsv-one-zec-backed-stablecoin-on-zcash/58909>
     Pull-Request: <https://github.com/zcash/zips/pull/1438>
 
 No ZIP number or network upgrade has been assigned. Deployment allocations and outstanding
@@ -881,8 +881,8 @@ funding recipient's allocation does not itself allocate the difference to ZSV.
 
 ## Community discussion
 
-No community endorsement, editor approval or public review outcome is claimed. The alias-named
-draft is intended to start that discussion. Objections, alternatives and responses will be
+The [forum discussion](https://forum.zcashcommunity.com/t/zip-draft-zsv-one-zec-backed-stablecoin-on-zcash/58909) opened on 5 November 2026.
+No community endorsement, editor approval or public review outcome is claimed. Objections, alternatives and responses will be
 recorded here when they exist. The mathematical studies and coding-agent adversarial reviews are
 preliminary evidence, not the qualified independent expert review required for release of a
 security-sensitive ZIP. [^zip-0000]
@@ -948,7 +948,7 @@ remaining work before calling this a deployment-ready specification is:
 1. Allocate the new transaction/group identifiers and upgrade context; select Mainnet/Testnet activation and the public reporter roster through the deployment process.
 2. Independently review and implement the byte, digest, authorization and branch-state rules, and produce signed transaction and full-block conformance vectors.
 3. Obtain qualified consensus/cryptographic/privacy review and resource benchmarks, and justify the economic parameters, oracle operations and loss policy against adversarial conditions.
-4. Publish the forum announcement and add its discussion URL; rerun upstream rendering after metadata changes. This draft has been rendered with the ZIP repository's `render.sh --pandoc` path.
+4. Incorporate forum feedback and rerun upstream rendering after metadata changes. This draft has been rendered with the ZIP repository's `render.sh --pandoc` path.
 
 The public-first scope and Owners contact are confirmed. No editor-assigned number, named
 reviewer, oracle operator or activation approval has been invented to fill these entries.
