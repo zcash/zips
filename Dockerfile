@@ -1,7 +1,9 @@
 FROM debian:bullseye
 
-RUN apt-get update
-RUN apt-get install -y \
+# Bullseye's packages are now on Debian's archive mirrors.
+# Keep the package lists and installation in one layer to avoid stale cached lists.
+RUN sed -i 's|deb.debian.org|archive.debian.org|g' /etc/apt/sources.list \
+    && apt-get update && apt-get install -y \
         perl \
         sed \
         git \
@@ -15,7 +17,8 @@ RUN apt-get install -y \
         texlive-science \
         texlive-fonts-extra \
         texlive-plain-generic \
-        texlive-bibtex-extra
+        texlive-bibtex-extra \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN rm -f /usr/lib/python3.11/EXTERNALLY-MANAGED
 RUN pip install 'docutils==0.21.2' 'rst2html5==2.0.1'
@@ -29,6 +32,7 @@ RUN git clone -b develop https://github.com/Electric-Coin-Company/MultiMarkdown-
   make release && cd build && make && make install
 
 ENV PATH=${PATH}:/root/.local/bin
+ENV LANG=C.UTF-8
 
 WORKDIR "/zips"
 
