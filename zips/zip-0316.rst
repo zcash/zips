@@ -21,9 +21,9 @@
 Terminology
 ===========
 
-The key words "MUST", "MUST NOT", "SHOULD", "RECOMMENDED", and "MAY" in this
-document are to be interpreted as described in BCP 14 [#BCP14]_ when, and only
-when, they appear in all capitals.
+The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", and
+"MAY" in this document are to be interpreted as described in BCP 14 [#BCP14]_
+when, and only when, they appear in all capitals.
 
 The terms below are to be interpreted as follows:
 
@@ -1025,6 +1025,144 @@ invalid.
 
    </details>
 
+Key Derivation Metadata
+-----------------------
+
+A wallet that holds only a UFVK cannot sign transactions, but it can construct
+them for an external signer (such as a hardware wallet) that holds the
+corresponding seed. A signer generally identifies the spending key to use for an
+input by its seed fingerprint and derivation path; for example, these are the
+contents of the ZIP 32 and BIP 32 derivation fields of a partially created Zcash
+transaction, and of the key origin fields of BIP 174 [#bip-0174]_. Typecodes
+$\mathtt{0xC1}$ and $\mathtt{0xC2}$ are reserved for optional Metadata Items
+that carry this information in a UFVK, so that a Consumer can obtain it at the
+time the UFVK is imported.
+
+The value of a $\mathtt{0xC1}$ (Seed Fingerprint) Item MUST be a 32-byte seed
+fingerprint, as defined in ZIP 32 [#zip-0032-seed-fingerprints]_, of the master
+seed from which the FVK Items listed in the $\mathtt{0xC2}$ Item of the same
+UFVK are derived.
+
+The value of a $\mathtt{0xC2}$ (Key Derivation Paths) Item is encoded as
+follows:
+
+* $\mathtt{n\_entries} : \mathtt{compactSize}$ — the number of entries,
+  which MUST be at least $1$.
+
+* For each of the $\mathtt{n\_entries}$ entries:
+
+  * $\mathtt{fvk\_typecode} : \mathtt{compactSize}$ — the Typecode of an FVK
+    Item in the same UFVK.
+
+  * $\mathtt{depth} : \mathtt{compactSize}$ — the number of elements in the
+    derivation path, which MUST be at least $1$.
+
+  * $\mathtt{path} : \mathtt{uint32[depth]}$ — the child indices of the
+    derivation path, each encoded as an unsigned 32-bit integer in
+    little-endian order. An index $i$ with $i \geq 2^{31}$ denotes the hardened
+    child index $(i - 2^{31})'$.
+
+An entry states that the FVK Item having Typecode $\mathtt{fvk\_typecode}$ is
+the encoding of the key at $\mathtt{path}$, derived from the master seed whose
+fingerprint is the value of the $\mathtt{0xC1}$ Item. $\mathtt{path}$ is the
+complete path from the master node of the relevant derivation tree, including
+the purpose level:
+
+* for Typecode $\mathtt{0x03}$ (Orchard), from $m_\mathsf{Orchard}$ as
+  defined in ZIP 32 [#zip-0032-orchard-key-path]_; every index in the path
+  MUST be hardened;
+
+* for Typecode $\mathtt{0x02}$ (Sapling), from $m_\mathsf{Sapling}$ as
+  defined in ZIP 32 [#zip-0032-sapling-key-path]_;
+
+* for Typecode $\mathtt{0x00}$ (Transparent P2PKH), from the BIP 32 master
+  node $m$ [#bip-0032]_.
+
+For example, the entries for a UFVK derived at account $a$ according to ZIP 32
+and BIP 44 have the paths $32' / coin\_type' / a'$ for the Orchard and Sapling
+FVK Items, and $44' / coin\_type' / a'$ for the Transparent P2PKH FVK Item.
+
+The following requirements apply:
+
+* Entries MUST be in strictly ascending order of $\mathtt{fvk\_typecode}$.
+
+* $\mathtt{fvk\_typecode}$ MUST be $\mathtt{0x00}$, $\mathtt{0x02}$, or
+  $\mathtt{0x03}$, and the UFVK MUST contain an FVK Item having that Typecode.
+  A Producer MAY omit the entry for an FVK Item whose derivation it does not
+  know.
+
+* A UFVK that contains a $\mathtt{0xC1}$ Item MUST contain a $\mathtt{0xC2}$
+  Item, and vice versa.
+
+* These Items MAY be included in a UFVK of any Revision. They MUST NOT be
+  included in a UIVK or a Unified Address.
+
+* When deriving a UIVK from a UFVK, a Consumer MUST NOT include these Items in
+  the derived UIVK.
+
+* A Consumer that recognises these Items MUST reject a UFVK that violates any
+  of the above requirements. A Consumer MUST ignore either Item in a UIVK or
+  Unified Address.
+
+A Consumer cannot check these Items against the FVK Items without access to
+the master seed. Consumers MUST NOT rely on these Items for any security
+property. Before a Consumer records the derivation of an account as
+established, or presents the account to the user as linked to a particular
+signer, it SHOULD confirm the derivation with a signer that holds the seed,
+for example by obtaining from the signer the FVK at the stated path and
+comparing it with the corresponding FVK Item.
+
+A Producer SHOULD include these Items only in a UFVK that is exported for use
+by a wallet that will construct transactions for the holder of the seed to
+sign. A Producer SHOULD NOT include them in a UFVK that is exported only for
+viewing, for example to an auditor.
+
+Rationale for Key Derivation Metadata
+'''''''''''''''''''''''''''''''''''''
+
+.. raw:: html
+
+   <details>
+   <summary>Click to show/hide</summary>
+
+Without these Items, a wallet that imports a UFVK has to obtain the seed
+fingerprint and account index separately, for example through a vendor-specific
+export format, or by asking the signer each time a transaction is signed.
+
+The Items are non-MUST-understand because they neither change the
+interpretation of the UFVK nor give additional viewing authority: a Consumer
+that ignores them loses only the ability to construct signing requests without
+help from the signer. For the same reason they are permitted in `Revision 0`_
+UFVKs, which a Producer can extend without changing the Human-Readable Part;
+`Revision 0`_ Consumers are required to ignore Items with Typecodes they do not
+recognise.
+
+The seed fingerprint and the derivation paths are separate Items because one
+seed fingerprint applies to every FVK Item, while each FVK Item has its own
+path. The paths are stated in full, rather than as a single account index,
+because the shielded and transparent trees use different purpose levels, and
+because some derivations (such as the ``zcashd`` legacy Sapling derivation
+under account $\mathtt{0x7FFFFFFF}$ [#zip-0032-sapling-key-path]_) do not
+follow the account-level convention. The path encoding is the one used by BIP
+174 key origins [#bip-0174]_.
+
+The Items are excluded from UIVKs and Unified Addresses because the holder of
+an IVK or address cannot construct a spend, and because they would reduce
+privacy. The seed fingerprint is the same for every account derived from a
+seed, so any two UFVKs that contain it can be linked to the same seed; the
+derivation path reveals the account index. A UFVK already gives full viewing
+authority over its account, but this linkage across accounts is additional
+information, which is why Producers are advised to include the Items only when
+they are needed.
+
+P2SH FVK Items are not covered, because each key of a multisignature policy
+can be derived from a different seed. Key origins for such keys would need a
+per-key encoding, which can be defined in a future revision.
+
+.. raw:: html
+
+   </details>
+
 Typecode Registry
 -----------------
 
@@ -1074,7 +1212,11 @@ properties of ``zu`` addresses.
   +-------------------+--------------------------------------+----+--------+--------+
   | 0xC0              | Viewing Key Birthday Height [2]      | ❌ | ❌     | ❌     |
   +-------------------+--------------------------------------+----+--------+--------+
-  | 0xC1..=0xDF       | Unassigned Non-MUST-understand       | ❌ | ❌     | ❌     |
+  | 0xC1              | Seed Fingerprint [3]                 | ❌ | ❌     | ❌     |
+  +-------------------+--------------------------------------+----+--------+--------+
+  | 0xC2              | Key Derivation Paths [3]             | ❌ | ❌     | ❌     |
+  +-------------------+--------------------------------------+----+--------+--------+
+  | 0xC3..=0xDF       | Unassigned Non-MUST-understand       | ❌ | ❌     | ❌     |
   +-------------------+--------------------------------------+----+--------+--------+
   | 0xE0              | Address Expiry Height                | ❌ | ✅     | ✅     |
   +-------------------+--------------------------------------+----+--------+--------+
@@ -1091,6 +1233,8 @@ properties of ``zu`` addresses.
 
 [2] Permitted only in UFVKs and UIVKs, as specified in
 `Viewing Key Birthday Height Metadata`_.
+
+[3] Permitted only in UFVKs, as specified in `Key Derivation Metadata`_.
 
 Additions to this registry are made via 2xxx-series ZIPs. This table will be
 updated by the ZIP Editors when such a ZIP transitions to ``Proposed`` status.
@@ -1665,6 +1809,7 @@ References
 .. [#zip-0032-sapling-internal-key-derivation] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling internal key derivation <zip-0032.rst#sapling-internal-key-derivation>`_
 .. [#zip-0032-orchard-child-key-derivation] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard child key derivation <zip-0032.rst#orchard-child-key-derivation>`_
 .. [#zip-0032-orchard-internal-key-derivation] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard internal key derivation <zip-0032.rst#orchard-internal-key-derivation>`_
+.. [#zip-0032-seed-fingerprints] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Seed Fingerprints <zip-0032.rst#seed-fingerprints>`_
 .. [#zip-0032-specification-wallet-usage] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Specification: Wallet usage <zip-0032.rst#specification-wallet-usage>`_
 .. [#zip-0032-sapling-key-path] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Sapling key path <zip-0032.rst#sapling-key-path>`_
 .. [#zip-0032-orchard-key-path] `ZIP 32: Shielded Hierarchical Deterministic Wallets — Orchard key path <zip-0032.rst#orchard-key-path>`_
@@ -1684,6 +1829,7 @@ References
 .. [#bip-0044] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>`_
 .. [#bip-0044-path-change] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets — Path levels: Change <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#change>`_
 .. [#bip-0044-path-index] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets — Path levels: Index <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki#index>`_
+.. [#bip-0174] `BIP 174: Partially Signed Bitcoin Transaction Format <https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki>`_
 .. [#bip-0350] `BIP 350: Bech32m format for v1+ witness addresses <https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki>`_
 .. [#bip-0380] `BIP 380: Output Script Descriptors General Operation <https://github.com/bitcoin/bips/blob/master/bip-0380.mediawiki>`_
 .. [#bip-0388] `BIP 388: Wallet Policies for Descriptor Wallets <https://github.com/bitcoin/bips/blob/master/bip-0388.mediawiki>`_
