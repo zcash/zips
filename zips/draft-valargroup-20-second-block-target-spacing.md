@@ -24,8 +24,7 @@ difficulty adjustment algorithm. Actual block intervals vary.
 
 The "25-second baseline" means the rules after NU7, including ZIP 218's
 25-second target spacing and ZIP 237's subsidy definitions. [^zip-0218]
-[^zip-0237] This is the baseline for the proposed transition, rather than
-a claim that NU7 has already activated on every network.
+[^zip-0237]
 
 A "stale block" is a valid mined block that does not remain on the selected
 chain. This document reports "stale blocks per accepted block" separately
@@ -60,9 +59,9 @@ This proposal evaluates that incremental trade-off from ZIP 218's baseline.
 
 # Privacy Implications
 
-ZIP 218's privacy considerations apply here. [^zip-0218] Shorter blocks give
-observers finer timing information without changing what individual shielded
-transactions reveal.
+ZIP 218 identifies timing and anchor-depth privacy effects. [^zip-0218]
+Shorter blocks give observers finer timing information without changing what
+individual shielded transactions reveal.
 
 A three-block anchor depth spans an expected 60 seconds instead of 75.
 A rollback past the anchor invalidates the transaction. A replacement spending
@@ -99,7 +98,8 @@ For a height $h \in \mathbb{N}$ at or above this activation height, define:
 
 $$\mathsf{PoWTargetSpacing}(h) := \mathsf{TwentySecondPoWTargetSpacing}.$$
 
-At earlier heights, retain ZIP 218's definition of $\mathsf{PoWTargetSpacing}$.
+For $h < \mathsf{TwentySecondActivationHeight}$, retain ZIP 218's
+definition of $\mathsf{PoWTargetSpacing}$.
 In particular, $\mathsf{PostNU7PoWTargetSpacing}$ remains 25 seconds.
 
 ## Difficulty averaging window
@@ -112,9 +112,10 @@ For $h \geq \mathsf{TwentySecondActivationHeight}$, define:
 
 $$\mathsf{PoWAveragingWindow}(h) := \mathsf{TwentySecondPoWAveragingWindow}.$$
 
-At earlier heights, retain ZIP 218's definition, including its 102-block
-post-NU7 window. All uses of this function in the difficulty algorithm use
-the height of the block under consideration.
+For $h < \mathsf{TwentySecondActivationHeight}$, retain ZIP 218's
+averaging window, including 102 blocks after NU7 activation. All uses of this
+function in the difficulty algorithm use the height of the block under
+consideration.
 
 The averaging window includes pre-activation blocks when its lookback crosses
 the activation height. Implementations MUST NOT reset it at activation.
@@ -133,40 +134,27 @@ there is no separate difficulty reset.
 
 Define:
 
-$$\mathsf{TwentySecondHalvingInterval} : \mathbb{N}
-:= \mathsf{PostNU7HalvingInterval}\cdot 5/4 = 6{,}300{,}000.$$
+$$\mathsf{TwentySecondHalvingInterval} : \mathbb{N} := \mathsf{PostNU7HalvingInterval}\cdot 5/4 = 6{,}300{,}000.$$
 
 For the following formula, let $A_{20} = \mathsf{TwentySecondActivationHeight}$,
 $A_7 = \mathsf{NU7ActivationHeight}$, and
 $A_B = \mathsf{BlossomActivationHeight}$. These are nonnegative integer heights.
 For $h \geq A_{20}$, define:
 
-$$
-\mathsf{Halving}(h) := \left\lfloor
-\frac{A_B-\mathsf{SlowStartShift}}{\mathsf{PreBlossomHalvingInterval}}
-+\frac{A_7-A_B}{\mathsf{PostBlossomHalvingInterval}}
-+\frac{A_{20}-A_7}{\mathsf{PostNU7HalvingInterval}}
-+\frac{h-A_{20}}{\mathsf{TwentySecondHalvingInterval}}
-\right\rfloor.
-$$
+$$\mathsf{Halving}(h) := \left\lfloor \frac{A_B-\mathsf{SlowStartShift}}{840{,}000} +\frac{A_7-A_B}{1{,}680{,}000} +\frac{A_{20}-A_7}{5{,}040{,}000} +\frac{h-A_{20}}{6{,}300{,}000} \right\rfloor.$$
 
-For $h < A_{20}$, retain the prior halving function, including its slow-start
-cases. Implementations MUST preserve the fractional progress through the
+The denominators are the pre-Blossom, post-Blossom, post-NU7, and 20-second
+halving intervals, respectively. For $h < A_{20}$, retain ZIP 218's halving
+function, including its slow-start cases. Implementations MUST preserve the fractional progress through the
 halving interval at activation. They MUST NOT restart an interval at $A_{20}$.
 
 For $h \geq A_{20}$, replace ZIP 237's scheduled subsidy with:
 
-$$
-\mathsf{ScheduledBlockSubsidy}(h) := \left\lfloor
-\frac{\mathsf{MaxBlockSubsidy}}
-{\mathsf{BlossomPoWTargetSpacingRatio}\cdot
- \mathsf{NU7PoWTargetSpacingRatio}\cdot
- \mathsf{TwentySecondSpacingRatio}\cdot 2^{\mathsf{Halving}(h)}}
-\right\rfloor.
-$$
+$$\mathsf{ScheduledBlockSubsidy}(h) := \left\lfloor \frac{\mathsf{MaxBlockSubsidy}}{2\cdot3\cdot(5/4)\cdot 2^{\mathsf{Halving}(h)}} \right\rfloor.$$
 
-The result is a nonnegative integer number of zatoshi. Implementations MUST
-use the exact rational ratio $5/4$ and apply the floor only to the complete
+The factors 2, 3, and $5/4$ are the Blossom, NU7, and 20-second spacing
+ratios, respectively. The result is a nonnegative integer number of zatoshi.
+Implementations MUST use the exact rational ratio $5/4$ and apply the floor only to the complete
 expression. Multiplying an already-rounded 25-second subsidy by $4/5$ can
 produce a different answer.
 
@@ -180,25 +168,22 @@ For $h \geq A_{20}$, redefine ZIP 237's $\mathsf{HalvingInterval}(h)$ to return
 $\mathsf{TwentySecondHalvingInterval}$. Retain its earlier cases for $h<A_{20}$.
 Its existing fraction formula then gives:
 
-$$\mathsf{BLOCK\_SUBSIDY\_FRACTION}(h)
-= \frac{\lfloor 6{,}931{,}680{,}000 / 6{,}300{,}000\rfloor}{10^{10}}
-= \frac{1100}{10^{10}}.$$
+$$\mathsf{BLOCK\_SUBSIDY\_FRACTION}(h) = \frac{\lfloor 6{,}931{,}680{,}000 / 6{,}300{,}000\rfloor}{10^{10}} = \frac{1100}{10^{10}}.$$
 
 Retain ZIP 237's definition:
 
-$$\mathsf{BlockSubsidy}(h) := \mathsf{ScheduledBlockSubsidy}(h)
-+ \mathsf{AdditionalBlockSubsidy}(h).$$
+$$\mathsf{BlockSubsidy}(h) := \mathsf{ScheduledBlockSubsidy}(h) + \mathsf{AdditionalBlockSubsidy}(h).$$
 
 Implementations MUST carry the existing NSM Value Balance through activation.
 They MUST NOT reseed it or recompute historical balances under the new spacing.
 ZIP 237's additional-subsidy ceiling and balance-update rules continue to apply.
 
-**Open specification item:** If this upgrade precedes NSM reissuance, its
-reissuance-height rule needs an explicit amendment using the new scheduled
-issuance curve and fraction. ZIP 259's fixed heights were calculated for
-25-second blocks. This draft does not yet choose the amended trigger.
-If reissuance has already started, the transition must retain that activated
-state. Resolve both cases before this ZIP advances to Proposed status.
+**Open specification item:** define the NSM reissuance trigger for an
+activation before reissuance starts. ZIP 259's fixed trigger heights use the
+25-second issuance curve. The amended trigger must use the 20-second curve
+and reissuance fraction. Its reference reserve must use cumulative scheduled
+issuance through $h-1$, retaining each historical era's integer rounding.
+If reissuance starts before this upgrade, retain that activated state.
 
 ## Action limits
 
@@ -215,8 +200,17 @@ $\mathsf{ToCompact}(\mathsf{PoWLimit})$, following ZIP 218.
 At and after $A_{20}$, this fixed threshold replaces the expression
 $18\cdot\mathsf{PoWTargetSpacing}(h)$. Thus 450 seconds does not qualify,
 while 451 seconds does. This rule does not affect Mainnet.
+Existing timestamp-validity bounds and local-clock tolerances remain unchanged.
+The Testnet minimum-difficulty exception remains subject to those rules.
 
 ## Non-consensus node behaviour
+
+When converting a height range to expected elapsed time, implementations
+SHOULD use the target spacing applicable to each block. The expected time
+from an accepted tip at height $a$ to height $b>a$ is
+$\sum_{h=a+1}^{b} \mathsf{PoWTargetSpacing}(h)$, including the new spacing
+for the activation block. Policies defined as elapsed durations SHOULD
+retain those durations across activation.
 
 ### Transaction expiry
 
@@ -265,9 +259,20 @@ wallet sync measurements under sustained near-full-block workloads.
 
 ## Stale blocks and effective propagation time
 
-The initial investigation uses the previous post's model:
-$\phi = \tau_{\mathrm{eff}}/T$, where $T$ is target spacing and $\phi$ is
-expected stale blocks per accepted block. [^propagation-report]
+Following ZIP 218's propagation analysis, we estimate stale blocks per
+accepted block as the work-weighted time miners remain on the old tip divided
+by target spacing: $\phi = \tau_{\mathrm{eff}}/T$. [^zip-0218]
+[^propagation-report]
+
+The Zebra-only devnet data accompanying the propagation report contains
+621 block hashes at heights of at least 400 with bodies of at least
+1,990,000 bytes. This near-full-block sample has a mean reach-90% time of
+1.55994 seconds. [^propagation-report]
+
+The mixed-client experiment uses 80 geographically distributed nodes:
+40 run Zakura and 40 run Zebra. **TODO:** identify the mixed-run dataset and
+report its reach-90% measurement. The 1.56-second input below comes from
+the Zebra-only sample and has not been established for the mixed run.
 
 Effective old-tip mining time accumulates the mining work still spent on
 the old tip during propagation. For example, half the network mining the
@@ -288,14 +293,15 @@ by miners who already received the new tip. The effective-time model counts
 only old-tip work. Its probability of at least one competitor is
 $1-e^{-0.858/20}\approx4.20\%$, distinct from the expected count of 4.29%.
 
-The rough 3.2% baseline scales to 4.0% at 20 seconds. The near-full-block
-sample instead gives 1.56 seconds to reach 90%, yielding 3.43% at 25 seconds
-and 4.29% at 20 seconds. These are theoretical estimates.
+ZIP 218 reports a 3.26% propagation-based estimate at 25 seconds.
+[^zip-0218] Holding that effective delay fixed gives 4.08% at 20 seconds.
+The near-full-block filter gives 4.29% under the same model. The difference
+reflects the sample filter, rather than a different scaling rule.
 
-**TODO:** publish the reproducible near-full-block analysis. Its filter is
-height at least 400 and body size at least 1,990,000 bytes, with 621 block
-hashes. Report node coverage and timestamp semantics. The reach proxy does
-not predict reorganization depth.
+**TODO:** publish the filtered dataset and calculation with node coverage
+and timestamp semantics. The 4.29% value is a theoretical estimate, not an
+observed 20-second stale rate. The reach proxy does not predict reorganization
+depth.
 
 ## Difficulty averaging duration
 
@@ -325,10 +331,11 @@ exact equality of reissuance per unit of wall-clock time.
 
 **Open specification item:** amend the funding-stream end heights and address
 period calculations in ZIPs 207 and 214 for a second spacing transition.
-[^zip-0207] [^zip-0214] Preserve elapsed periods and define rounding of
-remaining durations at activation. Audit address-list bounds and other
-height-based schedules. The new deployment height and schedule amendments
-must be settled together; changing NU7 constants retroactively is invalid.
+[^zip-0207] [^zip-0214] Preserve fractional progress through the active address
+period and define integer-boundary rounding. Keep ended streams ended and
+ensure recipient lists cover every extended period. The deployment height
+and schedule amendments must be settled together; changing NU7 constants
+retroactively is invalid.
 
 
 # Reference implementation
@@ -344,8 +351,8 @@ an interoperable consensus implementation.
 
 Deploy this proposal in a separate network upgrade after NU7. ZIP 259 defines
 NU7's deployment; this proposal does not replace that deployment. [^zip-0259]
-A future deployment ZIP will assign activation heights and consensus branch
-IDs for this upgrade. This draft does not assign a network upgrade number.
+A separate deployment ZIP will assign this upgrade's activation heights and
+consensus branch IDs.
 
 Before this ZIP advances to Proposed status, resolve the funding-stream and
 NSM reissuance-height specification items. Complete the activation and
