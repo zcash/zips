@@ -60,9 +60,14 @@ This proposal evaluates that incremental trade-off from ZIP 218's baseline.
 
 # Privacy Implications
 
-The proposal preserves shielded encryption and proof systems. More frequent
-blocks can expose finer inclusion timing and reduce transactions per block
-at a fixed demand. Privacy review should assess those effects.
+ZIP 218's privacy considerations apply here. [^zip-0218] Shorter blocks give
+observers finer timing information without changing what individual shielded
+transactions reveal.
+
+A three-block anchor depth spans an expected 60 seconds instead of 75.
+A rollback past the anchor invalidates the transaction. A replacement spending
+the same notes exposes the same nullifiers, linking the two transactions.
+Ordinary stale-block measurements do not bound rollback depth.
 
 # Requirements
 
