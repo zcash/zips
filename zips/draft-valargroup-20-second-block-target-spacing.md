@@ -43,8 +43,10 @@ This proposal reduces block target spacing from 25 to 20 seconds in a
 network upgrade after NU7. It builds on ZIP 218 without changing its action
 limits or block size limit. [^zip-0218] [^zip-0259]
 
-The change reduces the expected wait for a block by 20% and increases
-capacity and maximum sustained processing work by 25%. It adjusts the
+The change reduces the expected wait for a first confirmation by 20%. With
+unchanged per-block limits, it increases maximum transaction throughput by
+25%. Nodes and wallets must process 25% more blocks per unit time, increasing
+worst-case block processing time and sync cost. It adjusts the
 difficulty averaging window, issuance parameters, and duration-based node
 defaults to the new spacing. Shorter inclusion intervals can expose finer
 transaction timing information.
@@ -52,8 +54,9 @@ transaction timing information.
 # Motivation
 
 A 20-second target reduces the expected wait for a first confirmation by
-five seconds. With unchanged per-block limits, it provides 25% more capacity
-at the cost of 25% more maximum sustained validation and wallet sync work.
+five seconds. With unchanged per-block limits, it increases maximum transaction throughput
+by 25%. The additional blocks increase worst-case block processing time and
+sync cost per unit time.
 This proposal evaluates that incremental trade-off from ZIP 218's baseline.
 
 
@@ -103,6 +106,11 @@ definition of $\mathsf{PoWTargetSpacing}$.
 In particular, $\mathsf{PostNU7PoWTargetSpacing}$ remains 25 seconds.
 
 ## Difficulty averaging window
+
+The difficulty adjustment algorithm (DAA) averages over 128 blocks after
+activation, replacing ZIP 218's 102-block window. The larger block count
+preserves approximately the same expected averaging duration at the shorter
+target spacing.
 
 Define:
 
@@ -249,10 +257,28 @@ This recommendation does not guarantee protection against reorganizations.
 
 ## Capacity and resource costs
 
-With unchanged per-block limits, maximum sustained processing and sync work
-increase by 25%. Two-action Orchard capacity rises from 6.6 to 8.25 transactions
-per second. ZIP 218's compact-field model rises from approximately 169.10 to
+With unchanged per-block limits, nodes and wallets must process 25% more
+blocks per unit time. If per-block processing time remains unchanged, the
+worst-case proportion of time spent processing blocks increases by 25%.
+Syncing blocks produced during a given time offline also requires 25% more
+work. Maximum two-action Orchard throughput rises from 6.6 to 8.25
+transactions per second. ZIP 218's compact-field model rises from approximately 169.10 to
 211.38 MB/day; it excludes serialization and transport overhead. [^zip-0218]
+
+This figure describes worst-case compact sync bandwidth when blocks fill the
+shielded action budget. It does not establish a daily download requirement
+for every wallet.
+
+Ironwood wallet bandwidth constrains the choice of its per-block action limit.
+This draft retains ZIP 218's limit; it does not increase that limit to obtain
+more throughput. Shorter target spacing still increases the maximum number
+of actions per day by 25%. Retaining the per-block limit therefore does not
+preserve the existing daily bandwidth bound.
+
+**Open design item:** evaluate a lower Ironwood per-block action limit against
+a wallet bandwidth budget. Account for the private information retrieval
+(PIR) query design and measure its download costs before selecting a limit.
+The compact-field estimate alone does not establish those query costs.
 
 **TODO:** add matched 25-second and 20-second verification, propagation, and
 wallet sync measurements under sustained near-full-block workloads.
@@ -310,6 +336,10 @@ The equivalent count at 20 seconds is 127.5 blocks. This proposal rounds
 up to 128, giving 2,560 seconds, about 0.39% longer. A 127-block window
 would give 2,540 seconds. Keeping 102 blocks would shorten the duration
 to 2,040 seconds.
+
+This proposal preserves the averaging duration because mining hash rate can
+vary. Reducing that duration would change the DAA's response to hash rate
+changes as well as changing block target spacing.
 
 **TODO: simulate activation from the 25-second target and 102-block window
 to the 20-second target and 128-block window.** Include hash rate shocks,
