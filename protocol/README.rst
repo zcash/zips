@@ -24,6 +24,8 @@ Building
 
 Use:
 
+* ``make nu7`` to make the specification for NU7 (``nu7.pdf``), and
+  ``make nu7-dark`` to make its dark mode version (``nu7-dark.pdf``);
 * ``make nu6_3`` to make the specification for NU6.3 (``nu6_3.pdf``), which is
   the default (``protocol.pdf`` is a link to it);
 * ``make nu6_3-dark`` to make its dark mode version (``nu6_3-dark.pdf``, linked

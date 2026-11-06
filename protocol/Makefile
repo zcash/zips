@@ -55,10 +55,10 @@ protocol: $(PDFDIR)/protocol.pdf
 protocol-dark: $(PDFDIR)/protocol-dark.pdf
 
 all-pdfs: .Makefile.uptodate
-	$(MAKE) $(PDFDIR)/protocol.pdf $(PDFDIR)/protocol-dark.pdf $(PDFDIR)/nu6_2.pdf $(PDFDIR)/nu6_1.pdf $(PDFDIR)/nu6.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
+	$(MAKE) $(PDFDIR)/nu7.pdf $(PDFDIR)/protocol.pdf $(PDFDIR)/protocol-dark.pdf $(PDFDIR)/nu6_2.pdf $(PDFDIR)/nu6_1.pdf $(PDFDIR)/nu6.pdf $(PDFDIR)/nu5.pdf $(PDFDIR)/canopy.pdf $(PDFDIR)/heartwood.pdf $(PDFDIR)/blossom.pdf $(PDFDIR)/sapling.pdf
 
 all-specs: .Makefile.uptodate
-	$(MAKE) nu6_3 nu6_3-dark nu6_2 nu6_1 nu6 nu5 canopy heartwood blossom sapling
+	$(MAKE) nu7 nu7-dark nu6_3 nu6_3-dark nu6_2 nu6_1 nu6 nu5 canopy heartwood blossom sapling
 
 discard:
 	git checkout -- "$(PDFDIR)/*.pdf"
@@ -90,6 +90,9 @@ $(PDFDIR)/nu6_1.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.pn
 
 $(PDFDIR)/nu6_2.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard.png incremental_merkle.png
 	$(MAKE) nu6_2
+
+$(PDFDIR)/nu7.pdf: protocol.tex zcash.bib jubjub.png key_components_sapling.png key_components_orchard.png incremental_merkle.png
+	$(MAKE) nu7
 
 # protocol.pdf and protocol-dark.pdf are symbolic links to the PDFs for the most recent
 # settled network upgrade, so that links to that upgrade's own PDF remain valid when
@@ -231,6 +234,32 @@ nu6_3-dark:
 	mkdir -p $(PDFDIR)
 	mv -f aux/nu6_3-dark.pdf $(PDFDIR)
 	ln -sf nu6_3-dark.pdf $(PDFDIR)/protocol-dark.pdf
+
+.PHONY: auxnu7 nu7
+auxnu7:
+	printf '\\toggletrue{isnuseven}\n\\renewcommand{\\docversion}{Version %s [\\NUSevenSpec]}\n' "$$(git describe --tags --abbrev=6 |sed 's/-1-g.*//;s/-auto//')" |tee protocol.ver
+	mkdir -p aux
+	rm -f aux/nu7.*
+	cp mymakeindex.sh aux
+	$(LATEXMK) -jobname=nu7 -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
+
+nu7:
+	$(MAKE) auxnu7
+	mkdir -p $(PDFDIR)
+	mv -f aux/nu7.pdf $(PDFDIR)
+
+.PHONY: auxnu7-dark nu7-dark
+auxnu7-dark:
+	printf '\\toggletrue{darkmode}\\toggletrue{isnuseven}\n\\renewcommand{\\docversion}{Version %s [\\NUSevenSpec]}\n' "$$(git describe --tags --abbrev=6 |sed 's/-1-g.*//;s/-auto//')" |tee protocol.ver
+	mkdir -p aux
+	rm -f aux/nu7-dark.*
+	cp mymakeindex.sh aux
+	$(LATEXMK) -jobname=nu7-dark -auxdir=aux -outdir=aux $(EXTRAOPT) protocol $(NOCRUFT)
+
+nu7-dark:
+	$(MAKE) auxnu7-dark
+	mkdir -p $(PDFDIR)
+	mv -f aux/nu7-dark.pdf $(PDFDIR)
 
 .PHONY: clean
 clean:
