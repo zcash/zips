@@ -1,6 +1,6 @@
 
     ZIP: Unassigned
-    Title: Increase the Block Size Limit to 3 MiB
+    Title: Increase the Block Size Limit to 3 MB
     Owners: Dev Ojha <dev@valargroup.dev>
             Evan Forbes <evan@valargroup.dev>
     Status: Draft
@@ -19,11 +19,12 @@ The terms "block chain", "consensus branch", and "network upgrade" follow
 ZIP 200. [^zip-0200] Block and transaction encodings follow the Zcash Protocol
 Specification. [^protocol]
 
-MiB means 1,048,576 bytes. GiB means 1,073,741,824 bytes. The existing block
-size limit is 2,000,000 bytes, not 2 MiB.
+MB means 1,000,000 bytes. GB means 1,000,000,000 bytes. The existing block
+size limit is 2 MB; this proposal increases it to 3 MB.
 
-"Stale fraction" means distinct observed stale blocks divided by the sum of
-canonical and observed stale blocks. The experiment below counts a block
+"Orphan rate" means distinct observed stale blocks divided by the sum of
+canonical and observed stale blocks. Here, a stale block is a block outside
+the final agreed chain. The experiment below counts a block
 only if at least one node recorded a successful commit. It does not count
 every solved block that a miner discarded before submission.
 
@@ -34,10 +35,10 @@ the originating node at time zero.
 
 # Abstract
 
-This proposal increases the block size limit from 2,000,000 to 3,145,728 bytes
-(3 MiB) in a network upgrade after NU7. It preserves ZIP 218's shielded action
+This proposal increases the block size limit from 2,000,000 to 3,000,000 bytes
+(3 MB) in a network upgrade after NU7. It preserves ZIP 218's shielded action
 limits and shared shielded budget. [^zip-0218] It also preserves the
-2,000,000-byte transaction size limit and the existing signature-operation
+2,000,000-byte transaction cap enforced by zcashd and the existing signature-operation
 limit.
 
 The additional space primarily increases capacity for transparent
@@ -48,7 +49,7 @@ would depend on adoption and operational validation of private information
 retrieval (PIR), with measured wallet bandwidth and privacy costs.
 
 The proposal also changes block-message size negotiation so that upgraded
-peers can relay valid 3 MiB blocks. It leaves block target spacing to separate
+peers can relay valid 3 MB blocks. It leaves block target spacing to separate
 proposals. Larger blocks increase full-node bandwidth, storage, and
 potential validation work.
 
@@ -85,13 +86,13 @@ activated spacing reduction would also increase the daily bound.
 
 Longer block propagation can increase stale blocks and reorganization risk.
 Wallets should not reduce their confirmation or anchor-depth policies on
-the strength of the experiment below. The observed stale fraction does
+the strength of the experiment below. The observed orphan rate does
 not establish a reorganization-depth bound.
 
 
 # Requirements
 
-- Increase the maximum serialized block size to exactly 3 MiB.
+- Increase the maximum serialized block size to exactly 3 MB.
 - Preserve historical validity and all existing shielded action limits.
 - Preserve transaction-size, signature-operation, and script limits.
 - Support full-sized blocks through relay, synchronization, and mining.
@@ -104,20 +105,29 @@ not establish a reorganization-depth bound.
 
 Define the following constants:
 
-$$\mathsf{ThreeMiBActivationHeight} : \mathbb{N}.$$
+$$\mathsf{ThreeMBActivationHeight} : \mathbb{N}.$$
 
-$$\mathsf{ThreeMiBBlockSizeLimit} : \mathbb{N} := 3\times2^{20} = 3{,}145{,}728.$$
+$$\mathsf{ThreeMBBlockSizeLimit} : \mathbb{N} := 3\times10^6 = 3{,}000{,}000.$$
 
-A deployment ZIP will assign $\mathsf{ThreeMiBActivationHeight}$ for each
+A deployment ZIP will assign $\mathsf{ThreeMBActivationHeight}$ for each
 network. It MUST be greater than that network's NU7 activation height.
-Let $A = \mathsf{ThreeMiBActivationHeight}$. For block height
+Let $A = \mathsf{ThreeMBActivationHeight}$. For block height
 $h \in \mathbb{N}$, define:
 
-$$\mathsf{BlockSizeLimit}(h) := \begin{cases}2{,}000{,}000 & h < A,\\3{,}145{,}728 & h \geq A.\end{cases}$$
+$$\mathsf{BlockSizeLimit}(h) := \begin{cases}2{,}000{,}000 & h < A,\\3{,}000{,}000 & h \geq A.\end{cases}$$
 
 Replace the fixed block size bound in § 7.6 'Block Header Encoding and
 Consensus' with the requirement that a block at height $h$ MUST have encoded
 size at most $\mathsf{BlockSizeLimit}(h)$. [^protocol-blockheader]
+
+In the same section, qualify the comparison with Bitcoin's block size limit:
+Zcash's 2,000,000-byte limit applies below $A$; the 3,000,000-byte limit applies
+at or above $A$.
+
+In ZIP 218's specification, replace the statement that the overall 2 MB block
+size limit continues to apply with a reference to $\mathsf{BlockSizeLimit}(h)$
+after this proposal activates. ZIP 218's shielded action limits remain
+unchanged. [^zip-0218]
 
 Encoded size includes the block header, its Equihash solution, the encoded
 transaction count, and every transaction, including the coinbase. It excludes
@@ -138,8 +148,13 @@ MUST have encoded size at most $\mathsf{TransactionSizeLimit}$.
 Pre-activation transaction rules remain unchanged.
 
 The transaction bound remains independent of the block bound. The additional
-space admits more transactions while preserving the existing explicit
-transaction-size cap. [^zcashd-limits]
+space admits more transactions. zcashd already enforces an explicit
+2,000,000-byte transaction cap. The protocol specification states a
+100,000-byte cap before Sapling; after Sapling, the block envelope also
+limits the size of any included transaction. This proposal makes the
+independent 2,000,000-byte post-activation transaction cap explicit, so
+increasing the block envelope does not admit larger individual transactions.
+[^zcashd-limits] [^protocol]
 
 Implementations MUST continue to enforce ZIP 218's existing per-pool limits
 and shared global shielded budget. Orchard and Ironwood actions continue to
@@ -157,12 +172,12 @@ coinbase maturity.
 ## Block relay and message framing
 
 ZIP 204 currently limits each message payload to 2,097,152 bytes. That limit
-cannot carry a valid 3 MiB block. Amend its 'Maximum Message Size' rules as
+cannot carry a valid 3 MB block. Amend its 'Maximum Message Size' rules as
 follows. [^zip-0204]
 
-Define $\mathsf{ThreeMiBProtocolVersion} : \mathbb{N}$, to be assigned by the
+Define $\mathsf{ThreeMBProtocolVersion} : \mathbb{N}$, to be assigned by the
 deployment ZIP. For a connection whose negotiated protocol version is at
-least this value, the maximum `block` message payload is 3,145,728 bytes.
+least this value, the maximum `block` message payload is 3,000,000 bytes.
 For older negotiated versions, retain the 2,097,152-byte maximum. Other
 commands retain their existing payload and item-count limits.
 
@@ -192,7 +207,7 @@ Miners MUST re-evaluate the limit when a parent change crosses activation.
 Block submission and retrieval interfaces MUST support every otherwise-valid
 block within the applicable limit. This includes proposal validation, RPC
 submission, historical retrieval, and local block import. Hex-encoded RPC
-block data alone can occupy 6,291,456 characters; request limits also need
+block data alone can occupy 6,000,000 characters; request limits also need
 room for the enclosing request.
 
 Deserializers MUST distinguish the block envelope limit from transaction
@@ -208,22 +223,30 @@ fixed entitlement to a number of full blocks. [^zip-0317] [^zip-0401]
 
 # Rationale
 
+## Choice of block size
+
+The authors chose 3 MB as an attainable limit for current Zakura and Zebra
+Andale implementations while keeping orphan rates within a reasonable range.
+This is an engineering target, not a claim that 3 MB is an optimal threshold.
+The experiment below provides preliminary Zakura evidence near that size.
+Matched measurements across both clients remain necessary before deployment.
+
 ## Throughput and resource costs
 
-The new byte budget is $3{,}145{,}728/2{,}000{,}000 = 1.572864$ times the old
-budget, an increase of approximately 57.3%. Transaction throughput depends
+The new byte budget is $3{,}000{,}000/2{,}000{,}000 = 1.5$ times the old
+budget, an increase of 50%. Transaction throughput depends
 on the workload. Transparent transactions can use the additional space,
 but signature operations, script execution, and UTXO access can become
 binding constraints. Action-limited shielded workloads do not receive a
 corresponding increase in transactions per block.
 
-The following bounds assume every canonical block reaches 3 MiB and blocks
+The following bounds assume every canonical block reaches 3 MB and blocks
 arrive at the stated target spacing:
 
-| Target spacing | Raw block payload rate | Raw block data per day |
-|----------------|------------------------|------------------------|
-| 25 seconds | 125,829 bytes/second | 10.125 GiB |
-| 20 seconds | 157,286 bytes/second | 12.65625 GiB |
+| Target spacing | Raw block payload rate | Raw block data per day | Capacity relative to 2 MB at 25 seconds |
+|----------------|------------------------|------------------------|----------------------------------------|
+| 25 seconds | 120,000 bytes/second | 10.368 GB | 1.5× |
+| 20 seconds | 150,000 bytes/second | 12.96 GB | 1.875× |
 
 These figures exclude repeated relay, stale blocks, transport overhead,
 indexes, and state growth. They describe full-block traffic, not light-wallet
@@ -237,53 +260,56 @@ validation-to-mining-tip latency.
 
 ## Propagation experiment
 
-The November 5–6, 2026 private-network run used 80 Zakura nodes across 12
-cloud regions, a 20-second target, a 4,000,000-byte block ceiling, and doubled
-shielded action limits. The experimental shared budget was 660 actions.
-These experimental limits are not proposed consensus changes. The saved
-summary records the run, binary hashes, sample definitions, and results.
+A November 2026 private-network experiment used 80 Zakura nodes across 12
+regions at a 20-second target spacing. Blocks filled twice ZIP 218's normal
+shielded action limit: 660 Ironwood actions. The measured blocks occupied
+3,026,379 bytes, approximately 3 MB and slightly above the proposed limit.
 [^experiment]
 
-The final agreed chain contained 913 live blocks at heights 206 through
-1118. Commit traces recorded 34 additional distinct blocks outside that
-chain. The observed stale fraction was:
+| Measurement | Mean | Median | 95th percentile |
+|-------------|------|--------|-----------------|
+| Peer-to-peer block propagation | TODO | TODO | TODO |
+| Block propagation to 90% of nodes | 1.20 s | 1.02 s | 2.18 s |
 
-$$\frac{34}{913+34}\approx3.59\%.$$
+The 90% result covers 809 canonical blocks. It measures time from the miner's
+solution-ready event to decoded block availability at 72 of 80 nodes. It
+includes submission and network delivery, rather than validated mining-tip
+adoption. The saved summary does not contain a separate peer-to-peer timing
+measurement; that row remains TODO.
 
-The corresponding stale-per-canonical ratio is 3.72%. After the recorded
-launch-verification boundary, the counts were 882 canonical and 32 stale
-blocks, giving 3.50%. The headline 3.6% result includes startup and uses a
-retrospective interval, approximately 02:23–07:44 UTC on November 6.
+The observed orphan rate was **3.6%**, including startup. The rate counts
+blocks committed by at least one node that were absent from the final agreed
+chain. It excludes solved blocks that no node recorded as committed.
 
-The propagation sample contains 809 action-full canonical blocks after that
-boundary. Each contained 660 Ironwood actions and occupied 3,026,379 bytes,
-or 96.2% of 3 MiB. The sample therefore measures blocks close to the proposed
-byte limit, not full 4 MiB blocks. It also exceeds the shielded action limit
-retained by this proposal.
+These results support further evaluation of 3 MB blocks. They do not establish
+a Mainnet orphan-rate bound. Cross-host clock error affects propagation
+timing, and the propagation sample excludes stale blocks.
 
-| Decoded block availability | Mean | Median | 95th percentile | Samples |
-|----------------------------|------|--------|-----------------|---------|
-| Reach 90% of nodes | 1.20 s | 1.02 s | 2.18 s | 809 |
-| Reach 95% of nodes | 1.75 s | 1.58 s | 3.39 s | 809 |
-| Reach all nodes | 4.05 s | 3.92 s | 7.05 s | 735 |
+**TODO:** Add peer-to-peer propagation measurements with explicit send and
+receive boundaries. Add results from experiments with different block sizes
+and shielded/transparent transaction mixes, including the proposed unchanged
+shielded action limits. Report propagation to 90% of nodes and orphan rates
+for each configuration, including Zakura and Zebra Andale results.
 
-Timing starts when the miner records a solved block and ends when each node
-records its first decoded block receipt. It includes submission, gossip,
-decoding, and scheduling. It does not measure validated mining-tip adoption.
-Cross-host clock error affects these durations. One node dropped some
-peer-message trace rows; every sample has 79 or 80 recorded arrivals,
-including the origin. The all-node row excludes incomplete observations.
 
-The 3.6% point estimate is below 5% and supports further evaluation of the
-3 MiB limit. It does not establish a Mainnet-wide bound. The fleet used one
-client and a different transaction mix from the transparent-heavy workload
-expected under this proposal. The receipt sample excludes stale blocks, and
-the stale count excludes solved blocks never observed committed.
+## Validation benchmarks
 
-Better gossip may reduce propagation delay and stale blocks. This proposal
-does not assume that improvement before it is measured. A matched run with
-3 MiB blocks, unchanged action limits, and representative transparent
-transactions remains necessary before deployment.
+The original Zcash block-size increase prompted analysis of verification
+costs across different input/output mixes. [^zcashd-worst-case] A fixed
+signature-operation limit does not capture every validation cost.
+
+Before deployment, benchmark the following workloads at the proposed limit:
+
+| Workload | Costs to examine |
+|----------|------------------|
+| Many small transparent transactions | Per-transaction overhead and UTXO lookups |
+| Output-heavy transparent transactions | UTXO growth and database writes |
+| Signature-heavy transparent transactions | Signature verification and script execution |
+| Mixed transparent and shielded transactions | Combined UTXO and proof-verification work under unchanged action limits |
+
+For each workload, report validation-to-mining-tip time, UTXO reads and writes,
+and peak memory. Record client version, hardware, and cache conditions so
+others can reproduce the results.
 
 ## Separating block space from shielded action limits
 
@@ -306,7 +332,7 @@ implementation of this height-dependent consensus and negotiation change.
 Implementations need coverage for:
 
 - Blocks of 2,000,000 and 2,000,001 bytes on both sides of activation;
-  blocks of 3,145,728 and 3,145,729 bytes after activation.
+  blocks of 3,000,000 and 3,000,001 bytes after activation.
 - Transactions of 2,000,000 and 2,000,001 bytes inside otherwise-valid
   post-activation blocks; coinbase and transaction-count encoding overhead.
 - Unchanged action and signature-operation boundaries, including mixed
@@ -330,7 +356,7 @@ does not require a 20-second target.
 
 Before advancing to Proposed status, publish reproducible experiment inputs
 and resolve the deployment assignments. Validate the byte and computational
-boundaries across independent clients. Run matched 3 MiB transparent and
+boundaries across independent clients. Run matched 3 MB transparent and
 mixed workloads at the selected spacing, including constrained bandwidth,
 propagation tails, stale blocks, UTXO growth, and mining-tip adoption.
 
@@ -357,4 +383,6 @@ propagation tails, stale blocks, UTXO growth, and mining-tip adoption.
 
 [^zcashd-limits]: [zcashd: consensus limits](https://github.com/zcash/zcash/blob/master/src/consensus/consensus.h)
 
-[^experiment]: [November 2026 larger-block experiment: local evidence summary](draft-valargroup-3-mib-block-size/experiment-summary.json)
+[^experiment]: [November 2026 larger-block experiment: local evidence summary](draft-valargroup-3-mb-block-size/experiment-summary.json)
+
+[^zcashd-worst-case]: [zcashd issue #1077: Worst-case block verification costs](https://github.com/zcash/zcash/issues/1077)
