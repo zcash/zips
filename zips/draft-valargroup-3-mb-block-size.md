@@ -383,6 +383,6 @@ propagation tails, stale blocks, UTXO growth, and mining-tip adoption.
 
 [^zcashd-limits]: [zcashd: consensus limits](https://github.com/zcash/zcash/blob/master/src/consensus/consensus.h)
 
-[^experiment]: [November 2026 larger-block experiment: local evidence summary](draft-valargroup-3-mb-block-size/experiment-summary.json)
+[^experiment]: [November 2026 larger-block experiment: local evidence summary](https://github.com/valargroup/zips/blob/19190bf6cbab395dcf1da3813426559debe7ce04/zips/draft-valargroup-3-mb-block-size/experiment-summary.json)
 
 [^zcashd-worst-case]: [zcashd issue #1077: Worst-case block verification costs](https://github.com/zcash/zcash/issues/1077)
