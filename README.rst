@@ -114,6 +114,7 @@ Released ZIPs
     <tr> <td>221</td> <td class="left"><a href="zips/zip-0221.rst">FlyClient - Consensus-Layer Changes</a></td> <td>Final</td>
     <tr> <td>224</td> <td class="left"><a href="zips/zip-0224.rst">Orchard Shielded Protocol</a></td> <td>Final</td>
     <tr> <td>225</td> <td class="left"><a href="zips/zip-0225.rst">Version 5 Transaction Format</a></td> <td>Final</td>
+    <tr> <td>229</td> <td class="left"><a href="zips/zip-0229.md">Version 6 Transaction Format</a></td> <td>Final</td>
     <tr> <td>235</td> <td class="left"><a href="zips/zip-0235.md">Remove 60% of Transaction Fees From Circulation</a></td> <td>Proposed</td>
     <tr> <td>236</td> <td class="left"><a href="zips/zip-0236.rst">Blocks should balance exactly</a></td> <td>Final</td>
     <tr> <td>237</td> <td class="left"><a href="zips/zip-0237.md">Network Sustainability Mechanism: Halving-Preserving Issuance</a></td> <td>Proposed</td>
@@ -144,7 +145,7 @@ Released ZIPs
     <tr> <td>1016</td> <td class="left"><a href="zips/zip-1016.md">Community and Coinholder Funding Model</a></td> <td>Proposed</td>
     <tr> <td>2001</td> <td class="left"><a href="zips/zip-2001.rst">Lockbox Funding Streams</a></td> <td>Final</td>
     <tr> <td>2003</td> <td class="left"><a href="zips/zip-2003.rst">Disallow version 4 transactions</a></td> <td>Proposed</td>
-    <tr> <td>2005</td> <td class="left"><a href="zips/zip-2005.md">Ironwood Quantum Recoverability</a></td> <td>Proposed</td>
+    <tr> <td>2005</td> <td class="left"><a href="zips/zip-2005.md">Ironwood Quantum Recoverability</a></td> <td>Final</td>
     <tr> <td>2006</td> <td class="left"><a href="zips/zip-2006.md">Restricting Transfers into the Orchard Pool</a></td> <td>Final</td>
     <tr> <td>2008</td> <td class="left"><a href="zips/zip-2008.md">Update to `FS_FPF_ZCG_H3` address list</a></td> <td>Proposed</td>
     <tr> <td>2009</td> <td class="left"><a href="zips/zip-2009.md">Reduce Marginal Fee to 1000 Zatoshis and Raise the Weight Ratio Cap to 10</a></td> <td>Proposed</td>
@@ -179,7 +180,6 @@ written.
     <tr> <td>226</td> <td class="left"><a href="zips/zip-0226.rst">Transfer and Burn of Zcash Shielded Assets</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/618">zips#618</a></td>
     <tr> <td>227</td> <td class="left"><a href="zips/zip-0227.rst">Issuance of Zcash Shielded Assets</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/618">zips#618</a></td>
     <tr> <td>228</td> <td class="left"><a href="zips/zip-0228.rst">Asset Swaps for Zcash Shielded Assets</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/776">zips#776</a></td>
-    <tr> <td>229</td> <td class="left"><a href="zips/zip-0229.md">Version 6 Transaction Format</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1326">zips#1326</a></td>
     <tr> <td>231</td> <td class="left"><a href="zips/zip-0231.md">Memo Bundles</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/627">zips#627</a></td>
     <tr> <td>233</td> <td class="left"><a href="zips/zip-0233.md">Network Sustainability Mechanism: Removing Funds From Circulation</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/922">zips#922</a></td>
     <tr> <td>234</td> <td class="left"><a href="zips/zip-0234.md">Network Sustainability Mechanism: Issuance Smoothing</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/923">zips#923</a></td>
@@ -321,7 +321,7 @@ Index of ZIPs
     <tr> <td>226</td> <td class="left"><a href="zips/zip-0226.rst">Transfer and Burn of Zcash Shielded Assets</a></td> <td>Draft</td>
     <tr> <td>227</td> <td class="left"><a href="zips/zip-0227.rst">Issuance of Zcash Shielded Assets</a></td> <td>Draft</td>
     <tr> <td>228</td> <td class="left"><a href="zips/zip-0228.rst">Asset Swaps for Zcash Shielded Assets</a></td> <td>Draft</td>
-    <tr> <td>229</td> <td class="left"><a href="zips/zip-0229.md">Version 6 Transaction Format</a></td> <td>Draft</td>
+    <tr> <td>229</td> <td class="left"><a href="zips/zip-0229.md">Version 6 Transaction Format</a></td> <td>Final</td>
     <tr> <td><strike>230</strike></td> <td class="left"><strike><a href="zips/zip-0230.rst">Withdrawn Version 6 Transaction Format</a></strike></td> <td>Withdrawn</td>
     <tr> <td>231</td> <td class="left"><a href="zips/zip-0231.md">Memo Bundles</a></td> <td>Draft</td>
     <tr> <td>233</td> <td class="left"><a href="zips/zip-0233.md">Network Sustainability Mechanism: Removing Funds From Circulation</a></td> <td>Draft</td>
@@ -405,7 +405,7 @@ Index of ZIPs
     <tr> <td>2002</td> <td class="left"><a href="zips/zip-2002.rst">Explicit Fees</a></td> <td>Draft</td>
     <tr> <td>2003</td> <td class="left"><a href="zips/zip-2003.rst">Disallow version 4 transactions</a></td> <td>Proposed</td>
     <tr> <td>2004</td> <td class="left"><a href="zips/zip-2004.rst">Remove the dependency of consensus on note encryption</a></td> <td>Draft</td>
-    <tr> <td>2005</td> <td class="left"><a href="zips/zip-2005.md">Ironwood Quantum Recoverability</a></td> <td>Proposed</td>
+    <tr> <td>2005</td> <td class="left"><a href="zips/zip-2005.md">Ironwood Quantum Recoverability</a></td> <td>Final</td>
     <tr> <td>2006</td> <td class="left"><a href="zips/zip-2006.md">Restricting Transfers into the Orchard Pool</a></td> <td>Final</td>
     <tr> <td><span class="reserved">2007</span></td> <td class="left"><a class="reserved" href="zips/zip-2007.md">Quantum Recoverability for a Subset of Transparent Addresses</a></td> <td>Reserved</td>
     <tr> <td>2008</td> <td class="left"><a href="zips/zip-2008.md">Update to `FS_FPF_ZCG_H3` address list</a></td> <td>Proposed</td>

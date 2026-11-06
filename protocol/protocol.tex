@@ -9168,7 +9168,7 @@ and integers:
         such that $\ItoLEBSPOf{\ell}{x}$ is the sequence of $\ell$ bits representing $x$ in
         little-endian order;
   \item $\ItoLEOSP{} \typecolon (\ell \typecolon \Nat) \times \binaryrange{\ell} \rightarrow \byteseq{\sceiling{\ell/8}}$,
-        such that $\ItoLEBSPOf{\ell}{x}$ is the sequence of $\ceiling{\ell/8}$ bytes representing $x$ in
+        such that $\ItoLEOSPOf{\ell}{x}$ is the sequence of $\ceiling{\ell/8}$ bytes representing $x$ in
         little-endian order;
   \item $\ItoBEBSP{} \typecolon (\ell \typecolon \Nat) \times \binaryrange{\ell} \rightarrow \bitseq{\ell}$
         such that $\ItoBEBSPOf{\ell}{x}$ is the sequence of $\ell$ bits representing $x$ in
@@ -10314,10 +10314,15 @@ Let $\EquihashGen{n, k}(S, i) := T_\barerange{h+1}{h+n}$, where
 \begin{formulae}
   \item $m = \floor{\frac{512}{n}}$;
   \item $h = (i-1 \bmod m) \mult n$;
-  \item $T = \BlakeTwobOf{(\mathnormal{n \mult m})}{\powtag,\, S \bconcat \powcount(\floor{\frac{i-1}{m}})}$.
+  \item $T$ is the \bitSequence obtained from the \byteSequence
+        $\BlakeTwobOf{(\mathnormal{n \mult m})}{\powtag,\, S \bconcat \powcount(\floor{\frac{i-1}{m}})}$
+        by converting each byte to a group of 8 bits with the \emph{most} significant
+        bit first, and concatenating the resulting groups in the same order as the bytes.
 \end{formulae}
 
-Indices of bits in $T$ are 1-based.
+Indices of bits in $T$ are 1-based. Note that the conversion to a \bitSequence is not
+$\LEOStoBSP{}$ as defined in \crossref{endian}, which takes the \emph{least} significant
+bit of each byte first.
 
 $\BlakeTwobOf{\ell}{p, x}$ is defined in \crossref{concreteblake2}.
 
@@ -14697,7 +14702,8 @@ A \block satisfies the \proofOfWork if and only if:
 \lsubsubsection{Equihash}{equihash}
 
 An instance of the \defining{\Equihash} algorithm is parameterized by positive integers $n$ and $k$,
-such that $n$ is a multiple of $k+1$. We assume $k \geq 3$.
+such that $n$ is a multiple of $k+1$. We assume $k \geq 3$, $n \leq 512$, and
+$(n \mult \floor{\frac{512}{n}}) \bmod 8 = 0$.
 
 The \Equihash parameters for \Mainnet and \Testnet are $n = 200, k = 9$.
 
@@ -14733,8 +14739,8 @@ Define $\ItoBEBSP{} \typecolon (\ell \typecolon \Nat) \times \binaryrange{\ell} 
 as in \crossref{endian}.
 
 \introsection
-A \defining{\validEquihashSolution} is then a sequence $i \typecolon \range{1}{N}^{2^k}$ that
-satisfies the following conditions:
+A \defining{\validEquihashSolution} is then a sequence $i \typecolon \range{1}{N}^{2^k}$ of
+\emph{distinct} indices that satisfies the following conditions:
 
 \callout{}{Generalized Birthday condition}
 $\vxor{j=1}{2^k} X_{i_j} = 0$.
@@ -15296,8 +15302,12 @@ The term \defining{\quotedPrescribedWay} is defined as follows:
         \vspace{0.5ex}
   \item The \defining{\prescribedWay} to pay a \SaplingOrOrchard \paymentAddress is
         defined in \cite{ZIP-213}, using the post-\NUHeartwood consensus rules in
-        \crossref{txnconsensus} for the \SaplingAndOrchardPoolsAdj \shieldedOutputs of
-        \coinbaseTransactions.
+        \crossref{txnconsensus} for the \shieldedOutputs of \coinbaseTransactions.
+        A \Sapling \paymentAddress is paid by a \SaplingPoolAdj output\nufive{, and an
+        \Orchard \paymentAddress by an \OrchardPoolAdj output\nusixthree{ before \NUSixThree
+        activation}}.\nusixthree{ From \NUSixThree activation onward, an \Orchard
+        \paymentAddress is paid by an \IronwoodPoolAdj output, since a \coinbaseTransaction
+        cannot then have any \OrchardPoolAdj \actionDescriptions.}
 \end{itemize}
 } %canopyonward
 } %consensusrule
@@ -15313,11 +15323,14 @@ The term \defining{\quotedPrescribedWay} is defined as follows:
   \item For clarification, if there are multiple active \fundingStreams or
         \lockboxDisbursements with the same recipient identifier and/or value, there
         \MUST be at least the given number of distinct outputs for each of them.
-  \item Up to and including \NUSixOne there have been no \fundingStreams or
+  \item Up to and including \NUSixThree there have been no \fundingStreams or
         \lockboxDisbursements defined with a \shieldedPaymentAddress as a recipient.
         That might change in future, so implementations are encouraged to support
-        \SaplingAndOrchard \shieldedPaymentAddresses as recipients, as permitted by
-        \cite{ZIP-213} and \cite{ZIP-207}.
+        \SaplingAndOrchard \shieldedPaymentAddresses as recipients. \cite{ZIP-213}
+        permits \shieldedOutputs of \coinbaseTransactions to such addresses.\nufive{ The
+        recipient identifiers permitted above do not include \Orchard
+        \shieldedPaymentAddresses before Revision 2 of \cite{ZIP-207}. The \prescribedWay
+        to pay one is defined in anticipation of that revision.}
 \end{pnotes}
 
 \vspace{-1ex}
@@ -16154,7 +16167,8 @@ Jakub Zalewski, Oana Ciobotaru, Andre Serrano, Brad Miller, Charlie O'Keefe,
 David Campbell, Elena Giralt, Francisco Gindre, Joseph Van~Geffen, Josh Swihart,
 Kevin Gorham, Larry Ruane, Marshall Gaucher, Ryan Taylor, Sasha Meyer,
 Conrado Gouvêa, Aditya Bharadwaj, Andrew Arnott, Arya, Andrea Kobrlova,
-Lukáš Korba, Honza Rychnovský, Schell Scivally, and no doubt others.
+Lukáš Korba, Honza Rychnovský, Schell Scivally, Julian Abraham, and no doubt
+others.
 We would also like to thank the designers and developers of \Bitcoin and
 \BitcoinCore.
 
@@ -16237,7 +16251,7 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
 \intropart
 \lsection{Change History}{changehistory}
 
-\historyentry{\docversion}{}
+\historyentry{2026.8.0}{2026-11-06}
 
 \begin{itemize}
 \nusixthree{
@@ -16286,8 +16300,9 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
           \crossref{networks}.
 } %nusixthree
 \nufive{
-    \item Add a Version column to the version 5/6 transaction-format table in \crossref{txnencoding},
-          preserving its field-presence symbols and marking all \IronwoodPoolAdj fields as version 6 only.
+    \item Add a Version column to the version 5/6 transaction-format table in
+          \shortcrossref{txnencoding}, preserving its field-presence symbols and marking all
+          \IronwoodPoolAdj fields as version 6 only.
     \item Change the type of $\AuthSignPublic$ from $\range{0}{\ParamP{q}-1}$ to
           $\range{1}{\ParamP{q}-1}$. $0$ is not the \affineSW $x$-coordinate of any
           \pallasCurve point in $\GroupPstar$, so this was implied by the decoding rule
@@ -16309,6 +16324,23 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
           ``spend authorization private key'' and ``spend authorization address key''.
     \item Correct a typo: ``for this \outputStatement'' should be ``for this \outputTransfer''
           in \shortcrossref{outputencodingandconsensus}.
+\nusixthree{
+    \item Correct the \prescribedWay to pay an \Orchard \paymentAddress in
+          \shortcrossref{fundingstreams}: from \NUSixThree activation it is an
+          \IronwoodPoolAdj output, since a \coinbaseTransaction cannot then have any
+          \OrchardPoolAdj \actionDescriptions.
+} %nusixthree
+    \item Correct the note on shielded recipients in \shortcrossref{fundingstreams}: before its
+          Revision 2, \cite{ZIP-207} does not permit \Orchard \shieldedPaymentAddresses as
+          recipient identifiers.
+    \item Correct the definition of a \validEquihashSolution in \crossref{equihash} to
+          require that its indices are distinct.
+    \item Clarify the bit ordering of the $\BlakeTwobGeneric$ output $T$ in \crossref{equihashgen},
+          and define $T$ as the resulting \bitSequence.
+    \item State the restrictions on $n$ in \crossref{equihash} that \crossref{equihashgen}
+          needs in order to be defined.
+    \item Fix a typo in the definition of $\ItoLEOSP{}$ in \crossref{endian}.
+    \item Add an acknowledgement to Julian Abraham for discussions on the Zcash protocol.
 \end{itemize}
 
 
