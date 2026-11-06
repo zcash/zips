@@ -1594,10 +1594,36 @@ Coinbase Effecting Data
 |``coinbaseDataLen``          |``coinbaseData``          |``byte[coinbaseDataLen]``               |Data chosen by the miner. Consensus assigns no meaning to its        |
 |                             |                          |                                        |contents.                                                            |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``varies``                   |``nMinerSignals``         |``compactSize``                         |The number of entries in ``vMinerSignals``.                          |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``2 * nMinerSignals``        |``vMinerSignals``         |``MinerSignal[nMinerSignals]``          |Signals chosen by the miner, in strictly ascending order of          |
+|                             |                          |                                        |``signalCode``.                                                      |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``16``                       |``pollDigest``            |``byte[16]``                            |A digest that identifies the poll to which ``vMinerSignals``         |
+|                             |                          |                                        |responds.                                                            |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 
 * ``blockHeight`` MUST be in the range {1 .. 499999999}.
 * ``lockboxValue`` MUST be in the range {0 .. ``blockSubsidy``}.
 * ``coinbaseDataLen`` MUST be at most 94.
+* The field ``pollDigest`` is present if and only if $\mathtt{nMinerSignals} > 0$.
+* The ``signalCode`` fields of the entries of ``vMinerSignals`` MUST be in
+  strictly ascending order. Thus ``nMinerSignals`` is at most 256.
+
+Consensus assigns no meaning to ``vMinerSignals`` or ``pollDigest`` beyond the
+rules above. Their use to poll miners is specified in the Miner Sentiment
+Polling draft ZIP [#draft-marek-miner-sentiment-polling]_.
+
+MinerSignal
+...........
+
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+| Bytes                       | Name                     | Data Type                              | Description                                                         |
++=============================+==========================+========================================+=====================================================================+
+|``1``                        |``signalCode``            |``uint8``                               |A code that identifies the subject of the signal.                    |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
+|``1``                        |``levelOfSupport``        |``uint8``                               |The miner's level of support for that subject.                       |
++-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 
 Coinbase Digests
 ''''''''''''''''
@@ -1611,6 +1637,8 @@ A BLAKE2b-256 hash of the following values::
    T.3.1b: blockSubsidy  (8-byte unsigned little-endian)
    T.3.1c: lockboxValue  (8-byte unsigned little-endian)
    T.3.1d: coinbaseData  (byte array with leading ``compactSize`` length)
+   T.3.1e: vMinerSignals (2 bytes per signal, with leading ``compactSize`` count)
+   T.3.1f: pollDigest    (16 bytes, present iff nMinerSignals > 0)
 
 The personalization field of this hash is set to::
 
@@ -2245,6 +2273,19 @@ metadata as a transparent input: the reference identified no output, and the
 sequence number had no effect on the validity of a transaction that spends
 nothing.
 
+The miner signalling fields give miners a structured way to express sentiment
+on proposals, separate from ``coinbaseData``. Free-form text in
+``coinbaseData`` would compete for its 94 bytes with pool identifiers and
+other miner data, and would have to be found by searching for a textual
+pattern. A signal is a pair of bytes, so a response to a poll with many options
+stays small. The 16-byte ``pollDigest`` binds the signals to one poll document,
+so a signal code needs to be unique only within that poll. The fields are
+committed to by ``coinbase_effects_digest`` like the rest of the coinbase
+bundle, so they cannot be altered without changing the transaction identifier.
+Requiring strictly ascending signal codes gives each set of signals a single
+encoding. When there are no signals, ``pollDigest`` is omitted, so a miner that
+does not signal pays one byte for the ``nMinerSignals`` count.
+
 
 Deployment
 ==========
@@ -2468,4 +2509,5 @@ References
 .. [#zip-2001] `ZIP 2001: Lockbox Funding Streams <zip-2001.rst>`_
 .. [#zip-2002] `ZIP 2002: Explicit Fees <zip-2002.rst>`_
 .. [#zip-2006] `ZIP 2006: Restricting Transfers into the Orchard Pool <zip-2006.md>`_
+.. [#draft-marek-miner-sentiment-polling] `Draft ZIP: Miner Sentiment Polling <draft-marek-miner-sentiment-polling.md>`_
 
