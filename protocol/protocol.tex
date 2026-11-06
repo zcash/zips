@@ -2270,6 +2270,9 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\heightBytes}{\mathsf{heightBytes}}
 \newcommand{\ChainValuePoolBalance}[1]{\ensuremath{\mathsf{ChainValuePoolBalance}^{#1}}}
 \newcommand{\IssuedSupply}{\mathsf{IssuedSupply}}
+\newcommand{\TransactionFees}{\mathsf{TransactionFees}}
+\newcommand{\NSMFeeContribution}{\mathsf{NSMFeeContribution}}
+\newcommand{\MinerFees}{\mathsf{MinerFees}}
 
 \newcommand{\blockSubsidy}{\term{block subsidy}}
 \newcommand{\minerSubsidy}{\term{miner subsidy}}
@@ -4147,9 +4150,11 @@ following sections:
 \vspace{-2ex}
 
 As in \Bitcoin, the remaining value in the \transparentTxValuePool of a non-coinbase \transaction
-is available to miners as a \defining{\transactionFee}. That is, the sum of those values for non-coinbase \transactions
-in each \block is treated as an implicit input to the \transparentTxValuePool balance of the
-\block's \coinbaseTransaction (in addition to the implicit input created by issuance).
+is a \defining{\transactionFee}. The sum of those values for non-coinbase \transactions in each
+\block\nuseven{ (pre-\NUSeven), or $\MinerFees(\BlockHeight)$ for the \block at \blockHeight
+$\BlockHeight$ (\NUSeven onward),} is available to miners: it is treated as an implicit input to
+the \transparentTxValuePool balance of the \block's \coinbaseTransaction (in addition to the
+implicit input created by issuance).\nuseven{ $\MinerFees$ is defined in \shortcrossref{subsidies}.}
 
 The remaining value in the \transparentTxValuePool of \coinbaseTransactions\nusix{ in \blocks
 prior to \NUSix} is destroyed. \nusix{From \NUSix, this remaining value is required to be zero;
@@ -4448,7 +4453,8 @@ mining a \block is called the \defining{\blockSubsidy}.
 
 \canopyonward{The \blockSubsidy is composed of a \minerSubsidy and a series of \defining{\fundingStreams}.}
 
-As in \Bitcoin, the miner of a \block also receives \defining{\transactionFees}.
+As in \Bitcoin, the miner of a \block also receives \defining{\transactionFees}\nuseven{
+(pre-\NUSeven), or $\MinerFees(\BlockHeight)$ (\NUSeven onward)}.
 
 The calculations of the \blockSubsidy, \minerSubsidy, \notcanopy{and }\foundersReward\canopy{, and \fundingStreams}
 depend on the \blockHeight, as defined in \crossref{blockchain}.
@@ -4461,8 +4467,8 @@ depend on the \blockHeight, as defined in \crossref{blockchain}.
 A \transaction that has a single \transparentInput with a null \prevoutField{} field, is
 called a \defining{\coinbaseTransaction}. Every \block has a single \coinbaseTransaction
 as the first \transaction in the \block. The purpose of this \coinbaseTransaction is to
-collect and spend any \minerSubsidy, and \transactionFees paid by other \transactions included
-in the \block.
+collect and spend any \minerSubsidy, and the \transactionFees paid by other \transactions
+included in the \block\nuseven{ (pre-\NUSeven) or $\MinerFees(\BlockHeight)$ (\NUSeven onward)}.
 
 \precanopy{\crossref{foundersreward} specifies that the \coinbaseTransaction \MUST also pay
 the \foundersReward.}
@@ -14082,14 +14088,16 @@ of the \transaction encoding in the \notbeforenufive{pre-v5} format described ab
         \end{itemize}}
         \vspace{-1ex}
   \item \nusix{Let $\totalDeferredOutput$\nusixone{ and $\totalDeferredInput$} be as defined in \shortcrossref{subsidies}.}
+        \nuseven{Let $\MinerFees$ be as defined in \shortcrossref{subsidies}.}
         For the \block at \blockHeight $\mathsf{height}$:
         \begin{itemize}
           \item define the \totalOutputValue of its \coinbaseTransaction to be the total value
                 in \zatoshi of its \transparentOutputs\heartwood{, minus $\vBalance{\SaplingPoolId}$}\nufive{,
                 minus $\vBalance{\OrchardPoolId}$}\nusix{, plus $\totalDeferredOutput(\mathsf{height})$};
           \item define the \totalInputValue of its \coinbaseTransaction to be the value in \zatoshi
-                of the \blockSubsidy, plus the \transactionFees paid by \transactions in the
-                \block\nusixone{, plus $\totalDeferredInput(\mathsf{height})$}.
+                of the \blockSubsidy, plus \prenuseven{the \transactionFees paid by \transactions in the
+                \block}\nuseven{ or }\nusevenonward{$\MinerFees(\mathsf{height})$}\nusixone{, plus
+                $\totalDeferredInput(\mathsf{height})$}.
         \end{itemize}
         \vspace{-1ex}
         \prenusix{The \totalOutputValue of a \coinbaseTransaction \MUSTNOT be greater than its \totalInputValue.}
@@ -15186,7 +15194,26 @@ and $\FoundersFraction$ be as defined in \crossref{constants}.
 
   \item $\MinerSubsidy(\BlockHeight) := \BlockSubsidy(\BlockHeight) - \FoundersReward(\BlockHeight)
            \canopy{\,- \ssum{\fs\, \in\, \FundingStreams}{} \fsValue(\BlockHeight)}$.
+\nuseven{
+        \vspace{1ex}
+  \item $\TransactionFees(\BlockHeight \typecolon \Nat) \typecolon \range{0}{\MAXMONEY} :=$ the total
+        value in \zatoshi of the \transactionFees paid by the non-coinbase \transactions in the
+        \block at \blockHeight $\BlockHeight$
+        \vspace{0.5ex}
+  \item $\NSMFeeContribution(\BlockHeight \typecolon \Nat) := \floor{\hfrac{6 \mult \TransactionFees(\BlockHeight)}{10}}$
+        \vspace{0.5ex}
+  \item $\MinerFees(\BlockHeight \typecolon \Nat) := \TransactionFees(\BlockHeight) - \NSMFeeContribution(\BlockHeight)$.
+} %nuseven
 \end{formulae}
+
+\nuseven{
+\vspace{-3ex}
+\nnote{\cite{ZIP-235} writes $\NSMFeeContribution(\BlockHeight)$ as $6 \mult q + \floor{6 \mult r / 10}$,
+with $q$ and $r$ the quotient and remainder of $\TransactionFees(\BlockHeight)$ divided by $10$.
+That is equal to the definition above, and avoids forming $6 \mult \TransactionFees(\BlockHeight)$,
+which can exceed $\MAXMONEY$ in an implementation whose amounts are bounded by it. $\NSMFeeContribution(\BlockHeight)$
+is removed from circulation into the NSM Value Balance defined in \crossref{chainvaluepoolbalances}.}
+} %nuseven
 
 
 \vspace{-2ex}
@@ -16485,6 +16512,11 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
                     \texttt{FS\_FPF\_ZCG\_H3} on \Mainnet.
           \end{itemize}
           \vspace{-1.5ex}
+    \item Apply the changes described in \cite{ZIP-235}: define $\TransactionFees$,
+          $\NSMFeeContribution$, and $\MinerFees$ in \shortcrossref{subsidies}; from \NUSeven, the
+          \totalInputValue of a \coinbaseTransaction in \shortcrossref{txnconsensus} includes
+          $\MinerFees(\BlockHeight)$ in place of the \transactionFees, and \shortcrossref{transactions},
+          \shortcrossref{subsidyconcepts}, and \shortcrossref{coinbasetransactions} say so.
 } %nuseven
     \item Add an acknowledgement to Taylor Hornby for finding the 2026 \Orchard Action
           circuit soundness vulnerability.
