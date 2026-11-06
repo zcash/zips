@@ -2242,6 +2242,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\fsRecipientIndex}{\fs\mathsf{.RecipientIndex}}
 \newcommand{\fsNumRecipients}{\fs\mathsf{.NumRecipients}}
 \newcommand{\fsRedeemScriptHash}{\fs\mathsf{.RedeemScriptHash}}
+\newcommand{\fsPubKeyHash}{\fs\mathsf{.PubKeyHash}}
 \newcommand{\SlowStartInterval}{\mathsf{SlowStartInterval}}
 \newcommand{\SlowStartShift}{\mathsf{SlowStartShift}}
 \newcommand{\SlowStartRate}{\mathsf{SlowStartRate}}
@@ -2255,6 +2256,7 @@ electronic commerce and payment, financial privacy, proof of work, zero knowledg
 \newcommand{\FoundersFraction}{\mathsf{FoundersFraction}}
 \newcommand{\FSRecipientChangeInterval}{\mathsf{FSRecipientChangeInterval}}
 \newcommand{\FSRecipientPeriod}{\mathsf{FSRecipientPeriod}}
+\newcommand{\PreNUSevenEquivalentHeight}{\mathsf{PreNU7EquivalentHeight}}
 \newcommand{\BlockHeight}{\mathsf{height}}
 \newcommand{\FounderAddressAdjustedHeight}{\mathsf{FounderAddressAdjustedHeight}}
 \newcommand{\FoundersRewardLastBlockHeight}{\mathsf{FoundersRewardLastBlockHeight}}
@@ -15384,9 +15386,37 @@ Define:
   \item $\HeightForHalving(\HalvingNum \typecolon \PosInt) :=
           \minimum\Of{\setof{\BlockHeight \typecolon \Nat \suchthat \Halving(\BlockHeight) = \HalvingNum}}$
   \item $\FSRecipientChangeInterval := \PostBlossomHalvingInterval / 48$
+\nuseven{
+  \item $\PreNUSevenEquivalentHeight(\BlockHeight \typecolon \Nat) :=$
+        \vspace{-0.5ex}
+  \item \tab $\begin{cases}
+          \BlockHeight,&\caseif \text{not } \IsNUSevenActivated(\BlockHeight) \\[1ex]
+          \NUSevenActivationHeight + \hfrac{\BlockHeight - \NUSevenActivationHeight}{\NUSevenPoWTargetSpacingRatio},&\caseotherwise
+        \end{cases}$
+} %nuseven
+\notnuseven{
   \item $\FSRecipientPeriod(\BlockHeight) :=
           \floor{\hfrac{\BlockHeight - (\HeightForHalving(1) - \PostBlossomHalvingInterval)}{\FSRecipientChangeInterval}}$.
+} %notnuseven
+\notbeforenuseven{
+  \item \nuseven{$\FSRecipientPeriod(\BlockHeight) :=$}
+        \vspace{-0.5ex}
+  \item \tab \nuseven{$\floor{\hfrac{\PreNUSevenEquivalentHeight(\BlockHeight) - (\HeightForHalving(1) - \PostBlossomHalvingInterval)}{\FSRecipientChangeInterval}}$.}
+} %notbeforenuseven
 \end{formulae}
+
+\nuseven{
+\pnote{$\PreNUSevenEquivalentHeight(\BlockHeight)$ is a rational number: the \blockHeight that the
+\block at \blockHeight $\BlockHeight$ would have if the \blocks from \NUSeven activation onward had
+been mined at the pre-\NUSeven \blockTargetSpacing. Revision 2 of \cite{ZIP-207} writes the
+\NUSeven case of $\FSRecipientPeriod$ as $\floor{\hfrac{R \mult (A + I - H_1) + \BlockHeight - A}{R \mult C}}$,
+where $A$ is $\NUSevenActivationHeight$, $R$ is $\NUSevenPoWTargetSpacingRatio$, $C$ is
+$\FSRecipientChangeInterval$, $I$ is $\PostBlossomHalvingInterval$, and $H_1$ is $\HeightForHalving(1)$.
+Dividing its numerator and denominator by $R$ gives the definition above. This preserves the
+recipient index at \NUSeven activation. The remaining \blocks of the period in which \NUSeven
+activates are tripled in number, and each later period lasts $3 \mult \FSRecipientChangeInterval$
+\blocks, so that each period keeps approximately its previous duration and total value.}
+} %nuseven
 
 \introlist
 For each \fundingStream $\fs$, define:
@@ -15398,9 +15428,12 @@ For each \fundingStream $\fs$, define:
 \end{formulae}
 
 $\fsRecipients$ \MUST be of length $\fsNumRecipients$. Each element of $\fsRecipients$
-\MUST represent either a \transparentPtoSHAddress as specified in \crossref{transparentaddrencoding},
-or a \Sapling \shieldedPaymentAddress as specified in \crossref{saplingpaymentaddrencoding}\nusix{,
-or the identifier $\DeferredPoolRecipient$}.
+\MUST represent either a \transparentPtoSHAddress\nuseven{ or \transparentPtoPKHAddress} as specified
+in \crossref{transparentaddrencoding}, or a \Sapling \shieldedPaymentAddress as specified in
+\crossref{saplingpaymentaddrencoding}\nuseven{, or a Unified Address \cite{ZIP-316} containing only
+an \Orchard Receiver and no other Items}\nusix{, or the identifier $\DeferredPoolRecipient$}.
+\nuseven{A Unified Address recipient identifier represents its \Orchard Receiver, which is paid by
+an \IronwoodPoolAdj output as specified below.}
 
 A \fundingStream $\fs$ is ``active'' at \blockHeight $\BlockHeight$ when $\fsValue(\BlockHeight) > 0$,
 where $\fsValue$ is defined in \crossref{subsidies}.
@@ -15434,6 +15467,15 @@ The term \defining{\quotedPrescribedWay} is defined as follows:
 
         \defining{\xStandardRedeemScript} hashes are defined in \cite{ZIP-48} for
         \PtoSHMultisigAddresses, or \cite{Bitcoin-P2SH} for other \PtoSHAddresses.
+\nuseven{
+        \vspace{0.5ex}
+  \item The \defining{\prescribedWay} to pay a \transparentPtoPKHAddress is to use a script of
+        the form $\ScriptOP{DUP}$ $\ScriptOP{HASH160}$ $\fsPubKeyHash(\BlockHeight)\;
+        \ScriptOP{EQUALVERIFY}$ $\ScriptOP{CHECKSIG}$ as the $\scriptPubKey$, where
+        $\fsPubKeyHash(\BlockHeight)$ is the direct push of the $20$-byte public key hash in the
+        raw encoding (\crossref{transparentaddrencoding}) of the recipient address for
+        $\fsRecipient(\BlockHeight)$. No other script encoding satisfies this rule.
+} %nuseven
         \vspace{0.5ex}
   \item The \defining{\prescribedWay} to pay a \SaplingOrOrchard \paymentAddress is
         defined in \cite{ZIP-213}, using the post-\NUHeartwood consensus rules in
@@ -15464,8 +15506,9 @@ The term \defining{\quotedPrescribedWay} is defined as follows:
         \SaplingAndOrchard \shieldedPaymentAddresses as recipients. \cite{ZIP-213}
         permits \shieldedOutputs of \coinbaseTransactions to such addresses.\nufive{ The
         recipient identifiers permitted above do not include \Orchard
-        \shieldedPaymentAddresses before Revision 2 of \cite{ZIP-207}. The \prescribedWay
-        to pay one is defined in anticipation of that revision.}
+        \shieldedPaymentAddresses before Revision 2 of \cite{ZIP-207}\nuseven{, which applies
+        from \NUSeven}.\notnuseven{ The \prescribedWay to pay one was already defined, in
+        anticipation of that revision.}}
 \end{pnotes}
 
 \vspace{-1ex}
@@ -15555,8 +15598,8 @@ approximately one year's worth of blocks.}
 \item \begin{tabular}{|l|c|c|c|c|}
 \hline
 Stream                   & Numerator & Denominator & Start height & End height \\\hline\raisedstrut
-\texttt{FS\_FPF\_ZCG\_H3}&    $8$    &    $100$    &  $3146400$   &  $4406400$ \\
-\texttt{FS\_CCF\_H3}     &   $12$    &    $100$    &  $3146400$   &  $4406400$ \\\hline
+\texttt{FS\_FPF\_ZCG\_H3}&    $8$    &    $100$    &  $3146400$   &  $\notnuseven{4406400}\nuseven{6132390}$ \\
+\texttt{FS\_CCF\_H3}     &   $12$    &    $100$    &  $3146400$   &  $\notnuseven{4406400}\nuseven{6132390}$ \\\hline
 \end{tabular}
 \end{formulae}
 
@@ -15566,10 +15609,20 @@ It also defines these \fundingStreams for \Testnet:
 \item \begin{tabular}{|l|c|c|c|c|}
 \hline
 Stream                   & Numerator & Denominator & Start height & End height \\\hline\raisedstrut
-\texttt{FS\_FPF\_ZCG\_H3}&    $8$    &    $100$    &  $3536500$   &  $4476000$ \\
-\texttt{FS\_CCF\_H3}     &   $12$    &    $100$    &  $3536500$   &  $4476000$ \\\hline
+\texttt{FS\_FPF\_ZCG\_H3}&    $8$    &    $100$    &  $3536500$   &  $\notnuseven{4476000}\nuseven{4497948}$ \\
+\texttt{FS\_CCF\_H3}     &   $12$    &    $100$    &  $3536500$   &  $\notnuseven{4476000}\nuseven{4497948}$ \\\hline
 \end{tabular}
 \end{formulae}
+
+\nuseven{
+\vspace{1ex}
+\cite{ZIP-214} Revision 3, which applies from \NUSeven activation, changes the end height of each
+Revision 2 \fundingStream to $\HeightForHalving(3)$ under the \NUSeven definition of $\Halving$,
+as shown above; before \NUSeven the end heights were $4406400$ on \Mainnet and $4476000$ on
+\Testnet. It also changes the recipients of \texttt{FS\_FPF\_ZCG\_H3} on \Mainnet for the
+recipient periods after the one that contains the last pre-\NUSeven \block, as specified in
+\cite{ZIP-2008}.
+} %nuseven
 } %nusixone
 
 
@@ -16417,6 +16470,19 @@ Peter Newell's illustration of the Jubjub bird, from \cite{Carroll1902}.
                     and add the \NUSeven cases of $\Halving$ and $\BlockSubsidy$.
               \item In \shortcrossref{blockheader}, add the per-pool limits and the global shielded
                     budget on the shielded components of the \transactions in a \block.
+          \end{itemize}
+          \vspace{-1.5ex}
+    \item Apply Revision 2 of \cite{ZIP-207}, \cite{ZIP-2008}, and Revision 3 of \cite{ZIP-214}:
+          \vspace{0.5ex}
+          \begin{itemize}
+              \item In \shortcrossref{fundingstreams}, add the \NUSeven case of $\FSRecipientPeriod$,
+                    expressed through $\PreNUSevenEquivalentHeight$.
+              \item Permit transparent \PtoPKHAddresses and Unified Addresses containing only an
+                    \Orchard Receiver as \fundingStream recipients, and define the \prescribedWay to
+                    pay a \transparentPtoPKHAddress.
+              \item In \shortcrossref{zip214fundingstreams}, give the \NUSeven end heights of the
+                    Revision 2 \fundingStreams, and note the \NUSeven change of recipients of
+                    \texttt{FS\_FPF\_ZCG\_H3} on \Mainnet.
           \end{itemize}
           \vspace{-1.5ex}
 } %nuseven
