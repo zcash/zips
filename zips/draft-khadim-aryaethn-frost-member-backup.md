@@ -46,7 +46,8 @@ Group verifying key, $\mathsf{ak}$
 $\mathsf{sk}$
 
 : The 32-byte value the members agree on during key generation, from which
-  the rest of the group's key components are derived [^zip-2005-usagewithfrost].
+  $\mathsf{nk}$, $\mathsf{rivk}$ and, under ZIP 2005, $\mathsf{qsk}$ and
+  $\mathsf{qk}$ are derived [^zip-2005-usagewithfrost].
 
 Derivation
 
@@ -135,8 +136,9 @@ onlookers, as with any secret displayed on screen.
   [^zip-0312-key-generation].
 - Signing, and the transport between members.
 - Encryption of the string at rest (see [Open issues]).
-- A birthday height. zips#1401 proposes to carry it in the unified full
-  viewing key [^zips-1401], which the restore already needs.
+- A birthday height. ZIP 316 lets a unified full viewing key carry one
+  (typecode $\mathtt{0xC0}$) [^zip-0316-birthday], and the restore already
+  needs that key.
 - Splitting $\mathsf{qsk}$ between members.
 - FROST groups using Sapling keys.
 
@@ -484,8 +486,8 @@ One member of the 2-of-3 ZIP 2005 group (byte strings in hex):
   $\mathsf{sk}$ would be about 230 characters long, or 280 with a 32-byte
   identifier (see [Rationale] on Bech32m).
 - **Birthday height in version 2.** A raw Orchard full viewing key does not
-  carry the birthday height that zips#1401 would add to the unified encoding
-  [^zips-1401], so a string that restores on its own would need a birthday
+  carry the birthday height that ZIP 316 allows in the unified encoding
+  [^zip-0316-birthday], so a string that restores on its own would need a birthday
   field of its own, as Konclave noted in zcash/zips#1413. A height only means
   something on one network, so the field would either name the network or
   apply to the network the wallet restores on.
@@ -499,7 +501,7 @@ One member of the 2-of-3 ZIP 2005 group (byte strings in hex):
 
 [^BCP14]: [Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"](https://www.rfc-editor.org/info/bcp14)
 
-[^protocol-networks]: [Zcash Protocol Specification, Version 2026.7.0 [NU6.2] or later. Section 3.12: Mainnet and Testnet](protocol/protocol.pdf#networks)
+[^protocol-networks]: [Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.12: Mainnet and Testnet](protocol/protocol.pdf#networks)
 
 [^protocol-updated-orchardkeycomponents]: [Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.2.3: Orchard Key Components](protocol/protocol.pdf#orchardkeycomponents)
 
@@ -527,6 +529,6 @@ One member of the 2-of-3 ZIP 2005 group (byte strings in hex):
 
 [^frost-refresh]: [ZcashFoundation/frost: frost-core `keys::refresh`](https://github.com/ZcashFoundation/frost/blob/main/frost-core/src/keys/refresh.rs)
 
-[^zips-1401]: [zcash/zips#1401: Assign a Metadata Typecode for viewing key birthday height](https://github.com/zcash/zips/issues/1401)
+[^zip-0316-birthday]: [ZIP 316: Unified Addresses and Unified Viewing Keys — Viewing Key Birthday Height Metadata](zip-0316.rst#viewing-key-birthday-height-metadata)
 
 [^frost-zec-backup]: [frost-zec: member backup strings](https://github.com/OpenPGP-Wallet/frost-zec/blob/master/src/backup.rs)
