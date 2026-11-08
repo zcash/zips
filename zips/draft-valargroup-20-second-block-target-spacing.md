@@ -26,9 +26,9 @@ The "25-second baseline" means the rules after NU7, including ZIP 218's
 25-second target spacing and ZIP 237's subsidy definitions. [^zip-0218]
 [^zip-0237]
 
-A "stale block" is a valid mined block that does not remain on the selected
-chain. This document reports "stale blocks per accepted block" separately
-from the fraction of all mined blocks that become stale.
+An "orphan block" is a valid mined block that does not remain on the selected
+chain. This document reports "orphan blocks per accepted block" separately
+from the fraction of all mined blocks that become orphaned.
 
 "Reach 90%" means the time for a block to reach 90% of the specified node
 sample. "Effective old-tip mining time" means the accumulated mining work
@@ -71,7 +71,7 @@ individual shielded transactions reveal.
 A three-block anchor depth spans an expected 60 seconds instead of 75.
 A rollback past the anchor invalidates the transaction. A replacement spending
 the same notes exposes the same nullifiers, linking the two transactions.
-Ordinary stale-block measurements do not bound rollback depth.
+Ordinary orphan-block measurements do not bound rollback depth.
 
 The smaller per-block action limits do not change the maximum shielded
 throughput per unit time. Under sustained demand for a pool, ZIP 218's
@@ -350,9 +350,9 @@ The 2 MB block size limit is unchanged, so the maximum transparent data per
 unit time increases by 25%. This affects full node bandwidth and storage, but
 not light wallets that download only compact blocks.
 
-## Stale blocks and effective propagation time
+## Orphan blocks and effective propagation time
 
-Following ZIP 218's propagation analysis, we estimate stale blocks per
+Following ZIP 218's propagation analysis, we estimate orphan blocks per
 accepted block as the work-weighted time miners remain on the old tip divided
 by target spacing: $\phi = \tau_{\mathrm{eff}}/T$. [^zip-0218]
 [^propagation-report]
