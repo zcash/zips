@@ -295,30 +295,6 @@ and peak memory. Record client version, hardware, and cache conditions so
 others can reproduce the results.
 
 
-# Reference implementation
-
-**TODO:** link implementations and activation vectors. The experiment's
-private-network byte override is evidence for propagation, not a reference
-implementation of this height-dependent consensus and negotiation change.
-
-Implementations need coverage for:
-
-- Blocks of 2,000,000 and 2,000,001 bytes on both sides of activation;
-  blocks of 3,000,000 and 3,000,001 bytes after activation.
-- Transactions of 2,000,000 and 2,000,001 bytes inside otherwise-valid
-  post-activation blocks; coinbase and transaction-count encoding overhead.
-- Unchanged action and signature-operation boundaries, including mixed
-  pools, transparent components, and P2SH accounting.
-- Larger blocks received before the local tip reaches activation, historical
-  replay, and reorganizations that cross activation in either direction.
-- Negotiated old and new peers; exact payload limits, malformed lengths,
-  trailing bytes, truncation, and unchanged limits for other commands.
-- Mining templates and submission across a parent change; storage round trips,
-  checkpoint synchronization, and full-block RPC retrieval.
-- Many-small-transaction and output-heavy blocks, bounded decoder allocations,
-  concurrent downloads, and peers that send large bodies slowly.
-
-
 # Deployment
 
 Deploy through a network upgrade after NU7. A deployment ZIP will assign
