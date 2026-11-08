@@ -71,6 +71,12 @@ work, it is hard to reduce block times too far because of their high
 variance, hence it is critical to take on the trade-off of larger block
 sizes.
 
+Increasing the byte budget now allows more transparent transactions when
+bytes are the binding constraint. Increasing transparent throughput is an
+intermediate benefit, not Zcash's long-term scaling objective. Deploying
+and measuring larger blocks also prepares the network for future shielded
+throughput once wallets can handle it privately and efficiently.
+
 This proposal separates those decisions. It increases block space while
 retaining all shielded action limits. PIR adoption does not automatically
 activate higher limits; any change requires a separate consensus proposal.
@@ -287,17 +293,6 @@ Before deployment, benchmark the following workloads at the proposed limit:
 For each workload, report validation-to-mining-tip time, UTXO reads and writes,
 and peak memory. Record client version, hardware, and cache conditions so
 others can reproduce the results.
-
-## Separating block space from shielded action limits
-
-Shielded wallet bandwidth remains the constraint on increasing Ironwood
-actions. The experiment tests propagation under a heavier shielded workload;
-it does not demonstrate that wallets can afford that workload.
-
-A future action-limit proposal should follow PIR adoption and operational
-testing. It should quantify query bandwidth, server cost, privacy assumptions,
-failure behavior, and wallet recovery costs. This ZIP creates neither an
-automatic action-limit increase nor an exception for PIR-enabled wallets.
 
 
 # Reference implementation
