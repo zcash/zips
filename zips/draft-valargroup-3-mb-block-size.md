@@ -82,24 +82,6 @@ retaining all shielded action limits. PIR adoption does not automatically
 activate higher limits; any change requires a separate consensus proposal.
 
 
-# Privacy Implications
-
-This proposal does not change transaction disclosure, shielded proofs, or
-the information that transparent transactions expose. It does not encourage
-wallets to replace shielded transactions with transparent transactions.
-
-At unchanged block target spacing, retaining the shielded action limits
-preserves ZIP 218's bound on compact shielded fields per block and per day.
-This does not bound every wallet download: transaction metadata, transparent
-queries, and full-transaction retrieval can add traffic. A separately
-activated spacing reduction would also increase the daily bound.
-
-Longer block propagation can increase orphan blocks and reorganization risk.
-Wallets should not reduce their confirmation or anchor-depth policies on
-the strength of the experiment below. The observed orphan rate does
-not establish a reorganization-depth bound.
-
-
 # Requirements
 
 - Increase the maximum serialized block size to exactly 3 MB.
