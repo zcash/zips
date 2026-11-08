@@ -40,13 +40,14 @@ MB means 1,000,000 bytes.
 # Abstract
 
 This proposal reduces block target spacing from 25 to 20 seconds in a
-network upgrade after NU7. It builds on ZIP 218 without changing its action
-limits or block size limit. [^zip-0218] [^zip-0259]
+network upgrade after NU7. It builds on ZIP 218 and lowers its per-block
+shielded action limits and global shielded budget by 20%, from 330 to 264
+Orchard-protocol actions and from 300 to 240 Sapling inputs and outputs.
+[^zip-0218] [^zip-0259] The block size limit is unchanged.
 
-The change reduces the expected wait for a first confirmation by 20%. With
-unchanged per-block limits, it increases maximum transaction throughput by
-25%. Nodes and wallets must process 25% more blocks per unit time, increasing
-worst-case block processing time and sync cost. It adjusts the
+The change reduces the expected wait for a first confirmation by 20%.
+Shielded throughput, worst-case light wallet bandwidth, and trial decryptions
+per day are unchanged, apart from 25% more block headers. It adjusts the
 difficulty averaging window, issuance parameters, and duration-based node
 defaults to the new spacing. Shorter inclusion intervals can expose finer
 transaction timing information.
@@ -54,9 +55,10 @@ transaction timing information.
 # Motivation
 
 A 20-second target reduces the expected wait for a first confirmation by
-five seconds. With unchanged per-block limits, it increases maximum transaction throughput
-by 25%. The additional blocks increase worst-case block processing time and
-sync cost per unit time.
+five seconds. ZIP 218 chose its shielded action limits to bound worst-case
+light wallet sync bandwidth and trial decryptions per day. [^zip-0218]
+Scaling those limits with the target spacing keeps these bounds, so mobile
+and other light wallets pay only for the additional block headers.
 This proposal evaluates that incremental trade-off from ZIP 218's baseline.
 
 
@@ -71,11 +73,18 @@ A rollback past the anchor invalidates the transaction. A replacement spending
 the same notes exposes the same nullifiers, linking the two transactions.
 Ordinary stale-block measurements do not bound rollback depth.
 
+The smaller per-block action limits do not change the maximum shielded
+throughput per unit time. Under sustained demand for a pool, ZIP 218's
+observation that the limits can delay transactions and make their timing more
+distinguishable continues to apply. [^zip-0218]
+
 # Requirements
 
 - Reduce target spacing from 25 to 20 seconds after NU7.
 - Preserve approximately the difficulty averaging duration and issuance schedule,
   including partial halving intervals, subject to integer rounding.
+- Preserve ZIP 218's worst-case shielded throughput, compact sync bandwidth for
+  shielded data, and trial decryptions per day.
 - Preserve historical consensus rules and integrate the transition with ZIP 237
   and active funding-stream schedules.
 
@@ -193,21 +202,54 @@ and reissuance fraction. Its reference reserve must use cumulative scheduled
 issuance through $h-1$, retaining each historical era's integer rounding.
 If reissuance starts before this upgrade, retain that activated state.
 
-## Action limits
+## Shielded pool action limits
 
-This proposal does not change ZIP 218's action limits, global shielded budget,
-or block size limit. Implementations MUST continue to enforce them.
+Define the following constants:
+
+$$\mathsf{TwentySecondGlobalShieldedBudget} : \mathbb{N} := 264$$
+$$\mathsf{TwentySecondOrchardProtocolBlockActionLimit} : \mathbb{N} := 264$$
+$$\mathsf{TwentySecondSaplingBlockIOLimit} : \mathbb{N} := 240$$
+
+Each value is the corresponding ZIP 218 constant multiplied by $4/5$, which is
+exact for all three. [^zip-0218]
+
+For each block at height $h \geq A_{20}$, ZIP 218's per-pool limits and
+global shielded budget MUST be enforced with these constants in place of
+$\mathsf{GlobalShieldedBudget}$, $\mathsf{OrchardProtocolBlockActionLimit}$,
+and $\mathsf{SaplingBlockIOLimit}$, respectively. That is:
+
+- $\sum_{\mathit{tx} \in \mathit{block}} \mathit{nActionsOrchard}(\mathit{tx}) \leq 264$;
+- $\sum_{\mathit{tx} \in \mathit{block}} \mathit{nActionsIronwood}(\mathit{tx}) \leq 264$;
+- $\sum_{\mathit{tx} \in \mathit{block}} (\mathit{nSpendsSapling}(\mathit{tx}) + \mathit{nOutputsSapling}(\mathit{tx})) \leq 240$;
+- the shielded cost of the block, as defined by ZIP 218, is at most 264.
+
+The definition of shielded cost, the per-pool structure of the limits, and the
+2 MB block size limit are unchanged. For blocks at heights $h < A_{20}$,
+ZIP 218's limits of 330, 330, and 300 continue to apply.
+
+### Transactions exceeding a block limit at activation
+
+A transaction that by itself would violate any of these limits cannot be
+included in any block at a height $h \geq A_{20}$. This includes transactions
+that satisfy ZIP 218's limits, such as one with 300 Orchard actions.
+
+Nodes SHOULD NOT admit such a transaction to their mempool, or relay it, if
+the candidate next block's height is at or above $A_{20}$. Nodes SHOULD evict
+such transactions from their mempool when the candidate next block's height
+reaches $A_{20}$. Wallets SHOULD NOT create such a transaction for a target
+height at or above $A_{20}$.
 
 ## Minimum difficulty blocks on Testnet
 
-Retain ZIP 218's 450-second elapsed-time threshold after this upgrade.
-A block qualifies only if its timestamp is strictly more than 450 seconds
-after the preceding block's timestamp. In that case its `nBits` MUST equal
-$\mathsf{ToCompact}(\mathsf{PoWLimit})$, following ZIP 218.
+Retain ZIP 218's threshold of $18 \cdot \mathsf{PoWTargetSpacing}(h)$ seconds,
+evaluated with the new spacing. At and after $A_{20}$, the threshold is
+therefore $18 \times 20 = 360$ seconds, rather than ZIP 218's 450 seconds.
+A block qualifies only if its timestamp is strictly more than this threshold
+after the preceding block's timestamp. Thus a gap of 360 seconds does not
+qualify, while a gap of 361 seconds does. In that case the block's `nBits`
+MUST equal $\mathsf{ToCompact}(\mathsf{PoWLimit})$, following ZIP 218.
+This rule does not affect Mainnet.
 
-At and after $A_{20}$, this fixed threshold replaces the expression
-$18\cdot\mathsf{PoWTargetSpacing}(h)$. Thus 450 seconds does not qualify,
-while 451 seconds does. This rule does not affect Mainnet.
 Existing timestamp-validity bounds and local-clock tolerances remain unchanged.
 The Testnet minimum-difficulty exception remains subject to those rules.
 
@@ -250,38 +292,63 @@ The consensus coinbase maturity remains 100 blocks. This proposal leaves
 
 Wallets SHOULD retain ZIP 315's recommended anchor depth of 3 blocks.
 [^zip-0315] Its expected duration changes from 75 to 60 seconds.
-This recommendation does not guarantee protection against reorganizations.
 
 
 # Rationale
 
 ## Capacity and resource costs
 
-With unchanged per-block limits, nodes and wallets must process 25% more
-blocks per unit time. If per-block processing time remains unchanged, the
-worst-case proportion of time spent processing blocks increases by 25%.
-Syncing blocks produced during a given time offline also requires 25% more
-work. Maximum two-action Orchard throughput rises from 6.6 to 8.25
-transactions per second. ZIP 218's compact-field model rises from approximately 169.10 to
-211.38 MB/day; it excludes serialization and transport overhead. [^zip-0218]
+ZIP 218 chose its shielded action limits so that worst-case light wallet sync
+bandwidth does not increase relative to the pre-NU7 protocol. [^zip-0218]
+Retaining those per-block limits at 20 seconds would raise the maximum number
+of shielded actions per day, and with it worst-case compact sync bandwidth and
+trial decryptions, by 25%. This proposal instead scales the limits by $4/5$,
+so the daily maxima are unchanged. All three ZIP 218 values are multiples of
+5, so no rounding is needed.
 
-This figure describes worst-case compact sync bandwidth when blocks fill the
-shielded action budget. It does not establish a daily download requirement
+Using ZIP 218's compact-field model, which excludes serialization and
+transport overhead, with $86{,}400/20 = 4{,}320$ blocks per day:
+
+| Metric | 25-second baseline | 20-second proposal |
+|--------|--------------------|--------------------|
+| Blocks per day | 3,456 | 4,320 |
+| Max Orchard + Ironwood actions/block | 330 | 264 |
+| Max Sapling IOs/block | 300 | 240 |
+| Max Orchard + Ironwood actions/day | 1,140,480 | 1,140,480 |
+| Orchard or Ironwood compact BW/day | 168.79 MB | 168.79 MB |
+| Sapling compact BW/day | 120.27 MB | 120.27 MB |
+| Compact block headers/day | 0.31 MB | 0.39 MB |
+| **Worst-case total BW/day** | **169.10 MB** | **169.18 MB** |
+| Worst-case trial decrypts/day | \~2.3M | \~2.3M |
+
+The binding constraint remains a block filled with Orchard or Ironwood
+actions: $264 \times 148 \times 4{,}320 + 90 \times 4{,}320 = 169.18\textsf{ MB/day}$.
+The only increase is the 25% more compact block headers, approximately
+78 kB per day. The trial decryption count, counting both internal and external
+incoming viewing keys as in ZIP 218, is $2 \times 264 \times 4{,}320 = 2{,}280{,}960$
+per account per day, identical to ZIP 218.
+
+These figures describe worst-case compact sync bandwidth when blocks fill the
+shielded action budget. They do not establish a daily download requirement
 for every wallet.
 
-Ironwood wallet bandwidth constrains the choice of its per-block action limit.
-This draft retains ZIP 218's limit; it does not increase that limit to obtain
-more throughput. Shorter target spacing still increases the maximum number
-of actions per day by 25%. Retaining the per-block limit therefore does not
-preserve the existing daily bandwidth bound.
+Maximum shielded throughput is also unchanged. Two-action Orchard or Ironwood
+transactions remain limited to $\lfloor 264/2 \rfloor / 20 = 6.6$ transactions
+per second, and four-IO Sapling transactions to $\lfloor 240/4 \rfloor / 20 = 3.0$
+transactions per second, as in ZIP 218. The benefit of this proposal is lower
+latency, not more shielded capacity.
 
-**Open design item:** evaluate a lower Ironwood per-block action limit against
-a wallet bandwidth budget. Account for the private information retrieval
-(PIR) query design and measure its download costs before selecting a limit.
-The compact-field estimate alone does not establish those query costs.
+The worst-case shielded verification work per block falls by 20%, while
+the worst-case shielded verification work per unit time is approximately
+unchanged. Batch verification amortizes some cost across a block, so slightly
+smaller blocks may verify somewhat less efficiently per action. Fixed per-block
+costs, such as header validation, chain state updates, and propagation
+round trips, increase by 25% per unit time. Syncing blocks produced during a
+given time offline requires processing 25% more headers.
 
-**TODO:** add matched 25-second and 20-second verification, propagation, and
-wallet sync measurements under sustained near-full-block workloads.
+The 2 MB block size limit is unchanged, so the maximum transparent data per
+unit time increases by 25%. This affects full node bandwidth and storage, but
+not light wallets that download only compact blocks.
 
 ## Stale blocks and effective propagation time
 
@@ -324,26 +391,15 @@ ZIP 218 reports a 3.26% propagation-based estimate at 25 seconds.
 The near-full-block filter gives 4.29% under the same model. The difference
 reflects the sample filter, rather than a different scaling rule.
 
-**TODO:** publish the filtered dataset and calculation with node coverage
-and timestamp semantics. The 4.29% value is a theoretical estimate, not an
-observed 20-second stale rate. The reach proxy does not predict reorganization
-depth.
-
 ## Difficulty averaging duration
 
 ZIP 218's 102-block window at 25 seconds spans an expected 2,550 seconds.
 The equivalent count at 20 seconds is 127.5 blocks. This proposal rounds
-up to 128, giving 2,560 seconds, about 0.39% longer. A 127-block window
-would give 2,540 seconds. Keeping 102 blocks would shorten the duration
-to 2,040 seconds.
+up to 128, giving 2,560 seconds, about 0.39% longer.
 
 This proposal preserves the averaging duration because mining hash rate can
 vary. Reducing that duration would change the DAA's response to hash rate
 changes as well as changing block target spacing.
-
-**TODO: simulate activation from the 25-second target and 102-block window
-to the 20-second target and 128-block window.** Include hash rate shocks,
-network splits, timestamp effects, and recovery criteria.
 
 ## Issuance and schedule continuity
 
@@ -366,15 +422,6 @@ period and define integer-boundary rounding. Keep ended streams ended and
 ensure recipient lists cover every extended period. The deployment height
 and schedule amendments must be settled together; changing NU7 constants
 retroactively is invalid.
-
-
-# Reference implementation
-
-**TODO: link the implementation and activation vectors.** Cover the 25-to-20
-transition, 102-to-128 averaging window, exact subsidy rounding, partial
-halving intervals, funding schedules, NSM state continuity, and Testnet's
-450/451-second boundary. Experiment configurations alone do not establish
-an interoperable consensus implementation.
 
 
 # Deployment
