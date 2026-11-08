@@ -49,8 +49,9 @@ would depend on adoption and operational validation of private information
 retrieval (PIR), with measured wallet bandwidth and privacy costs.
 
 The proposal also changes block-message size negotiation so that upgraded
-peers can relay valid 3 MB blocks. It leaves block target spacing to separate
-proposals. Larger blocks increase full-node bandwidth, storage, and
+peers can relay valid 3 MB blocks. This proposal does not change block target
+spacing, but benchmarks for safety are done with 20-second target spacing in
+mind. Larger blocks increase full-node bandwidth, storage, and
 potential validation work.
 
 
@@ -155,11 +156,6 @@ limits the size of any included transaction. This proposal makes the
 independent 2,000,000-byte post-activation transaction cap explicit, so
 increasing the block envelope does not admit larger individual transactions.
 [^zcashd-limits] [^protocol]
-
-Implementations MUST continue to enforce ZIP 218's existing per-pool limits
-and shared global shielded budget. Orchard and Ironwood actions continue to
-consume the same shared budget. Extra transparent bytes do not exempt a
-mixed transaction's shielded components from those limits. [^zip-0218]
 
 The block signature-operation limit remains 20,000, using the existing
 counting rules, including P2SH signature operations. Existing script limits
