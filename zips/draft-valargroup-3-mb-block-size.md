@@ -19,7 +19,7 @@ The terms "block chain", "consensus branch", and "network upgrade" follow
 ZIP 200. [^zip-0200] Block and transaction encodings follow the Zcash Protocol
 Specification. [^protocol]
 
-MB means 1,000,000 bytes. GB means 1,000,000,000 bytes. The existing block
+MB means 1,000,000 bytes. The existing block
 size limit is 2 MB; this proposal increases it to 3 MB.
 
 "Orphan rate" means distinct observed orphan blocks divided by the sum of
@@ -38,7 +38,7 @@ the originating node at time zero.
 This proposal increases the block size limit from 2,000,000 to 3,000,000 bytes
 (3 MB) in a network upgrade after NU7. It preserves ZIP 218's shielded action
 limits and shared shielded budget. [^zip-0218] It also preserves the
-2,000,000-byte transaction cap enforced by zcashd and the existing signature-operation
+2,000,000-byte transaction cap currently enforced by consensus and the existing signature-operation
 limit.
 
 The additional space primarily increases capacity for transparent
