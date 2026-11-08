@@ -264,7 +264,6 @@ A November 2026 private-network experiment used 80 Zakura nodes across 12
 regions at a 20-second target spacing. Blocks filled twice ZIP 218's normal
 shielded action limit: 660 Ironwood actions. The measured blocks occupied
 3,026,379 bytes, approximately 3 MB and slightly above the proposed limit.
-[^experiment]
 
 | Measurement | Mean | Median | 95th percentile |
 |-------------|------|--------|-----------------|
@@ -382,7 +381,5 @@ propagation tails, orphan blocks, UTXO growth, and mining-tip adoption.
 [^zip-0401]: [ZIP 401: Addressing Mempool Denial-of-Service](https://zips.z.cash/zip-0401)
 
 [^zcashd-limits]: [zcashd: consensus limits](https://github.com/zcash/zcash/blob/master/src/consensus/consensus.h)
-
-[^experiment]: [November 2026 larger-block experiment: local evidence summary](https://github.com/valargroup/zips/blob/19190bf6cbab395dcf1da3813426559debe7ce04/zips/draft-valargroup-3-mb-block-size/experiment-summary.json)
 
 [^zcashd-worst-case]: [zcashd issue #1077: Worst-case block verification costs](https://github.com/zcash/zcash/issues/1077)
