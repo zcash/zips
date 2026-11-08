@@ -34,6 +34,11 @@ interpreted as described in ZIP 229. [#zip-0229]_ Following the convention in
 the Zcash Protocol Specification, *slanted text* refers to pool names, to
 distinguish them from shielded protocols.
 
+The functions $\mathsf{TransactionFees}(\mathsf{height})$,
+$\mathsf{NSMFeeContribution}(\mathsf{height})$, and
+$\mathsf{MinerFees}(\mathsf{height})$ are to be interpreted as defined in
+ZIP 235. [#zip-0235]_
+
 The terms below are to be interpreted as follows:
 
 V7 transaction format
@@ -758,10 +763,8 @@ full validators.
     'Transactions and Treestates'. [#protocol-transactions]_
 
   For a V7 coinbase transaction, its fee bundle value MUST equal this sum.
-  For a pre-V7 coinbase transaction, this sum is the transaction-fee input
-  used by its existing coinbase value rules. In a block containing only V7
-  transactions, this is equivalent to requiring the sum of fee bundle values
-  to equal zero.
+  In a block containing only V7 transactions, this is equivalent to requiring
+  the sum of fee bundle values to equal zero.
 
 * Exactly one transaction in a block MUST be a coinbase transaction, and it
   MUST be the first transaction in the block.
@@ -779,12 +782,16 @@ full validators.
   Lockbox, and Lockbox Disbursement'. [#protocol-fundingstreams]_
 
 * The value of $\mathsf{mValuePoolDeltas}[(\mathsf{CoinbaseBundleId}, \mathsf{Zec})]$
-  MUST equal the part of the block subsidy that is not deposited into the
-  lockbox.
+  MUST equal the block subsidy less the lockbox deposit and
+  $\mathsf{NSMFeeContribution}(\mathsf{height})$ for the block containing the
+  transaction.
 
   .. math::
 
-      \mathsf{mValuePoolDeltas}[(\mathsf{CoinbaseBundleId}, \mathsf{Zec})] = \mathsf{blockSubsidy} - \mathsf{lockboxValue}
+      \mathsf{mValuePoolDeltas}[(\mathsf{CoinbaseBundleId}, \mathsf{Zec})] = \mathsf{blockSubsidy} - \mathsf{lockboxValue} - \mathsf{NSMFeeContribution}(\mathsf{height})
+
+  The coinbase value pool delta can be negative when the fee contribution
+  exceeds the subsidy less the lockbox deposit.
 
 * For every transaction, the sum of value pool delta values in each asset MUST
   equal 0.
@@ -1843,14 +1850,17 @@ The block subsidy is the whole of the new issuance for the block, which
 consensus splits between the miner, the funding streams that pay to an address,
 and the funding streams that deposit into the deferred pool (the "lockbox")
 [#zip-2001]_. Only the part that is not deposited into the lockbox is paid out
-by this transaction, so the coinbase bundle's value pool delta in
-``mValuePoolDeltas`` is the block subsidy less the lockbox deposit. The fees
-collected from the other transactions in the block are contributed separately,
-as the value pool delta of the fee bundle.
+by this transaction. The full fees collected from the other transactions in
+the block are contributed separately, as the value pool delta of the fee
+bundle. The coinbase bundle's value pool delta is the block subsidy less the
+lockbox deposit and the fee contribution removed from circulation under
+ZIP 235. [#zip-0235]_ It can therefore be positive, zero, or negative. Together
+with the gross fee delta, it leaves the subsidy less the lockbox deposit plus
+$\mathsf{MinerFees}(\mathsf{height})$ available to the output bundles.
 
-The bundle's own effecting data carries the two components, as ``blockSubsidy``
-and ``lockboxValue``, so that the split is recoverable from the transaction
-rather than only their difference.
+The bundle's own effecting data carries ``blockSubsidy`` and ``lockboxValue``,
+so that these amounts are recoverable from the transaction. The fee
+contribution is derived from the gross fee delta using ZIP 235's calculation.
 
 The coinbase bundle has no authorizing data.
 
@@ -2448,12 +2458,16 @@ no value moves within a pool.
 Carrying ``blockSubsidy`` and ``lockboxValue`` in the effecting data states
 both components of the issuance in the bundle they belong to, and commits them
 to the transaction identifier along with the rest of that data. The value pool
-delta is their difference, so without them a client could see how much the
-coinbase pays out but not how much was issued or how much went to the lockbox.
-Deriving them instead is not open to every client: the subsidy is not a
-function of the block height alone once issuance depends on accumulated chain
-state, so evaluating the issuance schedule would require a client to track that
-state.
+delta combines their difference with the fee contribution removed from
+circulation under ZIP 235. Without the explicit fields, a client could see the
+net delta but not how much was issued or how much went to the lockbox. Deriving
+them instead is not open to every client: the subsidy is not a function of the
+block height alone once issuance depends on accumulated chain state, so
+evaluating the issuance schedule would require a client to track that state.
+The NSM fee contribution is derivable from the gross fee bundle value already
+present in the coinbase transaction, so it needs neither an additional coinbase
+effecting field nor a ZIP 233 entry. ZIP 233 separately provides an explicit
+bundle for voluntary removal from circulation. [#zip-0233]_
 
 The Orchard and Ironwood bundles share one encoding because the *Orchard pool*
 and the *Ironwood pool* are two pools of the same shielded protocol. The action
@@ -2716,6 +2730,7 @@ References
 .. [#zip-0225] `ZIP 225: Version 5 Transaction Format <zip-0225.rst>`_
 .. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
 .. [#zip-0233] `ZIP 233: Network Sustainability Mechanism: Removing Funds From Circulation <zip-0233.md>`_
+.. [#zip-0235] `ZIP 235: Remove 60% of Transaction Fees From Circulation <zip-0235.md>`_
 .. [#zip-0239] `ZIP 239: Relay of Version 5 Transactions <zip-0239.rst>`_
 .. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
 .. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <zip-0307.rst>`_
