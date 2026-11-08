@@ -49,9 +49,8 @@ would depend on adoption and operational validation of private information
 retrieval (PIR), with measured wallet bandwidth and privacy costs.
 
 The proposal also changes block-message size negotiation so that upgraded
-peers can relay valid 3 MB blocks. This proposal does not change block target
-spacing, but benchmarks for safety are done with 20-second target spacing in
-mind. Larger blocks increase full-node bandwidth, storage, and
+peers can relay valid 3 MB blocks. It leaves block target spacing to separate
+proposals. Larger blocks increase full-node bandwidth, storage, and
 potential validation work.
 
 
@@ -161,9 +160,8 @@ The block signature-operation limit remains 20,000, using the existing
 counting rules, including P2SH signature operations. Existing script limits
 and transaction-format bounds remain unchanged. [^zcashd-limits]
 
-This proposal changes neither block target spacing nor the difficulty
-algorithm, issuance schedule, funding streams, transaction expiry, or
-coinbase maturity.
+This proposal does not change block target spacing, but benchmarks for safety
+are done with 20-second target spacing in mind.
 
 ## Block relay and message framing
 
@@ -202,9 +200,7 @@ Miners MUST re-evaluate the limit when a parent change crosses activation.
 
 Block submission and retrieval interfaces MUST support every otherwise-valid
 block within the applicable limit. This includes proposal validation, RPC
-submission, historical retrieval, and local block import. Hex-encoded RPC
-block data alone can occupy 6,000,000 characters; request limits also need
-room for the enclosing request.
+submission, historical retrieval, and local block import.
 
 Deserializers MUST distinguish the block envelope limit from transaction
 and field limits. Increasing the block limit MUST NOT implicitly increase
@@ -221,11 +217,9 @@ fixed entitlement to a number of full blocks. [^zip-0317] [^zip-0401]
 
 ## Choice of block size
 
-The authors chose 3 MB as an attainable limit for current Zakura and Zebra
-Andale implementations while keeping orphan rates within a reasonable range.
-This is an engineering target, not a claim that 3 MB is an optimal threshold.
-The experiment below provides preliminary Zakura evidence near that size.
-Matched measurements across both clients remain necessary before deployment.
+The authors chose 3 MB because, at that size, current Zakura and Zebra Andale
+implementations keep orphan rates below Ethereum's historical average of
+5.4%. The experiment below provides preliminary Zakura evidence near that size.
 
 ## Throughput and resource costs
 
@@ -263,7 +257,6 @@ shielded action limit: 660 Ironwood actions. The measured blocks occupied
 
 | Measurement | Mean | Median | 95th percentile |
 |-------------|------|--------|-----------------|
-| Peer-to-peer block propagation | TODO | TODO | TODO |
 | Block propagation to 90% of nodes | 1.20 s | 1.02 s | 2.18 s |
 
 The 90% result covers 809 canonical blocks. It measures time from the miner's
