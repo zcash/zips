@@ -352,44 +352,24 @@ not light wallets that download only compact blocks.
 
 ## Orphan blocks and effective propagation time
 
-Following ZIP 218's propagation analysis, we estimate orphan blocks per
-accepted block as the work-weighted time miners remain on the old tip divided
-by target spacing: $\phi = \tau_{\mathrm{eff}}/T$. [^zip-0218]
+With ZIP-218, there was measured work to evaluate the orphan rate, and re-org
+rate in highly distributed testnets with full 2MB blocks. We repeat that
+methodology, using 2 action Ironwood transactions until the original ZIP-218
+limit, and then transparent transactions afterwards. These distributed networks
+contain 80 equal-weighted miners, evenly spread across 12 regions (including
+US-east, US-west, Australia, Amsterdam, Bangladesh, Singapore). [^zip-0218]
 [^propagation-report]
 
-The Zebra-only devnet data accompanying the propagation report contains
-621 block hashes at heights of at least 400 with bodies of at least
-1,990,000 bytes. This near-full-block sample has a mean reach-90% time of
-1.55994 seconds. [^propagation-report]
+With 20s full blocks, with an all Zakura node network work as above, we
+measured 1.9% orphan rates. This was using the older ZIP-218 action count, so
+thereby having a higher verification load due to the increased number of ZKP's.
+For reference this value is currently 1.45% on Zakura {TODO: Update this old
+benchmark to latest}.
 
-The mixed-client experiment uses 80 geographically distributed nodes:
-40 run Zakura and 40 run Zebra. **TODO:** identify the mixed-run dataset and
-report its reach-90% measurement. The 1.56-second input below comes from
-the Zebra-only sample and has not been established for the mixed run.
-
-Effective old-tip mining time accumulates the mining work still spent on
-the old tip during propagation. For example, half the network mining the
-old tip for one second contributes 0.5 effective seconds.
-
-If dissemination rises linearly from 0% to 90% over 1.56 seconds, the
-old-tip mining share falls from 100% to 10%. Its average is 55%, giving:
-
-$$\tau_{\mathrm{eff}}\approx1.56\times0.55=0.858\text{ seconds}.$$
-
-At 20 seconds, this gives $\phi\approx0.858/20=4.29\%$. It assumes nodes
-represent mining work and omits any material tail after reaching 90%.
-Remaining old-tip mining after that percentile adds to the effective time.
-
-Under Poisson discovery, the chance of another block anywhere within
-1.56 seconds is $1-e^{-1.56/20}\approx7.50\%$. That includes blocks found
-by miners who already received the new tip. The effective-time model counts
-only old-tip work. Its probability of at least one competitor is
-$1-e^{-0.858/20}\approx4.20\%$, distinct from the expected count of 4.29%.
-
-ZIP 218 reports a 3.26% propagation-based estimate at 25 seconds.
-[^zip-0218] Holding that effective delay fixed gives 4.08% at 20 seconds.
-The near-full-block filter gives 4.29% under the same model. The difference
-reflects the sample filter, rather than a different scaling rule.
+Since NU7 went live, we've seen orphan rate increase from 0.66% to 0.83%,
+albeit block utilization is not constant in these time periods. The 0.66%
+orphan rate is measured from a time period where blocks were on average 53kb
+large, whereas the 0.85% is from a time period of 10kb on average.
 
 ## Difficulty averaging duration
 
