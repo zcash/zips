@@ -265,7 +265,7 @@ The observed orphan rate was **3.6%**.
 network.
 
 
-## Validation benchmarks
+## Computation and I/O benchmarks
 
 The original Zcash block-size increase prompted analysis of verification
 costs across different input/output mixes. [^zcashd-worst-case] A fixed
