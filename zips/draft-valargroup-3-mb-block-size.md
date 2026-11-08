@@ -261,15 +261,8 @@ shielded action limit: 660 Ironwood actions. The measured blocks occupied
 
 The observed orphan rate was **3.6%**.
 
-These results support further evaluation of 3 MB blocks. They do not establish
-a Mainnet orphan-rate bound. Cross-host clock error affects propagation
-timing, and the propagation sample excludes orphan blocks.
-
-**TODO:** Add peer-to-peer propagation measurements with explicit send and
-receive boundaries. Add results from experiments with different block sizes
-and shielded/transparent transaction mixes, including the proposed unchanged
-shielded action limits. Report propagation to 90% of nodes and orphan rates
-for each configuration, including Zakura and Zebra Andale results.
+**TODO:** Report propagation to 90% of nodes using a mixed Zakura / Zebra Andale
+network.
 
 
 ## Validation benchmarks
