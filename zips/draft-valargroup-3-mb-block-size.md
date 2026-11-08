@@ -259,9 +259,7 @@ shielded action limit: 660 Ironwood actions. The measured blocks occupied
 |-------------|------|--------|-----------------|
 | Block propagation to 90% of nodes | 1.20 s | 1.02 s | 2.18 s |
 
-The observed orphan rate was **3.6%**, including startup. The rate counts
-blocks committed by at least one node that were absent from the final agreed
-chain. It excludes solved blocks that no node recorded as committed.
+The observed orphan rate was **3.6%**.
 
 These results support further evaluation of 3 MB blocks. They do not establish
 a Mainnet orphan-rate bound. Cross-host clock error affects propagation
