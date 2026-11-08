@@ -22,8 +22,8 @@ Specification. [^protocol]
 MB means 1,000,000 bytes. GB means 1,000,000,000 bytes. The existing block
 size limit is 2 MB; this proposal increases it to 3 MB.
 
-"Orphan rate" means distinct observed stale blocks divided by the sum of
-canonical and observed stale blocks. Here, a stale block is a block outside
+"Orphan rate" means distinct observed orphan blocks divided by the sum of
+canonical and observed orphan blocks. Here, an orphan block is a block outside
 the final agreed chain. The experiment below counts a block
 only if at least one node recorded a successful commit. It does not count
 every solved block that a miner discarded before submission.
@@ -84,7 +84,7 @@ This does not bound every wallet download: transaction metadata, transparent
 queries, and full-transaction retrieval can add traffic. A separately
 activated spacing reduction would also increase the daily bound.
 
-Longer block propagation can increase stale blocks and reorganization risk.
+Longer block propagation can increase orphan blocks and reorganization risk.
 Wallets should not reduce their confirmation or anchor-depth policies on
 the strength of the experiment below. The observed orphan rate does
 not establish a reorganization-depth bound.
@@ -248,7 +248,7 @@ arrive at the stated target spacing:
 | 25 seconds | 120,000 bytes/second | 10.368 GB | 1.5× |
 | 20 seconds | 150,000 bytes/second | 12.96 GB | 1.875× |
 
-These figures exclude repeated relay, stale blocks, transport overhead,
+These figures exclude repeated relay, orphan blocks, transport overhead,
 indexes, and state growth. They describe full-block traffic, not light-wallet
 compact sync. Disk and memory costs can grow differently from serialized
 bytes, especially for blocks with many small transparent outputs.
@@ -283,7 +283,7 @@ chain. It excludes solved blocks that no node recorded as committed.
 
 These results support further evaluation of 3 MB blocks. They do not establish
 a Mainnet orphan-rate bound. Cross-host clock error affects propagation
-timing, and the propagation sample excludes stale blocks.
+timing, and the propagation sample excludes orphan blocks.
 
 **TODO:** Add peer-to-peer propagation measurements with explicit send and
 receive boundaries. Add results from experiments with different block sizes
@@ -358,7 +358,7 @@ Before advancing to Proposed status, publish reproducible experiment inputs
 and resolve the deployment assignments. Validate the byte and computational
 boundaries across independent clients. Run matched 3 MB transparent and
 mixed workloads at the selected spacing, including constrained bandwidth,
-propagation tails, stale blocks, UTXO growth, and mining-tip adoption.
+propagation tails, orphan blocks, UTXO growth, and mining-tip adoption.
 
 
 # References
