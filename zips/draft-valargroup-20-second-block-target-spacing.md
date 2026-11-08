@@ -357,7 +357,8 @@ rate in highly distributed testnets with full 2MB blocks. We repeat that
 methodology, using 2 action Ironwood transactions until the original ZIP-218
 limit, and then transparent transactions afterwards. These distributed networks
 contain 80 equal-weighted miners, evenly spread across 12 regions (including
-US-east, US-west, Australia, Amsterdam, Bangladesh, Singapore). [^zip-0218]
+US-east, US-west, Australia, Amsterdam, London, Frankfurt, Bangladesh,
+Singapore). [^zip-0218]
 [^propagation-report]
 
 With 20s full blocks, with an all Zakura node network work as above, we
