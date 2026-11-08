@@ -61,11 +61,15 @@ The byte budget limits serialized data; the action budget limits shielded
 work and compact sync bandwidth. Its action limits do not apply to the
 transparent components of transactions. [^zip-0218]
 
-Increasing the byte budget now allows more transparent transactions when
-bytes are the binding constraint. Increasing transparent throughput is an
-intermediate benefit, not Zcash's long-term scaling objective. Deploying
-and measuring larger blocks also prepares the network for future shielded
-throughput once wallets can handle it privately and efficiently.
+With the upcoming Tachyon shielded pool, wallets are intended to use more
+scalable flows, such as out-of-band communication and PIR, to discover
+incoming transactions. Given that, the limiters on the throughput of Zcash
+will be off-chain services and the throughput of consensus itself.
+Increasing the throughput of consensus necessitates increasing the block
+size, lowering the average block time, or both. Under single-chain proof of
+work, it is hard to reduce block times too far because of their high
+variance, hence it is critical to take on the trade-off of larger block
+sizes.
 
 This proposal separates those decisions. It increases block space while
 retaining all shielded action limits. PIR adoption does not automatically
