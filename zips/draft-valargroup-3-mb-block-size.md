@@ -259,12 +259,6 @@ shielded action limit: 660 Ironwood actions. The measured blocks occupied
 |-------------|------|--------|-----------------|
 | Block propagation to 90% of nodes | 1.20 s | 1.02 s | 2.18 s |
 
-The 90% result covers 809 canonical blocks. It measures time from the miner's
-solution-ready event to decoded block availability at 72 of 80 nodes. It
-includes submission and network delivery, rather than validated mining-tip
-adoption. The saved summary does not contain a separate peer-to-peer timing
-measurement; that row remains TODO.
-
 The observed orphan rate was **3.6%**, including startup. The rate counts
 blocks committed by at least one node that were absent from the final agreed
 chain. It excludes solved blocks that no node recorded as committed.
