@@ -7,6 +7,7 @@
     Category: Consensus
     Created: 2026-11-04
     License: MIT
+    Discussions-To: <https://forum.zcashcommunity.com/t/proposal-lower-zcash-block-target-spacing-from-25s-to-20s/59035>
 
 
 # Terminology
