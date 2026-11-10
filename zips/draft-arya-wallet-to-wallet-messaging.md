@@ -1,6 +1,7 @@
     ZIP: Unassigned
     Title: Wallet-to-Wallet Messaging
     Owners: Arya <arya@zfnd.org>
+            Ying Tong Lai <yingtong.lai@gmail.com>
     Status: Draft
     Category: Standards / Wallet
     Created: 2026-11-03
