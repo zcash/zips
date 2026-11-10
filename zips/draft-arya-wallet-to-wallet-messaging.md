@@ -279,8 +279,9 @@ A Server List entry is a 32-byte `server_id` and, for each network the server
 is on, an address in the format of that network's Routing Binding. The
 Mailbox Server of a Mailbox ID $\mathsf{id}$ is the entry with the smallest
 $\mathsf{BLAKE2b\text{-}256}(\texttt{"Zcash\_WMsgSrvSel"}, \mathtt{server\_id} \,||\, \mathsf{id})$,
-compared as a byte string. The Server List itself is not yet specified; see
-[Open issues](#open-issues).
+compared as a byte string.
+
+TODO: specify the Server List; see [Open issues](#open-issues).
 
 ## Conversations
 
@@ -442,7 +443,9 @@ None yet.
 # Open issues [open-issues]
 
 - The Server List: encoding, maintenance, distribution, authentication,
-  handling of changes, and whether one network is mandatory to implement.
+  handling of changes, and whether one network is mandatory to implement. If
+  operators could choose their `server_id`, one could choose it so as to be
+  selected for a particular address.
 - Who runs Mailbox Servers and what pays for them; quotas, retention, and
   whether Deposit should carry a payment or proof of work.
 - Whether an opt-in signal is needed after all.
