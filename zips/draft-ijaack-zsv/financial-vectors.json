@@ -1,0 +1,1134 @@
+{
+  "format": "zsv-zip-financial-vectors-v1",
+  "scope": "Candidate ZIP arithmetic only. JSON is not a native encoding. oracle_fresh is an assumed validated precondition; signatures, ownership, prevouts, fee funding, oracle certificates, transaction bytes and full consensus are not checked. Rejection means the financial transition is not committed. RetireBadDebt is proposed behavior absent from the existing Rust model.",
+  "parameters": {
+    "zatoshi_per_zec": 100000000,
+    "micro_units_per_zusd": 1000000,
+    "max_collateral": 2100000000000000,
+    "max_price": 18446744073709551615,
+    "min_nonzero_principal": 100000000,
+    "supply_cap": 100000000000,
+    "borrow_ratio": "5/2",
+    "liquidation_ratio": "2/1",
+    "liquidation_payout_multiplier": "21/20",
+    "intermediate_bits": 128
+  },
+  "cases": [
+    {
+      "id": "open_borrow_exact_250_percent",
+      "operation": "open",
+      "input": {
+        "collateral": 250000000,
+        "principal": 100000000,
+        "supply": 0,
+        "bad_debt": 0,
+        "price": 100000000,
+        "oracle_fresh": true
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 100000000,
+        "bad_debt": 0,
+        "vault": {
+          "collateral": 250000000,
+          "principal": 100000000
+        },
+        "minted": 100000000,
+        "burned": 0,
+        "zec_deposited": 250000000,
+        "owner_zec": 0,
+        "liquidator_zec": 0
+      }
+    },
+    {
+      "id": "open_borrow_one_zatoshi_below_ratio",
+      "operation": "open",
+      "input": {
+        "collateral": 249999999,
+        "principal": 100000000,
+        "supply": 0,
+        "bad_debt": 0,
+        "price": 100000000,
+        "oracle_fresh": true
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "collateral_ratio"
+      }
+    },
+    {
+      "id": "open_nonzero_debt_below_minimum",
+      "operation": "open",
+      "input": {
+        "collateral": 250000000,
+        "principal": 99999999,
+        "supply": 0,
+        "bad_debt": 0,
+        "price": 100000000,
+        "oracle_fresh": true
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "minimum_debt"
+      }
+    },
+    {
+      "id": "open_collateral_only_without_oracle",
+      "operation": "open",
+      "input": {
+        "collateral": 1,
+        "principal": 0,
+        "supply": 0,
+        "bad_debt": 0,
+        "price": null,
+        "oracle_fresh": false
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 0,
+        "bad_debt": 0,
+        "vault": {
+          "collateral": 1,
+          "principal": 0
+        },
+        "minted": 0,
+        "burned": 0,
+        "zec_deposited": 1,
+        "owner_zec": 0,
+        "liquidator_zec": 0
+      }
+    },
+    {
+      "id": "open_zero_collateral",
+      "operation": "open",
+      "input": {
+        "collateral": 0,
+        "principal": 0,
+        "supply": 0,
+        "bad_debt": 0,
+        "price": null,
+        "oracle_fresh": false
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "collateral"
+      }
+    },
+    {
+      "id": "open_collateral_only_during_bad_debt",
+      "operation": "open",
+      "input": {
+        "collateral": 1,
+        "principal": 0,
+        "supply": 1000000,
+        "bad_debt": 1000000,
+        "price": null,
+        "oracle_fresh": false
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 1000000,
+        "bad_debt": 1000000,
+        "vault": {
+          "collateral": 1,
+          "principal": 0
+        },
+        "minted": 0,
+        "burned": 0,
+        "zec_deposited": 1,
+        "owner_zec": 0,
+        "liquidator_zec": 0
+      }
+    },
+    {
+      "id": "open_borrow_during_bad_debt",
+      "operation": "open",
+      "input": {
+        "collateral": 250000000,
+        "principal": 100000000,
+        "supply": 1,
+        "bad_debt": 1,
+        "price": 100000000,
+        "oracle_fresh": true
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "bad_debt_freeze"
+      }
+    },
+    {
+      "id": "open_exact_supply_cap",
+      "operation": "open",
+      "input": {
+        "collateral": 250000000,
+        "principal": 100000000,
+        "supply": 99900000000,
+        "bad_debt": 0,
+        "price": 100000000,
+        "oracle_fresh": true
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 100000000000,
+        "bad_debt": 0,
+        "vault": {
+          "collateral": 250000000,
+          "principal": 100000000
+        },
+        "minted": 100000000,
+        "burned": 0,
+        "zec_deposited": 250000000,
+        "owner_zec": 0,
+        "liquidator_zec": 0
+      }
+    },
+    {
+      "id": "open_one_unit_above_supply_cap",
+      "operation": "open",
+      "input": {
+        "collateral": 250000000,
+        "principal": 100000000,
+        "supply": 99900000001,
+        "bad_debt": 0,
+        "price": 100000000,
+        "oracle_fresh": true
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "supply_cap"
+      }
+    },
+    {
+      "id": "open_borrow_without_fresh_observation",
+      "operation": "open",
+      "input": {
+        "collateral": 250000000,
+        "principal": 100000000,
+        "supply": 0,
+        "bad_debt": 0,
+        "price": 100000000,
+        "oracle_fresh": false
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "oracle"
+      }
+    },
+    {
+      "id": "open_zero_price",
+      "operation": "open",
+      "input": {
+        "collateral": 250000000,
+        "principal": 100000000,
+        "supply": 0,
+        "bad_debt": 0,
+        "price": 0,
+        "oracle_fresh": true
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "range"
+      }
+    },
+    {
+      "id": "open_negative_collateral",
+      "operation": "open",
+      "input": {
+        "collateral": -1,
+        "principal": 100000000,
+        "supply": 0,
+        "bad_debt": 0,
+        "price": 100000000,
+        "oracle_fresh": true
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "range"
+      }
+    },
+    {
+      "id": "open_collateral_above_native_maximum",
+      "operation": "open",
+      "input": {
+        "collateral": 2100000000000001,
+        "principal": 100000000,
+        "supply": 0,
+        "bad_debt": 0,
+        "price": 100000000,
+        "oracle_fresh": true
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "range"
+      }
+    },
+    {
+      "id": "open_price_above_u64",
+      "operation": "open",
+      "input": {
+        "collateral": 250000000,
+        "principal": 100000000,
+        "supply": 0,
+        "bad_debt": 0,
+        "price": 18446744073709551616,
+        "oracle_fresh": true
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "range"
+      }
+    },
+    {
+      "id": "open_valid_domain_maximum_products",
+      "operation": "open",
+      "input": {
+        "collateral": 2100000000000000,
+        "principal": 100000000000,
+        "supply": 0,
+        "bad_debt": 0,
+        "price": 18446744073709551615,
+        "oracle_fresh": true
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 100000000000,
+        "bad_debt": 0,
+        "vault": {
+          "collateral": 2100000000000000,
+          "principal": 100000000000
+        },
+        "minted": 100000000000,
+        "burned": 0,
+        "zec_deposited": 2100000000000000,
+        "owner_zec": 0,
+        "liquidator_zec": 0
+      }
+    },
+    {
+      "id": "update_borrow_exact_ratio",
+      "operation": "update",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 100000000,
+        "new_collateral": 1000000000,
+        "new_principal": 400000000,
+        "supply": 100000000,
+        "bad_debt": 0,
+        "price": 100000000,
+        "oracle_fresh": true,
+        "stable_input": 0
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 400000000,
+        "bad_debt": 0,
+        "vault": {
+          "collateral": 1000000000,
+          "principal": 400000000
+        },
+        "minted": 300000000,
+        "burned": 0,
+        "zec_deposited": 0,
+        "owner_zec": 0,
+        "liquidator_zec": 0
+      }
+    },
+    {
+      "id": "update_borrow_one_unit_above_ratio",
+      "operation": "update",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 100000000,
+        "new_collateral": 1000000000,
+        "new_principal": 400000001,
+        "supply": 100000000,
+        "bad_debt": 0,
+        "price": 100000000,
+        "oracle_fresh": true,
+        "stable_input": 0
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "collateral_ratio"
+      }
+    },
+    {
+      "id": "update_borrow_frozen_at_entry",
+      "operation": "update",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 100000000,
+        "new_collateral": 1000000000,
+        "new_principal": 400000000,
+        "supply": 100000001,
+        "bad_debt": 1,
+        "price": 100000000,
+        "oracle_fresh": true,
+        "stable_input": 0
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "bad_debt_freeze"
+      }
+    },
+    {
+      "id": "update_withdraw_exact_ratio",
+      "operation": "update",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 100000000,
+        "new_collateral": 250000000,
+        "new_principal": 100000000,
+        "supply": 100000000,
+        "bad_debt": 0,
+        "price": 100000000,
+        "oracle_fresh": true,
+        "stable_input": 0
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 100000000,
+        "bad_debt": 0,
+        "vault": {
+          "collateral": 250000000,
+          "principal": 100000000
+        },
+        "minted": 0,
+        "burned": 0,
+        "zec_deposited": 0,
+        "owner_zec": 750000000,
+        "liquidator_zec": 0
+      }
+    },
+    {
+      "id": "update_withdraw_one_zatoshi_too_far",
+      "operation": "update",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 100000000,
+        "new_collateral": 249999999,
+        "new_principal": 100000000,
+        "supply": 100000000,
+        "bad_debt": 0,
+        "price": 100000000,
+        "oracle_fresh": true,
+        "stable_input": 0
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "collateral_ratio"
+      }
+    },
+    {
+      "id": "update_deposit_without_oracle",
+      "operation": "update",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 100000000,
+        "new_collateral": 1100000000,
+        "new_principal": 100000000,
+        "supply": 100000000,
+        "bad_debt": 0,
+        "price": null,
+        "oracle_fresh": false,
+        "stable_input": 0
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 100000000,
+        "bad_debt": 0,
+        "vault": {
+          "collateral": 1100000000,
+          "principal": 100000000
+        },
+        "minted": 0,
+        "burned": 0,
+        "zec_deposited": 100000000,
+        "owner_zec": 0,
+        "liquidator_zec": 0
+      }
+    },
+    {
+      "id": "update_repay_without_oracle",
+      "operation": "update",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 200000000,
+        "new_collateral": 1000000000,
+        "new_principal": 100000000,
+        "supply": 200000000,
+        "bad_debt": 0,
+        "price": null,
+        "oracle_fresh": false,
+        "stable_input": 100000000
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 100000000,
+        "bad_debt": 0,
+        "vault": {
+          "collateral": 1000000000,
+          "principal": 100000000
+        },
+        "minted": 0,
+        "burned": 100000000,
+        "zec_deposited": 0,
+        "owner_zec": 0,
+        "liquidator_zec": 0
+      }
+    },
+    {
+      "id": "update_repay_and_withdraw",
+      "operation": "update",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 200000000,
+        "new_collateral": 250000000,
+        "new_principal": 100000000,
+        "supply": 200000000,
+        "bad_debt": 0,
+        "price": 100000000,
+        "oracle_fresh": true,
+        "stable_input": 100000000
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 100000000,
+        "bad_debt": 0,
+        "vault": {
+          "collateral": 250000000,
+          "principal": 100000000
+        },
+        "minted": 0,
+        "burned": 100000000,
+        "zec_deposited": 0,
+        "owner_zec": 750000000,
+        "liquidator_zec": 0
+      }
+    },
+    {
+      "id": "update_full_repay_and_debt_free_withdraw",
+      "operation": "update",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 100000000,
+        "new_collateral": 1,
+        "new_principal": 0,
+        "supply": 100000000,
+        "bad_debt": 0,
+        "price": null,
+        "oracle_fresh": false,
+        "stable_input": 100000000
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 0,
+        "bad_debt": 0,
+        "vault": {
+          "collateral": 1,
+          "principal": 0
+        },
+        "minted": 0,
+        "burned": 100000000,
+        "zec_deposited": 0,
+        "owner_zec": 999999999,
+        "liquidator_zec": 0
+      }
+    },
+    {
+      "id": "update_repay_leaves_below_minimum",
+      "operation": "update",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 200000000,
+        "new_collateral": 1000000000,
+        "new_principal": 99999999,
+        "supply": 200000000,
+        "bad_debt": 0,
+        "price": null,
+        "oracle_fresh": false,
+        "stable_input": 101000000
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "minimum_debt"
+      }
+    },
+    {
+      "id": "update_repay_without_enough_tokens",
+      "operation": "update",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 100000000,
+        "new_collateral": 1000000000,
+        "new_principal": 0,
+        "supply": 100000000,
+        "bad_debt": 0,
+        "price": null,
+        "oracle_fresh": false,
+        "stable_input": 99999999
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "stable_input"
+      }
+    },
+    {
+      "id": "update_no_change",
+      "operation": "update",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 100000000,
+        "new_collateral": 1000000000,
+        "new_principal": 100000000,
+        "supply": 100000000,
+        "bad_debt": 0,
+        "price": 100000000,
+        "oracle_fresh": true,
+        "stable_input": 0
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "no_change"
+      }
+    },
+    {
+      "id": "update_zero_collateral_requires_close",
+      "operation": "update",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 100000000,
+        "new_collateral": 0,
+        "new_principal": 0,
+        "supply": 100000000,
+        "bad_debt": 0,
+        "price": null,
+        "oracle_fresh": false,
+        "stable_input": 100000000
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "collateral"
+      }
+    },
+    {
+      "id": "close_repay_and_return_all_collateral",
+      "operation": "close",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 100000000,
+        "supply": 100000000,
+        "bad_debt": 0,
+        "stable_input": 100000000
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 0,
+        "bad_debt": 0,
+        "vault": null,
+        "minted": 0,
+        "burned": 100000000,
+        "zec_deposited": 0,
+        "owner_zec": 1000000000,
+        "liquidator_zec": 0
+      }
+    },
+    {
+      "id": "close_debt_free",
+      "operation": "close",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 0,
+        "supply": 0,
+        "bad_debt": 0,
+        "stable_input": 0
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 0,
+        "bad_debt": 0,
+        "vault": null,
+        "minted": 0,
+        "burned": 0,
+        "zec_deposited": 0,
+        "owner_zec": 1000000000,
+        "liquidator_zec": 0
+      }
+    },
+    {
+      "id": "close_insufficient_tokens",
+      "operation": "close",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 100000000,
+        "supply": 100000000,
+        "bad_debt": 0,
+        "stable_input": 99999999
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "stable_input"
+      }
+    },
+    {
+      "id": "close_preserves_unrelated_bad_debt",
+      "operation": "close",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 100000000,
+        "supply": 100000001,
+        "bad_debt": 1,
+        "stable_input": 100000000
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 1,
+        "bad_debt": 1,
+        "vault": null,
+        "minted": 0,
+        "burned": 100000000,
+        "zec_deposited": 0,
+        "owner_zec": 1000000000,
+        "liquidator_zec": 0
+      }
+    },
+    {
+      "id": "liquidate_exact_200_percent_is_healthy",
+      "operation": "liquidate",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 400000000,
+        "supply": 400000000,
+        "bad_debt": 0,
+        "price": 80000000,
+        "oracle_fresh": true,
+        "stable_input": 400000000,
+        "max_burn": 400000000,
+        "min_collateral": 0
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "healthy"
+      }
+    },
+    {
+      "id": "liquidate_just_below_200_percent_rounds_up",
+      "operation": "liquidate",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 400000000,
+        "supply": 400000000,
+        "bad_debt": 0,
+        "price": 79999999,
+        "oracle_fresh": true,
+        "stable_input": 400000000,
+        "max_burn": 400000000,
+        "min_collateral": 0
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 0,
+        "bad_debt": 0,
+        "vault": null,
+        "minted": 0,
+        "burned": 400000000,
+        "zec_deposited": 0,
+        "owner_zec": 474999993,
+        "liquidator_zec": 525000007
+      }
+    },
+    {
+      "id": "liquidate_solvent",
+      "operation": "liquidate",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 400000000,
+        "supply": 400000000,
+        "bad_debt": 0,
+        "price": 50000000,
+        "oracle_fresh": true,
+        "stable_input": 400000000,
+        "max_burn": 400000000,
+        "min_collateral": 0
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 0,
+        "bad_debt": 0,
+        "vault": null,
+        "minted": 0,
+        "burned": 400000000,
+        "zec_deposited": 0,
+        "owner_zec": 160000000,
+        "liquidator_zec": 840000000
+      }
+    },
+    {
+      "id": "liquidate_crash_floor_and_ceiling",
+      "operation": "liquidate",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 400000000,
+        "supply": 400000000,
+        "bad_debt": 0,
+        "price": 20000000,
+        "oracle_fresh": true,
+        "stable_input": 400000000,
+        "max_burn": 400000000,
+        "min_collateral": 0
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 209523810,
+        "bad_debt": 209523810,
+        "vault": null,
+        "minted": 0,
+        "burned": 190476190,
+        "zec_deposited": 0,
+        "owner_zec": 2,
+        "liquidator_zec": 999999998
+      }
+    },
+    {
+      "id": "liquidate_crash_preserves_other_liabilities",
+      "operation": "liquidate",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 400000000,
+        "supply": 550000000,
+        "bad_debt": 50000000,
+        "price": 20000000,
+        "oracle_fresh": true,
+        "stable_input": 400000000,
+        "max_burn": 400000000,
+        "min_collateral": 0
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 359523810,
+        "bad_debt": 259523810,
+        "vault": null,
+        "minted": 0,
+        "burned": 190476190,
+        "zec_deposited": 0,
+        "owner_zec": 2,
+        "liquidator_zec": 999999998
+      }
+    },
+    {
+      "id": "liquidate_no_fresh_observation",
+      "operation": "liquidate",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 400000000,
+        "supply": 400000000,
+        "bad_debt": 0,
+        "price": 50000000,
+        "oracle_fresh": false,
+        "stable_input": 400000000,
+        "max_burn": 400000000,
+        "min_collateral": 0
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "oracle"
+      }
+    },
+    {
+      "id": "liquidate_insufficient_tokens",
+      "operation": "liquidate",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 400000000,
+        "supply": 400000000,
+        "bad_debt": 0,
+        "price": 50000000,
+        "oracle_fresh": true,
+        "stable_input": 399999999,
+        "max_burn": 400000000,
+        "min_collateral": 0
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "stable_input"
+      }
+    },
+    {
+      "id": "liquidate_maximum_burn_bound",
+      "operation": "liquidate",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 400000000,
+        "supply": 400000000,
+        "bad_debt": 0,
+        "price": 50000000,
+        "oracle_fresh": true,
+        "stable_input": 400000000,
+        "max_burn": 399999999,
+        "min_collateral": 0
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "intent_bounds"
+      }
+    },
+    {
+      "id": "liquidate_minimum_collateral_bound",
+      "operation": "liquidate",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 400000000,
+        "supply": 400000000,
+        "bad_debt": 0,
+        "price": 50000000,
+        "oracle_fresh": true,
+        "stable_input": 400000000,
+        "max_burn": 400000000,
+        "min_collateral": 840000001
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "intent_bounds"
+      }
+    },
+    {
+      "id": "liquidate_exact_intent_bounds",
+      "operation": "liquidate",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 400000000,
+        "supply": 400000000,
+        "bad_debt": 0,
+        "price": 50000000,
+        "oracle_fresh": true,
+        "stable_input": 400000000,
+        "max_burn": 400000000,
+        "min_collateral": 840000000
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 0,
+        "bad_debt": 0,
+        "vault": null,
+        "minted": 0,
+        "burned": 400000000,
+        "zec_deposited": 0,
+        "owner_zec": 160000000,
+        "liquidator_zec": 840000000
+      }
+    },
+    {
+      "id": "liquidate_zero_affordable_burn_dust",
+      "operation": "liquidate",
+      "input": {
+        "collateral": 1,
+        "principal": 100000000,
+        "supply": 100000000,
+        "bad_debt": 0,
+        "price": 1,
+        "oracle_fresh": true,
+        "stable_input": 0,
+        "max_burn": 0,
+        "min_collateral": 0
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 100000000,
+        "bad_debt": 100000000,
+        "vault": null,
+        "minted": 0,
+        "burned": 0,
+        "zec_deposited": 0,
+        "owner_zec": 1,
+        "liquidator_zec": 0
+      }
+    },
+    {
+      "id": "liquidate_one_micro_unit_exact_collateral",
+      "operation": "liquidate",
+      "input": {
+        "collateral": 105,
+        "principal": 100000000,
+        "supply": 100000000,
+        "bad_debt": 0,
+        "price": 1000000,
+        "oracle_fresh": true,
+        "stable_input": 1,
+        "max_burn": 1,
+        "min_collateral": 105
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 99999999,
+        "bad_debt": 99999999,
+        "vault": null,
+        "minted": 0,
+        "burned": 1,
+        "zec_deposited": 0,
+        "owner_zec": 0,
+        "liquidator_zec": 105
+      }
+    },
+    {
+      "id": "liquidate_debt_free_is_healthy",
+      "operation": "liquidate",
+      "input": {
+        "collateral": 1000000000,
+        "principal": 0,
+        "supply": 0,
+        "bad_debt": 0,
+        "price": 50000000,
+        "oracle_fresh": true,
+        "stable_input": 0,
+        "max_burn": 400000000,
+        "min_collateral": 0
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "healthy"
+      }
+    },
+    {
+      "id": "retire_partial_bad_debt",
+      "operation": "retire_bad_debt",
+      "input": {
+        "supply": 500000000,
+        "bad_debt": 100000000,
+        "amount": 40000000,
+        "stable_input": 40000000
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 460000000,
+        "bad_debt": 60000000,
+        "burned": 40000000,
+        "zec_payout": 0,
+        "live_principal": 400000000
+      }
+    },
+    {
+      "id": "retire_all_bad_debt",
+      "operation": "retire_bad_debt",
+      "input": {
+        "supply": 500000000,
+        "bad_debt": 100000000,
+        "amount": 100000000,
+        "stable_input": 100000000
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 400000000,
+        "bad_debt": 0,
+        "burned": 100000000,
+        "zec_payout": 0,
+        "live_principal": 400000000
+      }
+    },
+    {
+      "id": "retire_no_active_principal",
+      "operation": "retire_bad_debt",
+      "input": {
+        "supply": 100000000,
+        "bad_debt": 100000000,
+        "amount": 100000000,
+        "stable_input": 100000000
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 0,
+        "bad_debt": 0,
+        "burned": 100000000,
+        "zec_payout": 0,
+        "live_principal": 0
+      }
+    },
+    {
+      "id": "retire_zero_rejected",
+      "operation": "retire_bad_debt",
+      "input": {
+        "supply": 500000000,
+        "bad_debt": 100000000,
+        "amount": 0,
+        "stable_input": 40000000
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "retirement_amount"
+      }
+    },
+    {
+      "id": "retire_above_bad_debt_rejected",
+      "operation": "retire_bad_debt",
+      "input": {
+        "supply": 500000000,
+        "bad_debt": 100000000,
+        "amount": 100000001,
+        "stable_input": 100000001
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "retirement_amount"
+      }
+    },
+    {
+      "id": "retire_actual_tokens_required",
+      "operation": "retire_bad_debt",
+      "input": {
+        "supply": 500000000,
+        "bad_debt": 100000000,
+        "amount": 40000000,
+        "stable_input": 39999999
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "stable_input"
+      }
+    },
+    {
+      "id": "retire_no_bad_debt_rejected",
+      "operation": "retire_bad_debt",
+      "input": {
+        "supply": 500000000,
+        "bad_debt": 0,
+        "amount": 40000000,
+        "stable_input": 40000000
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "retirement_amount"
+      }
+    },
+    {
+      "id": "retire_bad_debt_cannot_exceed_supply",
+      "operation": "retire_bad_debt",
+      "input": {
+        "supply": 99000000,
+        "bad_debt": 100000000,
+        "amount": 40000000,
+        "stable_input": 40000000
+      },
+      "expected": {
+        "accepted": false,
+        "reason": "prestate"
+      }
+    },
+    {
+      "id": "retire_one_micro_unit",
+      "operation": "retire_bad_debt",
+      "input": {
+        "supply": 1,
+        "bad_debt": 1,
+        "amount": 1,
+        "stable_input": 1
+      },
+      "expected": {
+        "accepted": true,
+        "supply": 0,
+        "bad_debt": 0,
+        "burned": 1,
+        "zec_payout": 0,
+        "live_principal": 0
+      }
+    }
+  ]
+}
