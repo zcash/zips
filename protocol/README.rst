@@ -24,13 +24,13 @@ Building
 
 Use:
 
-* ``make nu6_3`` to make the specification for NU6.3 (``nu6_3.pdf``), which is
+* ``make nu7`` to make the specification for NU7 (``nu7.pdf``), which is
   the default (``protocol.pdf`` is a link to it);
-* ``make nu6_3-dark`` to make its dark mode version (``nu6_3-dark.pdf``, linked
+* ``make nu7-dark`` to make its dark mode version (``nu7-dark.pdf``, linked
   as ``protocol-dark.pdf``);
-* ``make nu6_2``, ``make nu6_1``, ``make nu6``, ``make nu5``, ``make canopy``,
-  ``make heartwood``, ``make blossom``, or ``make sapling`` to make the
-  specification for an earlier network upgrade (``nu6_2.pdf``, etc.);
+* ``make nu6_3``, ``make nu6_2``, ``make nu6_1``, ``make nu6``, ``make nu5``,
+  ``make canopy``, ``make heartwood``, ``make blossom``, or ``make sapling`` to
+  make the specification for an earlier network upgrade (``nu6_3.pdf``, etc.);
 * ``make all-specs`` to make all of the above;
 * ``make linkcheck`` (in the root of the repo) to build everything and also
   perform link checking. This will access the network.
