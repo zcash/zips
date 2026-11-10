@@ -11,7 +11,7 @@
     License: MIT
     Discussions-To: <https://forum.zcashcommunity.com/t/end-zcg-and-send-its-funds-to-the-nsm/58515>
     Pull-Request: <https://github.com/zcash/zips/pull/1423>
-    Updates: 207, 209, 214, 1015, 1016
+    Updates: 1015, 1016
 
 
 # Terminology
@@ -26,9 +26,13 @@ Foundation" ("FPF") have the meanings given in ZIP 1015. [^zip-1015]
 "Coinholder-Controlled Fund" ("CCF") has the meaning given in ZIP 1016.
 [^zip-1016]
 
-"Future Dev and Legal Defense Fund Lockbox" ("the Lockbox") means the
-in-protocol pool identified by `FDLDF_POOL` and tracked by `FDLDFBalance` in
-the draft by Sean Bowe, Zooko Wilcox, and Jason McGee. [^fdldf-lockbox]
+"Future Dev and Legal Defense Fund Lockbox" ("the Lockbox") means the pool
+specified in the draft by Sean Bowe, Zooko Wilcox, and Jason McGee.
+[^fdldf-lockbox]
+
+"Lockbox administrator" means the entity designated by a future ZIP to
+administer Lockbox withdrawals and receive residual ZCG funds for future
+Zcash development and legal defense.
 
 "Wind-down Date" means the UTC calendar day of Mainnet activation of the
 network upgrade that deploys this ZIP.
@@ -62,24 +66,22 @@ scheduled term. If the stream has already expired and the Lockbox has yet to
 be deployed, activation would create it with a zero opening balance.
 
 FPF would complete existing commitments under their terms and retain full
-reserves for outstanding obligations and permitted wind-down expenses. Once
-legally authorized and technically able to deposit, FPF would contribute
-surplus to the Lockbox as it becomes available. If a separately authorized
-NSM donation is completed before Mainnet activation, the wind-down would
-apply to the remaining treasury and subsequent receipts.
+reserves for outstanding obligations and permitted wind-down expenses. FPF
+would hold the surplus until a future ZIP designates the Lockbox administrator
+and that entity establishes a receiving address. Once legally authorized, FPF
+would transfer surplus to that address as it becomes available. If a separately
+authorized NSM donation is completed before Mainnet activation, the wind-down
+would apply to the remaining treasury and subsequent receipts.
 
 ZIPs 1015 and 1016 currently restrict the purposes for which FPF may use ZCG
 funds. This ZIP specifies amendments that expressly authorize completing
-existing commitments, paying limited closure costs, and contributing the
-remainder to the Lockbox. It also calls for corresponding legal instruments and
-approvals so that the change can be executed consistently with FPF's legal
-obligations, rather than assuming a ZIP alone changes existing agreements.
+existing commitments, paying limited closure costs, and transferring the
+remainder to the Lockbox administrator. FPF would obtain the legal instruments
+and approvals needed to carry out these changes.
 
-The 12% CCF stream is unchanged. The wind-down can begin before a mechanism
-for depositing existing ZEC into the Lockbox is deployed. Until such a
-mechanism is available, FPF would safeguard the residual funds solely for
-that purpose. Public reporting would establish the disposition of the treasury
-while protecting confidential grantee and financial information.
+The wind-down would begin at Mainnet activation even if the administrator's
+receiving address is still pending. Public reporting would account for the
+treasury while protecting confidential grantee and financial information.
 
 
 # Motivation
@@ -133,23 +135,23 @@ while preserving the legal administration still needed to execute grants.
 This ZIP builds on Maxime Desalle's forum proposal, "End ZCG and send its
 funds to the NSM", for closing the program and honoring approved grants.
 [^maxime-proposal] It uses the Future Dev and Legal Defense Fund Lockbox
-proposed by Bowe, Wilcox, and McGee for both the remaining term of the 8%
-allocation and the residual treasury. [^fdldf-lockbox]
+proposed by Bowe, Wilcox, and McGee for the remainder of the 8% allocation.
+The residual treasury would go to the entity designated to administer
+withdrawals from that Lockbox. [^fdldf-lockbox]
 
 The policy proposed here is to honor work already approved, stop creating new
 commitments, and reserve the unused balance for future Zcash development and
 legal defense. Completing existing commitments gives grantees a defined
 transition and avoids treating program closure as a reason to abandon approved
-work. Crediting the remainder to the Lockbox avoids creating another
-discretionary grant-making body to receive it.
+work. The Lockbox administrator would manage the residual funds for the
+same purposes under the terms of its designation.
 
 The present fund restrictions need explicit attention. ZIP 1015 requires FPF
 to use the ZCG allocation exclusively for grants and related administration,
 and to recognize it contractually as a Restricted Fund donation. ZIP 1016
-carries those obligations forward. [^zip-1015-zcg] [^zip-1016-admin] A Lockbox
-contribution is neither a grant to an external party nor ordinary grant
-administration. Express amendments are needed to authorize it within the ZIP
-framework.
+carries those obligations forward. [^zip-1015-zcg] [^zip-1016-admin] Express
+amendments are needed to authorize FPF to transfer the residual treasury to
+the Lockbox administrator.
 
 FPF is an independent Cayman Islands foundation company. [^fpf] Its actual
 authority also depends on applicable law, its constitutional documents, and
@@ -162,9 +164,8 @@ reviewed or amended.
 
 # Privacy Implications
 
-Redirecting the subsidy to the Lockbox creates no payment output. A future
-deposit mechanism may have its own privacy implications. Publishing the
-wind-down accounts and Lockbox contribution evidence may associate
+Redirecting the subsidy to the Lockbox creates no payment output. Publishing
+the wind-down accounts and evidence of treasury transfers may associate
 transactions with FPF or the ZCG treasury. Reports can establish amounts and
 completion without publishing grantees' private identities, payment addresses,
 KYC records, or privileged legal advice.
@@ -179,8 +180,8 @@ KYC records, or privileged legal advice.
 * Complete existing commitments under their approved terms, including normal
   milestone verification and remedies for non-performance.
 * Provide FPF with an explicit mandate, within the ZIP framework and the
-  applicable legal instruments, to close ZCG and contribute residual funds to
-  the same Lockbox.
+  applicable legal instruments, to close ZCG and transfer residual funds to
+  the Lockbox administrator.
 * Limit and disclose the costs of administering the wind-down.
 * Account for the full ZCG treasury, including later receipts and recoveries,
   without diverting funds belonging to other programs.
@@ -194,21 +195,10 @@ KYC records, or privileged legal advice.
 
 ## Activation
 
-Let $A$ be this ZIP's activation height on a network, and $N$ that network's
-NU7 activation height. $A$ MUST be greater than $N$. Let $E$ be the end height
-of `FS_FPF_ZCG_H3` under Revision 3 of ZIP 214 [^zip-0214], at the third halving
-under ZIP 218's 25-second blocks [^zip-0218]. Then $E = N + 3 \cdot (H_3 - N)$,
-where $H_3$ is the pre-NU7 third-halving height (4406400 on Mainnet, 4476000 on
-Testnet). With $N = 3543405$ on Mainnet and $N = 4465026$ on Testnet [^zip-0259],
-$E = 6132390$ on Mainnet and $E = 4497948$ on Testnet. End heights are exclusive,
-as specified in ZIP 207. [^zip-0207]
-
-The stream redirection below applies only on a network where $A < E$. Where
-$A \geq E$, the ZCG stream has already ended and this ZIP does not restart it.
-
-The wind-down and the amendments to ZIPs 1015 and 1016 MUST take effect at the
-Mainnet activation height $A$, regardless of the stream's status or whether
-the Lockbox accepts deposits of existing ZEC.
+The wind-down and the amendments to ZIPs 1015 and 1016 MUST take effect at
+Mainnet activation of the designated network upgrade, regardless of the
+stream's status or the availability of the Lockbox administrator's receiving
+address.
 
 The deployment ZIP MUST identify this ZIP and specify the upgrade's activation
 height for each network under ZIP 200. [^zip-0200] Existing rules governing ZCG
@@ -220,57 +210,23 @@ without an award.
 
 ## The Future Dev and Legal Defense Fund Lockbox
 
-The Lockbox reserves funds for future Zcash development and legal defense.
-Spending from it requires a future consensus change. [^fdldf-lockbox]
+The Lockbox consensus rules and their activation conditions are specified by
+the referenced draft. [^fdldf-activation] [^fdldf-lockbox] The designated
+upgrade MUST deploy those rules where they have yet to take effect, subject
+to the amendment below. Where they already took effect, the upgrade MUST
+carry forward the existing Lockbox and any remaining replacement stream.
 
-**Funding streams.** On each network where $A < E$ and `FS_FPF_ZCG_H3` would
-otherwise remain active at $A$, a new revision of ZIP 214 [^zip-0214] makes
-the following changes at activation:
-
-* Set the exclusive end height of `FS_FPF_ZCG_H3` to $A$. Preserve its recipient
-  at each height where the stream was active before $A$, using the existing
-  address-period calculations and ZIP 2008's address list update where
-  applicable. [^zip-0207] [^zip-2008]
-* Add `FS_FDLDF_H3` with numerator 8, denominator 100, inclusive start height
-  $A$, and exclusive end height $E$. Every recipient entry is `FDLDF_POOL`.
-  ZIP 207's funding-stream calculation gives its value in whole zatoshis.
-
-If the same redirection already took effect, the existing `FS_FDLDF_H3`
-schedule carries forward. `FS_CCF_H3` and the Deferred Dev Fund Lockbox
-continue under their existing rules.
-
-**Recipient and coinbase accounting.** A new revision of ZIP 207 adds
-`FDLDF_POOL` as a funding-stream recipient, using the same form of accounting
-as `DEFERRED_POOL` under ZIP 2001. [^zip-2001] In the protocol specification's
-funding-stream payment rules, add `FDLDF_POOL` to the allowed recipient
-identifiers and exclude it from the rule requiring a coinbase output to pay
-an address. Credit its value to the Lockbox balance. [^protocol]
-
-For a block height $h \in \mathbb{N}$, define
-$\mathsf{totalFDLDFOutput}(h)$ in § 7.8 as the sum of $\mathsf{fs.Value}(h)$,
-in zatoshis, over the active funding streams whose recipient at $h$ is
-`FDLDF_POOL`. The sum is zero when there are no such streams. In § 7.1.2,
-add $\mathsf{totalFDLDFOutput}(h)$ to the coinbase transaction's total output
-value alongside $\mathsf{totalDeferredOutput}(h)$.
-
-**Chain value pool balance.** On each network, if the Lockbox is being
-deployed for the first time, initialize its balance to zero before applying
-the block at height $A$. This initialization also applies where $A \geq E$.
-An existing Lockbox carries forward its accumulated balance. In § 4.17,
-define the Lockbox balance in zatoshis through height $h$ as
-
-$$\mathsf{FDLDFBalance}(h) := \sum_{i=0}^{h} \mathsf{totalFDLDFOutput}(i).$$
-
-Include this balance in $\mathsf{IssuedSupply}(h)$ and in the set of pools
-subject to ZIP 209. [^zip-0209] Nodes MUST reject a block that would make any
-of those pool balances negative or make their sum, computed without overflow,
-exceed $\mathsf{MAX\_MONEY}$ zatoshis.
+**Amendment for activation after stream expiry.** Where the ZCG stream has
+already expired at activation and the Lockbox does not yet exist, the Lockbox
+recipient and balance rules MUST still take effect at activation. The balance
+MUST be initialized to zero before applying the activation block. The
+referenced draft's expiry condition continues to govern the funding streams.
 
 ## Administration during the wind-down
 
 From Mainnet activation, FPF and the ZCG Committee MUST administer ZCG funds
 solely to complete existing commitments, meet the permitted wind-down expenses,
-and contribute residual funds to the Lockbox as specified below.
+and safeguard and transfer residual funds as specified below.
 
 FPF MUST notify affected applicants and existing grantees of the wind-down
 and publish the designated upgrade, its Mainnet activation height, the
@@ -300,13 +256,13 @@ publish an initial wind-down plan containing:
   currency risk;
 * an itemized wind-down budget, with a spending cap, responsible parties, and
   an expected timetable for completing the administrative work; and
-* the legal and technical prerequisites for Lockbox contributions, identifying
+* the prerequisites for transferring residual funds, identifying
   which have been satisfied and which remain outstanding.
 
 The plan MUST distinguish an approved grant from an unconditional payment
 liability. Its reserve MUST provide for unpaid approved milestones without
-waiving their conditions. FPF MUST NOT contribute to the Lockbox any assets
-needed to satisfy creditors, existing commitments, or other legal obligations.
+waiving their conditions. FPF MUST reserve assets needed to satisfy creditors,
+existing commitments, and other legal obligations before transferring surplus.
 If assets are insufficient to meet these obligations, FPF MUST report the
 shortfall and address it under the applicable agreements and law before
 determining that any residual funds are available.
@@ -358,7 +314,7 @@ over discretionary grant decisions.
 Once existing commitments have been completed or lawfully discharged and the
 committee has approved the final administrative budget, the committee MUST
 conclude its operational role. The final budget MUST provide for any remaining
-custody, Lockbox contributions, reporting, and legal record retention. FPF
+custody, transfers, reporting, and legal record retention. FPF
 MUST retain responsibility for those duties. After committee closure, any
 increase to the cap for spending from ZCG funds MUST be authorized through an
 amendment to this ZIP. FPF MUST disclose any projected shortfall in its
@@ -372,7 +328,7 @@ under the restrictions applicable at the time. [^fdldf-donation] This ZIP
 governs the ZCG funds remaining at Mainnet activation and any later receipts
 or recoveries.
 
-Before making a Lockbox contribution, FPF MUST obtain advice from qualified
+Before transferring residual funds, FPF MUST obtain advice from qualified
 Cayman Islands counsel concerning its authority to execute this wind-down,
 including the restricted-fund terms, its constitutional documents, existing
 contracts, and any required consents or approvals.
@@ -390,40 +346,33 @@ a required authorization cannot be obtained, FPF MUST report the obstacle,
 safeguard the affected funds, and seek a further community decision. Such an
 obstacle MUST NOT authorize new grants or an alternative recipient.
 
-## Contribution of residual funds to the Lockbox
+## Transfer of residual funds to the Lockbox administrator
 
-FPF MUST contribute each residual amount to the Lockbox as it becomes
-available under the conditions below, retaining sufficient reserves for all
-outstanding obligations and permitted wind-down expenses. Residual assets held
-in currencies or assets other than ZEC MUST be converted to ZEC on commercially
-reasonable terms, with conversion costs included in the approved budget and
-disclosed in the accounts.
+FPF MUST hold residual funds in segregated custody pending transfer and
+report the balance and custody costs quarterly. Before transferring funds,
+FPF MUST obtain the legal authority required above and verify a Mainnet
+receiving address established and controlled by the entity designated in an
+accepted ZIP.
 
-The contribution MUST use a consensus mechanism active on Mainnet that
-debits the contributed ZEC from its source pool and credits the same amount
-to `FDLDFBalance` without new issuance. A separate consensus specification
-MUST extend the balance calculation above to include those deposits.
+FPF MUST transfer residual funds to that address in ZEC, retaining sufficient
+reserves for all outstanding obligations and permitted wind-down expenses.
+FPF MUST convert residual assets other than ZEC on commercially reasonable
+terms, with conversion costs included in the approved budget and disclosed in
+the accounts. The designated entity MUST account for the received funds
+separately from the Lockbox's on-chain balance and administer them for future
+Zcash development and legal defense under the terms of the accepted ZIP and
+applicable legal instruments.
 
-If a suitable mechanism is not yet available, FPF MUST hold the residual
-funds in segregated custody solely for a future Lockbox contribution and report
-their balance and custody costs quarterly. FPF MUST NOT represent a payment
-to an unspendable address, an excessive transaction fee, or a transfer to
-another organization as fulfilling this obligation.
+FPF MUST publish a transfer schedule in the wind-down plan and update it as
+reserves are released. Each residual amount MUST be transferred within 90 days
+after it becomes available without impairing required reserves and the
+designation, address verification, and legal prerequisites above are met.
+FPF MAY combine amounts within that period to reduce transaction costs.
 
-FPF MUST publish a contribution schedule in the wind-down plan and update it
-as reserves are released. Each residual amount MUST be contributed within
-90 days after all three conditions are satisfied for that amount: it is
-available without impairing the required reserves, the necessary legal
-authority has been obtained, and the deposit mechanism is active on Mainnet.
-FPF MAY combine amounts within that period to reduce transaction costs,
-provided the full remaining balance is accounted for and ultimately
-contributed.
-
-For each contribution, FPF MUST publish its amount, transaction identifier,
-confirmation block, and evidence that the amount was credited under the
-deployed Lockbox deposit mechanism. It MUST verify confirmation on the canonical
-chain before recording the contribution as complete. The same rules apply to
-later receipts and recoveries after the initial treasury has been contributed.
+For each transfer, FPF MUST verify confirmation on the canonical chain and
+publish its amount, transaction identifier, confirmation block, and evidence
+of receipt by the designated entity. The same rules apply to later receipts
+and recoveries.
 
 ## Transparency and final accounting
 
@@ -433,19 +382,19 @@ confidential grantee information, private payment details, and key material;
 redactions MUST NOT prevent reconciliation of the aggregate financial amounts.
 
 FPF MUST publish quarterly progress reports reconciling opening balances,
-receipts, commitment payments, expenses, conversion proceeds, Lockbox
-contributions, reserves, and closing balances. Any missed timetable or
-change in reserve or budget MUST be explained.
+receipts, commitment payments, expenses, conversion proceeds, transfers to
+the Lockbox administrator, reserves, and closing balances. FPF MUST explain
+any missed timetable or change in reserve or budget.
 
 After existing commitments and wind-down expenses have been settled and all
-residual funds then held have been contributed, FPF MUST publish a final
+residual funds then held have been transferred, FPF MUST publish a final
 reconciliation and closure report. It MUST identify the custodian and retention
 arrangements for legally required records and provide a contact for later
 receipts, recoveries, or claims. Public reports and grant records SHOULD remain
 available as a historical archive. Any later receipt or recovery MUST be
-accounted for and contributed under this ZIP after provision for lawful related
+accounted for and transferred under this ZIP after provision for lawful related
 expenses. Custody and quarterly reporting obligations MUST continue for any
-such funds pending contribution.
+such funds pending transfer.
 
 ## Changes to ZIP 1015
 
@@ -463,16 +412,17 @@ subsection "Wind-down of Zcash Community Grants" immediately before
 >
 > The permitted purposes of the ZCG Restricted Fund donation expressly include
 > completing existing commitments, paying the reasonable and limited wind-down
-> expenses authorized by that ZIP, and contributing all residual funds to the
-> Future Dev and Legal Defense Fund Lockbox. FPF MUST arrange the corresponding
-> amendments to the restricted-fund agreements and obtain the legal authority
-> required by that ZIP before executing an action that requires it. These
+> expenses authorized by that ZIP, and transferring all residual funds to the
+> entity designated to administer withdrawals from the Future Dev and Legal
+> Defense Fund Lockbox. FPF MUST arrange the corresponding amendments to the
+> restricted-fund agreements and obtain the legal authority required by that
+> ZIP before executing an action that requires it. These
 > purposes do not authorize new grants, unrelated FPF expenditure, or diversion
 > to another fund.
 >
-> A Lockbox contribution mandated by that ZIP is an authorized disposition of the
-> Restricted Fund, rather than a grant requiring a new grant award. Compliance
-> with that ZIP does not constitute a breach for the purposes of Enforcement.
+> A transfer mandated by that ZIP is an authorized disposition of the
+> Restricted Fund. Compliance with that ZIP satisfies the prescribed-use
+> requirement for the purposes of Enforcement.
 > Security, separate accounting, and transparency obligations continue until
 > their completion under that ZIP, with required record retention continuing
 > thereafter.
@@ -528,44 +478,42 @@ using its assigned identifier when available.
 
 ## Completing approved work
 
-Staged contributions let FPF deposit available surplus while keeping a
+Staged transfers let FPF move available surplus while keeping a
 documented reserve for approved work, potential liabilities, and wind-down
 expenses. Existing projects can finish under their milestone conditions.
 Closing applications and discretionary renewals provides a definite end to
 grant-making. Contractual termination provisions address ongoing arrangements
 without assuming that all grants end on the same date.
 
-## Choosing the Lockbox for both allocations
+## Funding future development and legal defense
 
-Both sources are reserved in the same protocol pool for future Zcash
-development and legal defense. A future ZIP would specify how the Lockbox
-can be spent. [^fdldf-lockbox]
+The Lockbox holds the subsidy allocation for future development and legal
+defense. The entity designated to administer its withdrawals would manage the
+residual ZCG treasury separately for those same purposes. [^fdldf-lockbox]
 
 ## Expressly amending the fund restrictions
 
-Relying on an interpretation that a Lockbox contribution is an ordinary ZCG grant
-would leave FPF's mandate unclear. Express permission in both ZIPs, together
-with corresponding legal instruments, addresses the restricted-fund purpose
-and the incorporation of ZIP 1015's rules by ZIP 1016. The CCF exception avoids
-accidentally authorizing its wind-down through that incorporation.
+Express permission in both ZIPs and the corresponding legal instruments
+gives FPF a mandate to transfer the restricted funds to the designated
+entity. The CCF exception confines the wind-down to ZCG funds when ZIP 1016
+incorporates ZIP 1015's rules.
 
 ## Coordinating the wind-down with a network upgrade
 
 Mainnet activation ends new grant-making and, if the ZCG stream is still
 active, redirects its remaining subsidy allocation to the Lockbox.
 
-If a Lockbox deposit mechanism is not available when the wind-down
-begins, safe custody bridges the interval until it is deployed. Custody may
-continue after the committee concludes its operational role. It introduces
-continuing costs and dependence on a future deployment, which the community
-should weigh when considering this ZIP.
+FPF may need to hold the residual treasury after the committee concludes its
+operational role while a future ZIP designates the Lockbox administrator and
+the entity establishes a receiving address. The wind-down budget accounts
+for that custody.
 
 ## Community consideration
 
 This is an initial proposal for discussion; it does not claim community
 consensus. Review should consider the effect on teams that depend on future
 ZCG grants, the availability of other funding channels, the proposed cutoff,
-and the costs and risks of retaining funds pending a Lockbox contribution.
+and the costs and risks of retaining funds pending transfer.
 
 
 # Deployment
@@ -574,8 +522,8 @@ This ZIP is not included in NU7 as currently specified by ZIP 259. [^zip-0259]
 The target upgrade is after NU7. Its deployment ZIP will specify the
 activation height for each network under ZIP 200. [^zip-0200] The upgrade
 will establish the Lockbox where needed and redirect any remaining ZCG stream
-as specified above. Mainnet activation starts the wind-down even if deposits
-of existing ZEC into the Lockbox are not yet supported.
+as specified above. Mainnet activation starts the wind-down even if the
+Lockbox administrator has yet to be designated.
 
 # Reference implementation
 
@@ -588,13 +536,13 @@ None yet.
   restrictions that prevent the proposed disposition.
 * Designate the target network upgrade and its Mainnet activation height in
   the deployment ZIP.
-* Confirm the 30-day initial reporting period and the 90-day contribution
-  period after legal and technical readiness.
+* Confirm the 30-day initial reporting period and the 90-day transfer period
+  after all prerequisites are met.
 * Reconcile the outstanding grant and administrative commitments with FPF and
   agree the wind-down budget and reserve methodology before implementation.
-* Specify and deploy a consensus mechanism for deposits of existing ZEC into
-  the Lockbox.
-* Obtain independent review of the treasury custody, contribution verification,
+* Designate the Lockbox administrator and specify the terms under which it
+  will receive and administer residual ZCG funds in a future ZIP.
+* Obtain independent review of the treasury custody, transfer verification,
   and privacy arrangements before this ZIP becomes Released under ZIP 0.
   [^zip-0000]
 * Record community feedback and any substantiated objections before seeking
@@ -605,19 +553,11 @@ None yet.
 
 [^BCP14]: [Information on BCP 14 — RFC 2119 and RFC 8174](https://www.rfc-editor.org/info/bcp14/)
 
-[^protocol]: [Zcash Protocol Specification](protocol/protocol.pdf)
-
 [^zip-0000]: [ZIP 0: ZIP Process](zip-0000.rst)
 
 [^zip-0200]: [ZIP 200: Network Upgrade Mechanism](zip-0200.rst)
 
-[^zip-0207]: [ZIP 207: Funding Streams](zip-0207.rst)
-
-[^zip-0209]: [ZIP 209: Prohibit Out-of-Range Chain Value Pool Balances](zip-0209.rst)
-
 [^zip-0214]: [ZIP 214: Consensus Rules for a Zcash Development Fund](zip-0214.rst)
-
-[^zip-0218]: [ZIP 218: 25-second Block Target Spacing](zip-0218.md)
 
 [^zip-0259]: [ZIP 259: Deployment of the NU7 Network Upgrade](zip-0259.md)
 
@@ -631,9 +571,7 @@ None yet.
 
 [^zip-1016-admin]: [ZIP 1016: Community and Coinholder Funding Model — Administrative obligations and constraints](zip-1016.md#administrativeobligationsandconstraints)
 
-[^zip-2001]: [ZIP 2001: Lockbox Funding Streams](zip-2001.rst)
-
-[^zip-2008]: [ZIP 2008: Update to FS_FPF_ZCG_H3 address list](zip-2008.md)
+[^fdldf-activation]: [Bowe, Wilcox, and McGee: Activation](https://github.com/aquietinvestor/zips/blob/future-dev-legal-defense-fund/zips/draft-mcgee-future-dev-legal-defense-fund.md#activation)
 
 [^fdldf-lockbox]: [Bowe, Wilcox, and McGee: Future Dev and Legal Defense Fund Lockbox](https://github.com/aquietinvestor/zips/blob/future-dev-legal-defense-fund/zips/draft-mcgee-future-dev-legal-defense-fund.md#the-future-dev-and-legal-defense-fund-lockbox) ([draft PR](https://github.com/zcash/zips/pull/1428))
 
