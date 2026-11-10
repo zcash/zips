@@ -28,12 +28,11 @@ The "25-second baseline" means the rules after NU7, including ZIP 218's
 [^zip-0237]
 
 An "orphan block" is a valid mined block that does not remain on the selected
-chain. This document reports "orphan blocks per accepted block" separately
-from the fraction of all mined blocks that become orphaned.
+chain. The "orphan rate" is the fraction of all mined blocks that become
+orphan blocks.
 
-"Reach 90%" means the time for a block to reach 90% of the specified node
-sample. "Effective old-tip mining time" means the accumulated mining work
-spent on the old tip, expressed as seconds of the whole network's mining power.
+"Reach 90%" means the mean time from a block's solution until 90% of the
+nodes have verified it.
 
 MB means 1,000,000 bytes.
 
@@ -353,25 +352,48 @@ not light wallets that download only compact blocks.
 
 ## Orphan blocks and effective propagation time
 
-With ZIP-218, there was measured work to evaluate the orphan rate, and re-org
-rate in highly distributed testnets with full 2MB blocks. We repeat that
-methodology, using 2 action Ironwood transactions until the original ZIP-218
-limit, and then transparent transactions afterwards. These distributed networks
-contain 80 equal-weighted miners, evenly spread across 12 regions (including
-US-east, US-west, Australia, Amsterdam, London, Frankfurt, Bangalore,
-Singapore). [^zip-0218]
-[^propagation-report]
+ZIP 218 measured orphan rates on a distributed test network with full 2 MB
+blocks. [^zip-0218] [^propagation-report] We repeat that methodology with 80
+miners of equal hash rate in 12 regions: New York, San Francisco, Toronto,
+London, Amsterdam, Frankfurt, Bangalore, Singapore, and Sydney. Blocks hold
+two-action Ironwood transactions up to ZIP 218's action limit, then
+transparent transactions up to 2 MB.
 
-With 20s full blocks, with an all Zakura node network work as above, we
-measured 1.9% orphan rates. This was using the older ZIP-218 action count, so
-thereby having a higher verification load due to the increased number of ZKP's.
-For reference this value is currently 1.45% on Zakura {TODO: Update this old
-benchmark to latest}.
+With every node running Zakura, full blocks had these orphan rates:
 
-Since NU7 went live, we've seen orphan rate increase from 0.66% to 0.83%,
-albeit block utilization is not constant in these time periods. The 0.66%
-orphan rate is measured from a time period where blocks were on average 53kb
-large, whereas the 0.85% is from a time period of 10kb on average.
+| Spacing | Orphan / mined blocks | Orphan rate (95% interval) | Reach 90% |
+|---|---|---|---|
+| 25 s | 7 / 356 | 1.97% (0.96–4.00%) | 0.81 s |
+| 20 s | 11 / 389 | 2.83% (1.59–4.99%) | 0.69 s |
+
+ZIP 218's devnet measured 4.86% at 25 seconds. The 20-second blocks averaged
+245 Ironwood actions, against the proposed limit of 264. Zakura announced each
+block to 32 peers immediately and to the rest after 500 ms.
+
+To check the test network against Mainnet, we also ran a mixed network at
+25 seconds: 56 Zakura nodes with Zakura 1.8.5's block announcement settings
+and 24 Zebra 7.0.0 nodes. We chose the current release of each
+implementation and a Zebra share above Mainnet's, where Zebra nodes mined
+about 17% of recent blocks. ZIP 218 models the orphan rate as
+$0.55 \times$ reach 90% $/ T$. With small blocks, the test network, the
+model, and Mainnet agree:
+
+| Network | Mean block size | Orphan rate | ZIP 218 model |
+|---|---|---|---|
+| Mixed test network | 66 kB | 0.66% (2 / 303) | 0.87% |
+| Mainnet, since the NU7 activation day | 18 kB | 0.60–0.86% | |
+| Mixed test network | 2 MB | 3.78% (13 / 344) | 3.7% |
+
+The Mainnet rates come from two observers and are lower bounds.
+[^zecminer-orphans]
+
+With full blocks, the mixed network had nearly twice the orphan rate of the
+Zakura-only network at 25 seconds. Part of that difference comes from Zakura
+1.8.5 announcing each block to every peer at once, which Zakura is changing.
+Our runs with Zebra Andale found two other causes. Zebra relays a verified
+block to a third of its peers. Zebra takes 19 ms to deserialize a 2 MB block,
+and Zakura takes 2.5 ms. Before full blocks are common, other node
+implementations, notably Zebra Andale, need these relay optimizations.
 
 ## Difficulty averaging duration
 
@@ -439,3 +461,5 @@ rounding analysis against the selected deployment parameters.
 [^zip-0315]: [ZIP 315: Best Practices for Wallet Implementations](zip-0315.rst)
 
 [^propagation-report]: [Zcash Block Time Reduction Appears Safe for NU7 w/ Zebra Only Devnet](https://forum.zcashcommunity.com/t/zcash-block-time-reduction-appears-safe-for-nu7-w-zebra-only-devnet/55586)
+
+[^zecminer-orphans]: [ZecMiner network orphan watcher](https://pool.zecminingpool.com/api/network/orphans)
