@@ -417,14 +417,46 @@ relative to this randomizer::
 Contributory Generation of sk
 -----------------------------
 
-The contributory generation of $\mathsf{sk}$ uses the application-defined
-payloads feature of the COCKTAIL-DKG protocol [#cocktail-dkg]_, as follows:
+The contributory generation of $\mathsf{sk}$ uses the application payloads and
+the application-specific extension of COCKTAIL-DKG [#cocktail-dkg]_. Payloads
+are encrypted to their recipients and are not part of the transcript; the
+extension is part of the transcript, which is public.
 
-- In Round 1, generate ``sk_i = random_bytes(32)``
-- Also in Round 1, set $\mathsf{payload}_{i,j} = \mathtt{sk\_i}$ for all `j`
-- When running Round 3, use the following as the ``extension`` argument:
-  $ext = H(n \parallel len(payload_1) \parallel payload_1 \parallel \cdots \parallel len(payload_n) \parallel payload_n)$
-- After Round 3 is finished, set $\mathsf{sk} = ext$.
+Let $n$ be the number of participants, with identifiers $1 \leq i \leq n$.
+Define:
+
+- $\mathsf{H_{sk}}(m)$ as BLAKE2b-256 [#BLAKE]_ with the personalization string
+  ``"ZcashFROST_sk_v1"`` applied to $m$;
+- $\mathsf{H_{commit}}(m)$ as BLAKE2b-256 with the personalization string
+  ``"ZcashFROST_skcmt"`` applied to $m$.
+
+The participants proceed as follows:
+
+- In Round 1, each participant $i$ generates ``sk_i = random_bytes(32)``, and
+  sets $\mathsf{payload}_{i,j} = \mathtt{sk\_i}$ for every other participant $j$.
+- After decrypting its Round 2 payloads, each participant computes
+  ``sk = H_sk(sk_1 || sk_2 || ... || sk_n)``, with the contributions in ascending
+  order of participant identifier. Each contribution is exactly 32 bytes, so no
+  length prefixes are needed.
+- In Round 3, each participant uses ``ext = H_commit(sk)`` as the extension.
+
+The extension is covered by the signatures that every participant makes in
+Round 3, so the protocol completes only if all participants computed the same
+$\mathsf{sk}$. Since $\mathsf{sk}$ has 256 bits of entropy that is unknown
+outside the group, the extension reveals nothing about it. $\mathsf{sk}$ itself
+MUST NOT be placed in the extension or anywhere else in the transcript.
+
+.. note::
+    COCKTAIL-DKG encrypts payloads with keys derived by elliptic-curve
+    Diffie–Hellman. An adversary that records the Round 1 messages or the
+    Round 2 broadcast and later obtains a cryptographically relevant quantum
+    computer can decrypt them, learn $\mathsf{sk}$, and derive $\mathsf{qsk}$
+    from it, which defeats Quantum Recoverability [#zip-2005]_ for that key.
+    Implementations SHOULD NOT retain those messages after the ceremony, and
+    SHOULD NOT include them in stored recovery data; the transcript, which does
+    not contain them, suffices to verify the ceremony. This does not protect
+    against a party that records the messages in transit. Quantum-resistant
+    encryption of the payloads is an open issue for this ZIP.
 
 
 Ciphersuites
@@ -591,6 +623,16 @@ signing generates a re-randomized signature:
 
 The security of Re-Randomized FROST with respect to the security assumptions of
 regular FROST is shown in [#frost-rerandomized]_.
+
+Regarding the contributory generation of $\mathsf{sk}$: every participant learns
+$\mathsf{sk}$ by design, since it is needed to derive the viewing key components.
+So a participant that chooses its contribution after seeing the others', for
+example by colluding with the Coordinator, can only select $\mathsf{sk}$ among
+values that it could compute anyway, and gains nothing that a participant does
+not already have. The commitment in the extension serves agreement, not secrecy:
+it lets every participant check that all of them derived the same
+$\mathsf{sk}$, without placing a value in the public transcript from which
+$\mathsf{sk}$ could be recovered.
 
 Regarding randomizer handling, in Zcash, the $\mathtt{randomizer}$ is called
 $\alpha$ and is usually generated using the $\mathsf{RedDSA.GenRandom}$ function
