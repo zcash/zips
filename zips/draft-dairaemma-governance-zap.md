@@ -119,7 +119,6 @@ Adoption converts the party with no economic dependency on Zcash into a stakehol
 Moreover, adoption does this most cheaply, before the adversary has chosen their attack.
 
 Increased and accelerated adoption thefore directly secures Zcash against political attack.
-One might even describe such a property as "social security."
 
 
 # Assessing adoption
