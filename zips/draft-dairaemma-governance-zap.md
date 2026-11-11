@@ -250,6 +250,11 @@ what is otherwise likely to be funded from other sources. Direct disbursement,
 educational initiatives, legal defence, and technical development are all
 possibilities.
 
+As stated earlier, existing constraints defined by ZIP 1015 and 1016 continue to
+apply, including constraints on grants of indefinite duration. This specifically
+means that the ZAP Committee SHOULD review such grants (on a schedule that the
+Zcash Adoption Pool Committee considers appropriate) for continuation of funding.
+
 The ZAP Committee SHOULD publish non-normative assessment guidance, including on
 recipient categories expected to contribute most to adoption. Such guidance is
 not part of this ZIP.
