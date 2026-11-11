@@ -148,23 +148,27 @@ fails whatever a spender supplies. To check this, decode the address with
 Base58Check, confirm its version prefix (`1cbd`) and checksum, and compare its
 script hash with HASH160 of the byte `0x6a`.
 
-Let $\mathsf{RemovalOutput}(h)$ be the total value of the transparent outputs in
-block $h$, in any transaction including the coinbase transaction, whose script
-is exactly the P2SH script `a91441c98a140039816273e50db317422c11c2bfcc8887`.
-From $A$ on:
+Let $\mathsf{RemovalOutput}(h)$ be the total value of the transparent outputs
+in block $h$, in any transaction including the coinbase transaction, whose
+script is exactly the P2SH script
+`a91441c98a140039816273e50db317422c11c2bfcc8887`.
 
-* At height $A$, the value of every such output up to and including block $A$,
-  $\sum_{i=0}^{A} \mathsf{RemovalOutput}(i)$, is removed from circulation; at
-  each later height $h$, $\mathsf{RemovalOutput}(h)$ is. Call this amount
-  $\mathsf{NSMAddressRemovals}(h)$. In § 4.17, the transparent chain value pool
-  balance decreases by $\mathsf{NSMAddressRemovals}(h)$, and ZIP 237's list of
-  mechanisms for removal from circulation gains the source
-  $\mathsf{NSMAddressRemovals}(h)$, so that it is added to the NSM Value Balance.
+**Changes to ZIP 237.** Register the following mechanism for removal from
+circulation in the list defined in ZIP 237 [^zip-0237]:
+
+| Mechanism | Source |
+|---|---|
+| Payments to the NSM removal address | $\mathsf{NSMAddressRemovals}(h)$ |
+
+$$\mathsf{NSMAddressRemovals}(h) := \begin{cases} 0 & \text{if } h < A \\ \displaystyle\sum_{i=0}^{A} \mathsf{RemovalOutput}(i) & \text{if } h = A \\ \mathsf{RemovalOutput}(h) & \text{if } h > A \end{cases}$$
+
+At height $A$, everything sent to the address up to and including block $A$ is
+removed from circulation at once; at each later height $h$, block $h$'s
+payments are. In § 4.17, the transparent chain value pool balance decreases by
+$\mathsf{NSMAddressRemovals}(h)$, which ZIP 237 adds to the NSM Value Balance.
 
 Anyone MAY send ZEC to the NSM removal address, and nothing sent there can be
 returned. Wallets SHOULD NOT offer it as an ordinary payment destination.
-Counts of circulating supply SHOULD exclude everything sent to it, before $A$
-as well as after.
 
 ## The removal of ZCG funds
 
