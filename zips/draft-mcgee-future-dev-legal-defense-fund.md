@@ -168,7 +168,16 @@ payments are. In § 4.17, the transparent chain value pool balance decreases by
 $\mathsf{NSMAddressRemovals}(h)$, which ZIP 237 adds to the NSM Value Balance.
 
 Anyone MAY send ZEC to the NSM removal address, and nothing sent there can be
-returned. Wallets SHOULD NOT offer it as an ordinary payment destination.
+returned.
+
+**Wallet handling.** The NSM removal address looks like any other Mainnet P2SH
+address; nothing about it warns a user that funds sent to it cannot be
+recovered. Software that accepts payment destinations — typed or pasted by a
+user, read from a payment request URI, or kept in an address book — SHOULD
+recognize the NSM removal address, by its script hash or its exact string, at
+every such entry point; SHOULD present a payment to it as an irreversible
+removal of funds from circulation, not an ordinary payment; and SHOULD NOT
+offer it as an ordinary payment destination.
 
 ## The removal of ZCG funds
 
