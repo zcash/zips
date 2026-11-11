@@ -1,5 +1,5 @@
     ZIP: Unassigned
-    Title: Future Dev and Legal Defense Fund Lockbox, and a ZCG Donation to the Network Sustainability Mechanism
+    Title: Future Dev and Legal Defense Fund Lockbox, and Removal of ZCG Funds to the Network Sustainability Mechanism
     Owners: Sean Bowe (Tachyon Group) <ewillbefull@gmail.com>
             Zooko Wilcox (Shielded Labs) <zooko@shieldedlabs.net>
             Jason McGee (Shielded Labs) <jason@shieldedlabs.net>
@@ -41,19 +41,21 @@ This ZIP makes two changes.
    **Future Dev and Legal Defense Fund Lockbox**, which holds it for future
    Zcash development and legal defense.
 
-2. The ZCG Committee donates 50,000 ZEC to the NSM within 30 days of this ZIP's
-   acceptance, by sending it to an address that no one can spend from. When
-   this ZIP activates, everything sent to that address is removed from
-   circulation and added to the NSM Value Balance.
+2. The ZCG Committee removes 50,000 ZEC from circulation, crediting it to the
+   NSM, within 30 days of this ZIP's acceptance, by sending it to an address
+   that no one can spend from. When this ZIP activates, everything sent to
+   that address is removed from circulation and added to the NSM Value
+   Balance.
 
 
 # Motivation
 
 The rapid rise in the price of ZEC has enlarged the monetary value of ZCG's
 treasury to a much greater amount than ever before. This ZIP reduces the risks
-and pressure that come with large amounts of money, donates to the Network
-Sustainability Mechanism (providing increased long-term issuance), and accrues
-funds in a lockbox for future use by the Zcash community.
+and pressure that come with large amounts of money, removes ZCG funds from
+circulation, crediting the Network Sustainability Mechanism (providing
+increased long-term issuance), and accrues funds in a lockbox for future use by
+the Zcash community.
 
 ZCG's dashboard reports holdings of 91,452.98 ZEC and \$8,796,224, against
 \$2,417,165 of outstanding grant liabilities [^zcg-dashboard]. FPF reported
@@ -62,8 +64,8 @@ year [^fpf-q2-2026]. The 8% stream adds another 144 ZEC a day, 52,560 ZEC a
 year; at \$1,300 per ZEC, that is about \$68 million a year, more than seven
 times ZCG's spending [^stream-scenarios].
 
-ZCG's treasury before and after the donation, at \$1,300 per ZEC
-(details [^donation-scenarios]):
+ZCG's treasury before and after the removal, at \$1,300 per ZEC
+(details [^removal-scenarios]):
 
 | | ZEC | Dollars | Value, less grant liabilities | Years of spending at 2026 levels |
 | :-- | --: | --: | --: | --: |
@@ -73,7 +75,7 @@ ZCG's treasury before and after the donation, at \$1,300 per ZEC
 
 # Privacy Implications
 
-The lockbox adds no addresses, keys, or notes. The donation is a public
+The lockbox adds no addresses, keys, or notes. The removal is a public
 transparent payment to a published address. This ZIP leaves the privacy of
 every transaction unchanged.
 
@@ -91,7 +93,7 @@ $N = 3543405$ [^zip-0259], $E = 6132390$. End heights are exclusive, as in
 ZIP 207 [^zip-0207].
 
 The lockbox rules below apply on a network where $A < E$; where $A \geq E$, the
-ZCG stream has already ended, and they change nothing. The NSM donation address
+ZCG stream has already ended, and they change nothing. The NSM removal address
 rules apply from $A$ on every network.
 
 ## The Future Dev and Legal Defense Fund Lockbox
@@ -128,9 +130,9 @@ and include it in $\mathsf{IssuedSupply}(h)$. Add it to the pools of ZIP 209
 [^zip-0209], whose balances MUST be nonnegative and whose sum MUST NOT exceed
 $\mathsf{MAX\_MONEY}$. No consensus rule moves value out of it.
 
-## The NSM donation address
+## The NSM removal address
 
-The NSM donation address is the Mainnet P2SH address
+The NSM removal address is the Mainnet P2SH address
 
     t3QZUHYkaEQEuWosAc9HgMPKiQRdvuBPCQZ
 
@@ -140,36 +142,36 @@ check this, decode the address with Base58Check, confirm its version prefix
 (`1cbd`) and checksum, and compare its script hash with HASH160 of the byte
 `0x6a`. Spending from it would require a second script with the same HASH160.
 
-Let $\mathsf{DonatedValue}(h)$ be the total value of the transparent outputs in
+Let $\mathsf{RemovalOutput}(h)$ be the total value of the transparent outputs in
 block $h$, in any transaction including the coinbase transaction, whose script
 is exactly the P2SH script `a91441c98a140039816273e50db317422c11c2bfcc8887`.
 From $A$ on:
 
 * A transaction MUST NOT spend an output with that script.
 * At height $A$, the value of every such output up to and including block $A$,
-  $\sum_{i=0}^{A} \mathsf{DonatedValue}(i)$, is removed from circulation; at
-  each later height $h$, $\mathsf{DonatedValue}(h)$ is. Call this amount
-  $\mathsf{NSMDonations}(h)$. In § 4.17, the transparent chain value pool
-  balance decreases by $\mathsf{NSMDonations}(h)$, and ZIP 237's list of
+  $\sum_{i=0}^{A} \mathsf{RemovalOutput}(i)$, is removed from circulation; at
+  each later height $h$, $\mathsf{RemovalOutput}(h)$ is. Call this amount
+  $\mathsf{NSMAddressRemovals}(h)$. In § 4.17, the transparent chain value pool
+  balance decreases by $\mathsf{NSMAddressRemovals}(h)$, and ZIP 237's list of
   mechanisms for removal from circulation gains the source
-  $\mathsf{NSMDonations}(h)$, so that it is added to the NSM Value Balance.
+  $\mathsf{NSMAddressRemovals}(h)$, so that it is added to the NSM Value Balance.
 
-Anyone MAY send ZEC to the NSM donation address, and nothing sent there can be
+Anyone MAY send ZEC to the NSM removal address, and nothing sent there can be
 returned. Wallets SHOULD NOT offer it as an ordinary payment destination.
 Counts of circulating supply SHOULD exclude everything sent to it, before $A$
 as well as after.
 
-## The donation
+## The removal of ZCG funds
 
 The ZCG Committee SHALL cause 50,000 ZEC of the funds it administers to be sent
-to the NSM donation address, in one or more Mainnet transactions. It SHALL do so
+to the NSM removal address, in one or more Mainnet transactions. It SHALL do so
 as soon as possible, and no later than 30 days after the date on which this ZIP
 is accepted by the Zcash community.
 
 Since the funds ZCG administers are held by FPF, the ZCG Committee fulfills this
 obligation by directing FPF to create the transactions, as it directs FPF to
-make grant payments under ZIP 1015. Only FPF's payments count toward the
-donation.
+make grant payments under ZIP 1015. Only FPF's transactions count toward the
+removal.
 
 The ZCG Committee SHALL publish the transaction identifier of each such
 transaction to the Zcash community promptly after it is mined.
@@ -177,8 +179,8 @@ transaction to the Zcash community promptly after it is mined.
 ## Changes to ZIPs 1015 and 1016
 
 In ZIP 1015's section on ZCG [^zip-1015-zcg], add: "ZCG funds MAY also be used
-for the donation to the Network Sustainability Mechanism that [this ZIP]
-specifies. That donation is not a grant."
+for the removal from circulation that [this ZIP] specifies, which credits the
+Network Sustainability Mechanism. That removal is not a grant."
 
 In ZIP 1016's section on ZCG [^zip-1016], end ZCG's funding stream at this
 ZIP's activation height, and state that from then until the third halving the
@@ -195,20 +197,20 @@ development and legal defense, and a future ZIP decides how it is spent. A
 separate balance keeps it apart from the Deferred Dev Fund Lockbox's purpose
 and disbursement rules, and like that lockbox it needs no custodians or keys.
 
-**A donation by address.** NU7 deploys ZIP 237's NSM but no way for a
+**A removal by address.** NU7 deploys ZIP 237's NSM but no way for a
 transaction to remove ZEC from circulation directly: it deploys neither ZIP 233
 nor ZIP 234 [^zip-0233] [^zip-0259]. Sending to an address that no one can spend
-from lets the donation happen now; at $A$, it moves into the NSM, with every
+from lets the removal happen now; at $A$, it moves into the NSM, with every
 earlier payment to the address. The consensus change is small: no
 new transaction fields, address formats, or wallet changes. Payments from anyone
-count, so the address serves every donor. If ZIP 233 is deployed later, both
+count, so the address serves every sender. If ZIP 233 is deployed later, both
 mechanisms add to the same NSM Value Balance.
 
-**The donation's size.** 50,000 ZEC is about 55% of ZCG's ZEC. Anyone can check
-its payment on the chain, and ZCG keeps the rest of its treasury and its grants
+**The removal's size.** 50,000 ZEC is about 55% of ZCG's ZEC. Anyone can check
+the removal on the chain, and ZCG keeps the rest of its treasury and its grants
 program.
 
-**Accounting.** The lockbox's balance stays in the Issued Supply. A donation
+**Accounting.** The lockbox's balance stays in the Issued Supply. A removal
 moves value from the transparent pool to the NSM Value Balance in the same
 block. Both keep ZIP 237's invariant: in each block from NU7 on, the Issued
 Supply plus the NSM Value Balance grows by exactly the scheduled block subsidy.
@@ -220,9 +222,9 @@ Where they overlap with this ZIP, they are alternatives to it.
 
 # Deployment
 
-The lockbox and the NSM donation address are consensus changes, proposed for a
+The lockbox and the NSM removal address are consensus changes, proposed for a
 network upgrade after NU7 that activates before height $E$; that upgrade's
-deployment ZIP sets $A$ for each network [^zip-0200]. The donation needs no
+deployment ZIP sets $A$ for each network [^zip-0200]. The removal needs no
 network upgrade: it is due within 30 days of this ZIP's acceptance.
 
 
@@ -273,4 +275,4 @@ None yet.
 
 [^stream-scenarios]: The 8% of a 1.5625 ZEC block subsidy, at 1,152 blocks of 75 seconds a day: `0.08 * 1.5625 * 1,152 = 144` ZEC a day, `144 * 365 = 52,560` ZEC a year; at USD 1,300 per ZEC, USD 68,328,000 a year. ZIP 218's 25-second blocks, each with a third of the subsidy, leave the daily amount the same, apart from rounding. Annual spending: `(1,530,844 + 3,187,515) * 2 = 9,436,718` USD, from the Q2 2026 report.
 
-[^donation-scenarios]: From the dashboard figures above, at USD 1,300 per ZEC: before the donation, `91,452.98 * 1,300 + 8,796,224 - 2,417,165 = 125,267,933` USD; after it, `41,452.98 * 1,300 + 8,796,224 - 2,417,165 = 60,267,933` USD. Years of spending divide these by the 2026 rate of USD 9,436,718 a year. The figures assume no conversion costs and no further receipts, returns, or obligations beyond the dashboard's grant liabilities.
+[^removal-scenarios]: From the dashboard figures above, at USD 1,300 per ZEC: before the removal, `91,452.98 * 1,300 + 8,796,224 - 2,417,165 = 125,267,933` USD; after it, `41,452.98 * 1,300 + 8,796,224 - 2,417,165 = 60,267,933` USD. Years of spending divide these by the 2026 rate of USD 9,436,718 a year. The figures assume no conversion costs and no further receipts, returns, or obligations beyond the dashboard's grant liabilities.
