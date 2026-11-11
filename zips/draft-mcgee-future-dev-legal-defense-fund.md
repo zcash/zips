@@ -237,8 +237,7 @@ deployment ZIP that sets $A$ selects the fallback.
 
 Since the funds ZCG administers are held by FPF, the ZCG Committee fulfills
 this obligation by directing FPF to create the transactions, as it directs FPF
-to make grant payments under ZIP 1015. Only FPF's transactions count toward
-the removal.
+to make grant payments under ZIP 1015.
 
 The ZCG Committee SHALL publish the transaction identifier of each such
 transaction to the Zcash community promptly after it is mined.
