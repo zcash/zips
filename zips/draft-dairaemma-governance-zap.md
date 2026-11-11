@@ -250,9 +250,9 @@ what is otherwise likely to be funded from other sources. Direct disbursement,
 educational initiatives, legal defence, and technical development are all
 possibilities.
 
-The ZAP Committee MAY publish non-normative assessment guidance, including on
-recipient categories expected to contribute most to adoption. Such guidance
-is not part of this ZIP.
+The ZAP Committee SHOULD publish non-normative assessment guidance, including on
+recipient categories expected to contribute most to adoption. Such guidance is
+not part of this ZIP.
 
 
 # Acknowledgements
