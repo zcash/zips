@@ -31,6 +31,11 @@ the meanings given in ZIP 237 [^zip-0237]: ZEC removed from circulation is added
 to the NSM Value Balance, and returns to circulation through future block
 subsidies.
 
+A "v7 transaction" has the meaning given in ZIP 248 [^zip-0248], and its
+explicit removal amount, $\mathsf{zip233\_amount}$, has the meaning given in
+ZIP 233 [^zip-0233]: a v7 transaction can carry an amount that is removed from
+circulation when the transaction is mined.
+
 
 # Abstract
 
@@ -42,10 +47,10 @@ This ZIP makes two changes.
    Zcash development and legal defense.
 
 2. The ZCG Committee removes 50,000 ZEC from circulation, crediting it to the
-   NSM, within 30 days of this ZIP's acceptance, by sending it to an address
-   that no one can spend from. When this ZIP activates, everything sent to
-   that address is removed from circulation and added to the NSM Value
-   Balance.
+   NSM, using ZIP 233's removal mechanism if it is available when this ZIP
+   activates. An unspendable address is specified only as a last resort: it is
+   used, and given consensus and wallet treatment under this ZIP, only if
+   ZIP 233 is not available.
 
 
 # Motivation
@@ -76,8 +81,10 @@ ZCG's treasury before and after the removal, at \$1,300 per ZEC
 # Privacy Implications
 
 The Future Dev and Legal Defense Fund Lockbox adds no addresses, keys, or
-notes. The removal is a public transparent payment to a published address.
-This ZIP leaves the privacy of every transaction unchanged.
+notes. A ZIP 233 transaction carries its removal amount explicitly and visibly
+[^zip-0233]. If selected for deployment, the address fallback uses transparent
+payments to a published address. This ZIP leaves the privacy of every
+transaction unchanged.
 
 
 # Specification
@@ -93,8 +100,9 @@ $N = 3543405$ [^zip-0259], $E = 6132390$. End heights are exclusive, as in
 ZIP 207 [^zip-0207].
 
 The lockbox rules below apply on a network where $A < E$; where $A \geq E$, the
-ZCG stream has already ended, and they change nothing. The NSM removal address
-rules apply from $A$ on every network.
+ZCG stream has already ended, and they change nothing. The rules for removing
+funds from circulation depend on the mechanism selected by the deployment
+ZIP, as the section "Removing funds from circulation" specifies.
 
 ## The Future Dev and Legal Defense Fund Lockbox
 
@@ -136,7 +144,41 @@ and include it in $\mathsf{IssuedSupply}(h)$. Add it to the pools of ZIP 209
 [^zip-0209], whose balances MUST be nonnegative and whose sum MUST NOT exceed
 $\mathsf{MAX\_MONEY}$. No consensus rule moves value out of it.
 
-## The NSM removal address
+## Removing funds from circulation
+
+The section "The removal of ZCG funds" requires the ZCG Committee to remove
+50,000 ZEC from circulation, crediting it to the NSM. The intended means is
+ZIP 233 [^zip-0233], which lets a sender voluntarily remove a specified amount
+of ZEC from circulation; ZIP 237 credits removed value to the NSM Value
+Balance [^zip-0237].
+
+The deployment ZIP that sets $A$ MUST identify the removal mechanism to be
+used on each network. If ZIP 233 will be active at $A$, it MUST select
+ZIP 233 and MUST NOT deploy the address fallback below. Only if ZIP 233 will
+not be active at $A$ MAY the deployment ZIP explicitly select that fallback
+as a last resort.
+
+Unless the fallback is explicitly selected, the address MUST NOT be used to
+fulfill this ZIP's removal obligation, and implementations MUST NOT give the
+address or its script any special consensus accounting or wallet recognition
+under this ZIP. In particular, payments to it MUST NOT be credited to the NSM
+Value Balance. The absence of ZIP 233 alone does not select the fallback.
+
+### Removal with ZIP 233 transactions
+
+Where ZIP 233 is selected, its own consensus rules perform the removal: a v7
+transaction [^zip-0248] carries an explicit removal amount,
+$\mathsf{zip233\_amount}$, which is removed from circulation when the
+transaction is mined, and which ZIP 237 adds to the NSM Value Balance. On such
+a network, this ZIP adds no consensus rules.
+
+### Last-resort NSM removal address
+
+All rules in this subsection, including the ZIP 237 changes and wallet
+handling, apply only on a network where the deployment ZIP selects the address
+fallback. Its consensus rules take effect at height $A$ and remain in effect
+at every later height: the address becomes a permanent feature of the
+protocol.
 
 The NSM removal address is the Mainnet P2SH address
 
@@ -167,8 +209,7 @@ removed from circulation at once; at each later height $h$, block $h$'s
 payments are. In § 4.17, the transparent chain value pool balance decreases by
 $\mathsf{NSMAddressRemovals}(h)$, which ZIP 237 adds to the NSM Value Balance.
 
-Anyone MAY send ZEC to the NSM removal address, and nothing sent there can be
-returned.
+Nothing sent to this address can be returned.
 
 **Wallet handling.** The NSM removal address looks like any other Mainnet P2SH
 address; nothing about it warns a user that funds sent to it cannot be
@@ -181,15 +222,23 @@ offer it as an ordinary payment destination.
 
 ## The removal of ZCG funds
 
-The ZCG Committee SHALL cause 50,000 ZEC of the funds it administers to be sent
-to the NSM removal address, in one or more Mainnet transactions. It SHALL do so
-as soon as possible, and no later than 30 days after the date on which this ZIP
-is accepted by the Zcash community.
+The ZCG Committee SHALL cause 50,000 ZEC of the funds it administers to be
+removed from circulation, crediting it to the NSM, in one or more Mainnet
+transactions using the mechanism selected by the deployment ZIP. The specified
+removal amounts MUST total that amount, excluding transaction fees. If the
+address fallback is selected, these are the amounts paid to that address. The
+ZCG Committee SHALL do so as soon as possible, and no later than 30 days after
+Mainnet reaches height $A$.
 
-Since the funds ZCG administers are held by FPF, the ZCG Committee fulfills this
-obligation by directing FPF to create the transactions, as it directs FPF to
-make grant payments under ZIP 1015. Only FPF's transactions count toward the
-removal.
+Payments to the NSM removal address before height $A$ count toward the removal
+and are added to the NSM Value Balance at height $A$ — but only where the
+fallback is selected. The ZCG Committee MUST NOT pay the address before the
+deployment ZIP that sets $A$ selects the fallback.
+
+Since the funds ZCG administers are held by FPF, the ZCG Committee fulfills
+this obligation by directing FPF to create the transactions, as it directs FPF
+to make grant payments under ZIP 1015. Only FPF's transactions count toward
+the removal.
 
 The ZCG Committee SHALL publish the transaction identifier of each such
 transaction to the Zcash community promptly after it is mined.
@@ -220,14 +269,15 @@ own. Like that lockbox, it needs no custodians or keys today, and its
 disbursement mechanism can take the same technical approach as the one being
 designed for the Deferred Dev Fund Lockbox.
 
-**A removal by address.** NU7 deploys ZIP 237's NSM but no way for a
-transaction to remove ZEC from circulation directly: it deploys neither ZIP 233
-nor ZIP 234 [^zip-0233] [^zip-0259]. Sending to an address that no one can spend
-from lets the removal happen now; at $A$, it moves into the NSM, with every
-earlier payment to the address. The consensus change is small: no
-new transaction fields, address formats, or wallet changes. Payments from anyone
-count, so the address serves every sender. If ZIP 233 is deployed later, both
-mechanisms add to the same NSM Value Balance.
+**An address only as a last resort.** ZIP 233 is the protocol's purpose-built
+way to remove funds from circulation: an explicit amount in a v7 transaction,
+with no address. NU7 deploys neither ZIP 233 nor ZIP 248's v7 format
+[^zip-0233] [^zip-0259], and this ZIP cannot anticipate whether they will be
+available when it activates, so it reserves the address solely for the case
+where they are not. If needed, the fallback requires no new transaction fields
+or address formats, recognizes only one script, and is permanent, so value
+sent to the address at any height is added to the NSM Value Balance; if
+ZIP 233 activates later, both mechanisms add to the same balance.
 
 **No spending prohibition.** Spending from the NSM removal address would
 require a redeem script other than `OP_RETURN` with the same script hash — a
@@ -239,10 +289,13 @@ transparent outputs, and a rule for this one address would not change that.
 the removal on the chain, and ZCG keeps the rest of its treasury and its grants
 program.
 
-**Accounting.** The lockbox's balance stays in the Issued Supply. A removal
-moves value from the transparent pool to the NSM Value Balance in the same
-block. Both keep ZIP 237's invariant: in each block from NU7 on, the Issued
-Supply plus the NSM Value Balance grows by exactly the scheduled block subsidy.
+**Accounting.** The lockbox's balance stays in the Issued Supply. A ZIP 233
+removal subtracts its amount from the Issued Supply when its transaction is
+mined; where the fallback is selected, a payment to the NSM removal address
+leaves the transparent pool at the height ZIP 237 credits it. In each case,
+the value moves to the NSM Value Balance in the same block, keeping ZIP 237's
+invariant: in each block from NU7 on, the Issued Supply plus the NSM Value
+Balance grows by exactly the scheduled block subsidy.
 
 **Other proposals.** ZIP draft #1414 sends the 8% stream to the NSM
 [^draft-end-zcg-stream], and draft #1423 winds ZCG down [^draft-wind-down-zcg].
@@ -251,10 +304,13 @@ Where they overlap with this ZIP, they are alternatives to it.
 
 # Deployment
 
-The lockbox and the NSM removal address are consensus changes, proposed for a
-network upgrade after NU7 that activates before height $E$; that upgrade's
-deployment ZIP sets $A$ for each network [^zip-0200]. The removal needs no
-network upgrade: it is due within 30 days of this ZIP's acceptance.
+The lockbox rules — and, if the fallback is selected, the NSM removal address
+rules — are consensus changes, proposed for a network upgrade after NU7 that
+activates before height $E$; that upgrade's deployment ZIP sets $A$ for each
+network [^zip-0200]. The expected deployment activates ZIPs 248 and 233 in the
+same upgrade, so the fallback is not selected; it is selected only as a last
+resort, if ZIP 233 will not be active at $A$. The removal of ZCG funds follows
+the schedule in the section "The removal of ZCG funds".
 
 
 # Reference implementation
@@ -281,6 +337,8 @@ None yet.
 [^zip-0233]: [ZIP 233: Network Sustainability Mechanism: Removing Funds From Circulation](https://zips.z.cash/zip-0233)
 
 [^zip-0237]: [ZIP 237: Network Sustainability Mechanism: Halving-Preserving Issuance](https://zips.z.cash/zip-0237)
+
+[^zip-0248]: [ZIP 248: Extensible Transaction Format](https://zips.z.cash/zip-0248)
 
 [^zip-0259]: [ZIP 259: Deployment of the NU7 Network Upgrade](https://zips.z.cash/zip-0259)
 
