@@ -189,6 +189,13 @@ programmes that private capital has *not* funded, and holds that the two
 funding sources (Protocol-defined Ecosystem Funding streams and external
 private capital) are complementary.
 
+In particular, the retrospective nature of the grants currently provided by
+the Coinholder-Controlled Fund biases them toward parties that have the capital
+to perform work speculatively. Insurance does not solve this: parties that have
+less capital to start with, and/or that come from groups subject to prejudice
+or social disfavour, are much less likely to be able to find others to take on
+the risk of not getting paid.
+
 Finally, note that ZEC holders are also the principal beneficiaries of adoption:
 velocity and breadth of distribution are the inputs to liquidity, and liquidity
 is what holders are exposed to. The authors advise that future ZIPs that treat
