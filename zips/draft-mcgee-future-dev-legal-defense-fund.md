@@ -143,10 +143,11 @@ The NSM removal address is the Mainnet P2SH address
     t3QZUHYkaEQEuWosAc9HgMPKiQRdvuBPCQZ
 
 Its script hash, `41c98a140039816273e50db317422c11c2bfcc88`, is HASH160 of the
-one-byte script `6a`, `OP_RETURN`, which fails whatever a spender supplies. To
-check this, decode the address with Base58Check, confirm its version prefix
-(`1cbd`) and checksum, and compare its script hash with HASH160 of the byte
-`0x6a`. Spending from it would require a second script with the same HASH160.
+one-byte redeem script `0x6a`: the single opcode `OP_RETURN`, a script that
+fails whatever a spender supplies. To check this, decode the address with
+Base58Check, confirm its version prefix (`1cbd`) and checksum, and compare its
+script hash with HASH160 of the byte `0x6a`. Spending from it would require a
+second script with the same HASH160.
 
 Let $\mathsf{RemovalOutput}(h)$ be the total value of the transparent outputs in
 block $h$, in any transaction including the coinbase transaction, whose script
