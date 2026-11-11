@@ -2,8 +2,8 @@
     ZIP: Unassigned
     Title: Zcash Adoption Pool (ZAP)
     Owners: Daira-Emma Hopwood <daira@jacaranda.org>
-    Credits: Violet Rollergirl
-             Blake Benthall (emersonian)
+            Violet Rollergirl
+    Credits: Blake Benthall (emersonian)
              Mylo Bennett
              Alison Stevenson
     Status: Draft
