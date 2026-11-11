@@ -212,8 +212,10 @@ All requirements of ZIP 1015 continue to apply; in particular:
 * Any use of Deferred Dev Fund Lockbox funds is consistent with the purpose
   specified in [^zip-1015-lockbox] of "funding grants to ecosystem participants".
 
-In addition, funds disbursed through the Zcash Adoption Pool are to be further
-disbursed for the explicit purpose of adoption as defined above.
+In addition, funds disbursed through the Zcash Adoption Pool are intended to
+be used for the explicit purpose of accelerating Zcash and ZEC adoption as
+defined above — either by further disbursement or by the funding of development,
+in a broad sense, that directly increases adoption.
 
 
 # Non-requirements
@@ -240,7 +242,13 @@ ZIPs 1015 and 1016 [^zip-1015] [^zip-1016] are unchanged.
 
 The ZAP Grant assessment process MUST obtain reasonable confidence, on the evidence
 in the application, that funds disbursed through Zcash Adoption Pool Grants will
-be further disbursed for the explicit purpose of adoption as defined above.
+be used for the explicit purpose of accelerating adoption as defined above. That is,
+they will be further disbursed or used to fund development that, in either case,
+directly increases adoption. Here "development" is supposed to be interpreted as
+broadly as possible, in order to extend the scope of adoption programmes beyond
+what is otherwise likely to be funded from other sources. Direct disbursement,
+educational initiatives, legal defence, and technical development are all
+possibilities.
 
 The ZAP Committee MAY publish non-normative assessment guidance, including on
 recipient categories expected to contribute most to adoption. Such guidance
