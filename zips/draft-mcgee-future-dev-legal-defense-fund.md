@@ -82,13 +82,13 @@ every transaction unchanged.
 
 ## Activation
 
-Let $A$ be this ZIP's activation height on a network, and $N$ that network's
-NU7 activation height; $A$ MUST be greater than $N$. Let $E$ be the end height
+Let $A$ be this ZIP's activation height on a network. Let $E$ be the end height
 of `FS_FPF_ZCG_H3` under Revision 3 of ZIP 214 [^zip-0214]: the third halving
 under ZIP 218's 25-second blocks [^zip-0218], $E = N + 3 \cdot (H_3 - N)$, where
-$H_3$ is the pre-NU7 third-halving height (4406400 on Mainnet, 4476000 on
-Testnet). With Mainnet's $N = 3543405$ [^zip-0259], $E = 6132390$. End heights
-are exclusive, as in ZIP 207 [^zip-0207].
+$N$ is the network's NU7 activation height and $H_3$ is the pre-NU7
+third-halving height (4406400 on Mainnet, 4476000 on Testnet). With Mainnet's
+$N = 3543405$ [^zip-0259], $E = 6132390$. End heights are exclusive, as in
+ZIP 207 [^zip-0207].
 
 The lockbox rules below apply on a network where $A < E$; where $A \geq E$, the
 ZCG stream has already ended, and they change nothing. The NSM donation address
