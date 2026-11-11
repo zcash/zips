@@ -146,15 +146,13 @@ Its script hash, `41c98a140039816273e50db317422c11c2bfcc88`, is HASH160 of the
 one-byte redeem script `0x6a`: the single opcode `OP_RETURN`, a script that
 fails whatever a spender supplies. To check this, decode the address with
 Base58Check, confirm its version prefix (`1cbd`) and checksum, and compare its
-script hash with HASH160 of the byte `0x6a`. Spending from it would require a
-second script with the same HASH160.
+script hash with HASH160 of the byte `0x6a`.
 
 Let $\mathsf{RemovalOutput}(h)$ be the total value of the transparent outputs in
 block $h$, in any transaction including the coinbase transaction, whose script
 is exactly the P2SH script `a91441c98a140039816273e50db317422c11c2bfcc8887`.
 From $A$ on:
 
-* A transaction MUST NOT spend an output with that script.
 * At height $A$, the value of every such output up to and including block $A$,
   $\sum_{i=0}^{A} \mathsf{RemovalOutput}(i)$, is removed from circulation; at
   each later height $h$, $\mathsf{RemovalOutput}(h)$ is. Call this amount
@@ -217,6 +215,12 @@ earlier payment to the address. The consensus change is small: no
 new transaction fields, address formats, or wallet changes. Payments from anyone
 count, so the address serves every sender. If ZIP 233 is deployed later, both
 mechanisms add to the same NSM Value Balance.
+
+**No spending prohibition.** Spending from the NSM removal address would
+require a redeem script other than `OP_RETURN` with the same script hash — a
+preimage attack on RIPEMD-160. This ZIP adds no rule against such a spend: an
+attack of that kind would threaten the much larger value held in ordinary
+transparent outputs, and a rule for this one address would not change that.
 
 **The removal's size.** 50,000 ZEC is about 55% of ZCG's ZEC. Anyone can check
 the removal on the chain, and ZCG keeps the rest of its treasury and its grants
