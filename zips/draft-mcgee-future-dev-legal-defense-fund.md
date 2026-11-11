@@ -75,9 +75,9 @@ ZCG's treasury before and after the removal, at \$1,300 per ZEC
 
 # Privacy Implications
 
-The lockbox adds no addresses, keys, or notes. The removal is a public
-transparent payment to a published address. This ZIP leaves the privacy of
-every transaction unchanged.
+The Future Dev and Legal Defense Fund Lockbox adds no addresses, keys, or
+notes. The removal is a public transparent payment to a published address.
+This ZIP leaves the privacy of every transaction unchanged.
 
 
 # Specification
@@ -98,9 +98,13 @@ rules apply from $A$ on every network.
 
 ## The Future Dev and Legal Defense Fund Lockbox
 
-The Future Dev and Legal Defense Fund Lockbox holds funds for future Zcash
-development and legal defense. No one can spend from it until a future ZIP
-specifies how.
+The Future Dev and Legal Defense Fund Lockbox is a second lockbox, separate
+from the Deferred Dev Fund Lockbox, with its own chain value pool balance. It
+holds funds for future Zcash development and legal defense. No disbursement
+mechanism is currently defined for this lockbox; the Zcash community will need
+to decide upon and specify a suitable decentralized mechanism for permitting
+withdrawals from this lockbox in a future ZIP in order to make these funds
+available for funding Zcash development and legal defense.
 
 **Funding streams.** A new revision of ZIP 214 makes these changes at $A$:
 
@@ -116,13 +120,15 @@ specifies how.
 **The recipient.** A new revision of ZIP 207 adds the recipient identifier
 $\mathsf{FDLDF\_POOL}$, which works as $\mathsf{DEFERRED\_POOL}$ does [^zip-2001]:
 a stream paid to it produces no coinbase output, and its value goes into the
-lockbox's balance instead. In § 7.8 and § 7.1.2, define
+Future Dev and Legal Defense Fund Lockbox's own balance, defined below — not
+into the Deferred Dev Fund Lockbox's. In § 7.8 and § 7.1.2, define
 $\mathsf{totalFDLDFOutput}(h)$ as the sum of $\mathsf{fs.Value}(h)$ over the
 streams paid to $\mathsf{FDLDF\_POOL}$ at height $h$, and add it to the coinbase
 transaction's $\mathsf{totalOutputValue}$, beside
 $\mathsf{totalDeferredOutput}(h)$.
 
-**The balance.** In § 4.17, add the lockbox's chain value pool balance,
+**The balance.** In § 4.17, add the Future Dev and Legal Defense Fund
+Lockbox's chain value pool balance,
 
 $$\mathsf{FDLDFBalance}(h) := \sum_{i=0}^{h} \mathsf{totalFDLDFOutput}(i),$$
 
@@ -194,8 +200,13 @@ this ZIP leaves unchanged.
 
 **A lockbox of its own.** The 8% is set aside, issued but locked, for future
 development and legal defense, and a future ZIP decides how it is spent. A
-separate balance keeps it apart from the Deferred Dev Fund Lockbox's purpose
-and disbursement rules, and like that lockbox it needs no custodians or keys.
+separate balance keeps the fund apart from the Deferred Dev Fund Lockbox's
+purpose and disbursement rules, and lets a future disbursement mechanism
+authorize withdrawals from each lockbox separately — under ZIP 270's tracked
+signing keys [^zip-0270], for example, each can have authorizing keys of its
+own. Like that lockbox, it needs no custodians or keys today, and its
+disbursement mechanism can take the same technical approach as the one being
+designed for the Deferred Dev Fund Lockbox.
 
 **A removal by address.** NU7 deploys ZIP 237's NSM but no way for a
 transaction to remove ZEC from circulation directly: it deploys neither ZIP 233
@@ -254,6 +265,8 @@ None yet.
 [^zip-0237]: [ZIP 237: Network Sustainability Mechanism: Halving-Preserving Issuance](https://zips.z.cash/zip-0237)
 
 [^zip-0259]: [ZIP 259: Deployment of the NU7 Network Upgrade](https://zips.z.cash/zip-0259)
+
+[^zip-0270]: [ZIP 270: Key Rotation for Tracked Signing Keys](https://zips.z.cash/zip-0270)
 
 [^zip-1015]: [ZIP 1015: Block Subsidy Allocation for Non-Direct Development Funding](https://zips.z.cash/zip-1015)
 
