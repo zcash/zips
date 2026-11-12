@@ -16,8 +16,8 @@
 
 # Terminology
 
-The key words "MUST", "SHALL", "SHOULD", "SHOULD NOT", and "MAY" in this document
-are to be interpreted as described in BCP 14 [^BCP14] when, and only when, they
+The key words "MUST", "SHALL", "SHOULD", and "SHOULD NOT" in this document are
+to be interpreted as described in BCP 14 [^BCP14] when, and only when, they
 appear in all capitals.
 
 The terms "Mainnet" and "Testnet" in this document are to be interpreted as
