@@ -11,7 +11,6 @@
     License: MIT
     Discussions-To: <https://forum.zcashcommunity.com/t/end-zcg-and-send-its-funds-to-the-nsm/58515>
     Pull-Request: <https://github.com/zcash/zips/pull/1423>
-    Updates: 1015, 1016
 
 
 # Terminology
