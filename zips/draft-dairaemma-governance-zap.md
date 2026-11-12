@@ -118,7 +118,7 @@ have no economic dependency on the Zcash network, whatever their stated preferen
 Adoption converts the party with no economic dependency on Zcash into a stakeholder of it.
 Moreover, adoption does this most cheaply, before the adversary has chosen their attack.
 
-Increased and accelerated adoption thefore directly secures Zcash against political attack.
+Increased and accelerated adoption therefore directly secures Zcash against political attack.
 
 
 # Assessing adoption
