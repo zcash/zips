@@ -189,6 +189,26 @@ A suitable DKG protocol is COCKTAIL-DKG [#cocktail-dkg]_.
 COCKTAIL-DKG assumes that each participant has a static public key known to all
 other participants.
 
+The DKG MUST be run over the same group and base point as the FROST ciphersuite
+that will use its output: $\mathcal{G}^{\mathsf{Orchard}}$ for
+FROST(Pallas, BLAKE2b-512) and $\mathcal{G}^{\mathsf{Sapling}}$ for
+FROST(Jubjub, BLAKE2b-512). Otherwise the group public key that the DKG outputs
+is not $[\mathsf{ask}]\, \mathcal{G}$ for the shared $\mathsf{ask}$, and is not
+a valid $\mathsf{ak}$ for the key shares.
+
+.. note::
+    At the time of writing, the test vectors of the
+    ``COCKTAIL(Pallas, BLAKE2b-512)`` ciphersuite of COCKTAIL-DKG v0.2.1 are
+    computed over the Pallas generator $(-1, 2)$, not over
+    $\mathcal{G}^{\mathsf{Orchard}}$, so the output of that ciphersuite cannot
+    be used with this ZIP unchanged. A COCKTAIL-DKG ciphersuite over
+    $\mathcal{G}^{\mathsf{Orchard}}$ (and one over $\mathcal{G}^{\mathsf{Sapling}}$)
+    needs to be defined, either by COCKTAIL-DKG or by this ZIP; this is an open
+    issue.
+
+When COCKTAIL-DKG is used, the FROST identifier of participant $i$, for
+$1 \leq i \leq n$, is the $\mathtt{Scalar}$ with value $i$.
+
 Other Distributed Key Generation protocols MAY be used.
 
 To define a spending or viewing key that uses FROST, the Orchard and Sapling key
@@ -213,9 +233,13 @@ For the Orchard protocol, § 4.2.3 ‘Orchard Key Components’
 of $\mathsf{repr}_{\mathbb{P}}(\mathsf{ak}^{\mathbb{P}})$ to be $0$. So when
 the FROST(Pallas, BLAKE2b-512) ciphersuite is used, after key generation by
 either method, if the last bit of $\mathsf{SerializeElement}$(`PK`) is $1$ then
-`PK` MUST be replaced by $-$`PK`, and every signing key share `sk_i` by
-$-$`sk_i`. Each participant can perform this replacement locally, since
-negation preserves the relation between the shares and the group key.
+`PK` MUST be replaced by $-$`PK`, every signing key share `sk_i` by
+$-$`sk_i`, and every public verifying share `PK_i` by $-$`PK_i`. Each
+participant can perform this replacement locally, since negation preserves the
+relation between the shares and the group key. Values recomputed later from the
+DKG transcript (for example when a participant restores its key material, or
+recomputes a verifying share) are the values before this replacement, so the
+replacement MUST be applied again whenever they are recomputed.
 
 When generating FROST key components for the Orchard shielded protocol, the
 remaining parts of the Orchard key tree apart from $\mathsf{ask}$ and
@@ -374,6 +398,16 @@ ZIP 374 describes the randomizer as chosen by the Constructor; for a FROST
 signing session, the Constructor is the Coordinator, and its choice is the
 derivation specified above.
 
+A transaction with several spends of the same FROST key needs one signature per
+spend, each under its own randomized validating key. Each spend MUST use its
+own signing session, with its own nonces, commitments,
+$\mathtt{randomizer\_seed}$ and $\mathtt{randomizer}$. Since the SIGHASH
+commits to every randomized validating key, the Coordinator MUST complete Round
+One of every session before it derives any $\mathtt{randomizer}$. A participant
+MUST NOT use one pair of nonces in two sessions: the sessions sign the same
+message under different keys, so a reused nonce pair would reveal the
+participant's signing key share.
+
 Let $\textsf{FROST.sign}$ be the regular FROST signing function with arguments
 ``(identifier, sk_i, group_public_key, nonce_i, msg, commitment_list)``,
 as defined in [#frost-sign]_.
@@ -449,12 +483,17 @@ Define:
 
 The participants proceed as follows:
 
-- In Round 1, each participant $i$ generates ``sk_i = random_bytes(32)``, and
-  sets $\mathsf{payload}_{i,j} = \mathtt{sk\_i}$ for every other participant $j$.
+- In Round 1, each participant $i$ generates a contribution
+  ``contrib_i = random_bytes(32)``, and sets
+  $\mathsf{payload}_{i,j} = \mathtt{contrib\_i}$ for every participant $j$,
+  including $j = i$. The contribution is unrelated to the participant's FROST
+  signing key share `sk_i`, which is never sent.
 - After decrypting its Round 2 payloads, each participant computes
-  ``sk = H_sk(sk_1 || sk_2 || ... || sk_n)``, with the contributions in ascending
-  order of participant identifier. Each contribution is exactly 32 bytes, so no
-  length prefixes are needed.
+  ``sk = H_sk(contrib_1 || contrib_2 || ... || contrib_n)``, with the
+  contributions in ascending order of participant identifier. Each contribution
+  is exactly 32 bytes, so no length prefixes are needed. A participant MUST
+  abort, without signing the transcript, if any decrypted payload is not
+  exactly 32 bytes.
 - In Round 3, each participant uses ``ext = H_commit(sk)`` as the extension.
 
 The extension is covered by the signatures that every participant makes in
@@ -474,6 +513,17 @@ MUST NOT be placed in the extension or anywhere else in the transcript.
     not contain them, suffices to verify the ceremony. This does not protect
     against a party that records the messages in transit. Quantum-resistant
     encryption of the payloads is an open issue for this ZIP.
+
+    This departs from the backup requirements of COCKTAIL-DKG, whose recovery
+    procedure needs the Round 1 ciphertexts addressed to the participant. A
+    participant SHOULD instead back up its signing key share and $\mathsf{sk}$
+    directly, under encryption that does not rely on the hardness of discrete
+    logarithms, together with the transcript and the success certificate. On
+    restore, the participant MUST check the signing key share against its
+    public verifying share computed from the transcript, and
+    $\mathsf{H_{commit}}(\mathsf{sk})$ against the extension. Since
+    $\mathsf{qsk}$ can be derived from $\mathsf{sk}$, such a backup MUST be
+    protected at least as securely as $\mathsf{qsk}$ [#zip-2005-usage-with-frost]_.
 
 
 Ciphersuites
@@ -538,6 +588,8 @@ FROST(Pallas, BLAKE2b-512)
 This ciphersuite uses Pallas for the Group and BLAKE2b-512 for the Hash function ``H``
 meant to produce signatures indistinguishable from RedPallas Orchard Spend
 Authorization Signatures as specified in [#protocol-concretespendauthsig]_.
+The same ciphersuite produces spend authorization signatures for actions of the
+Ironwood pool [#zip-2005]_, which are also RedPallas signatures.
 
 - Group: Pallas [#protocol-pallasandvesta]_ with base point $\mathcal{G}^{\mathsf{Orchard}}$
   as defined in [#protocol-concretespendauthsig]_.
