@@ -213,10 +213,10 @@ Community Grants (past, present, or future) therefore become assets of the
 Zcash Adoption Pool and the requirements on their administration specified in
 ZIPs 1015 and 1016 [^zip-1015] [^zip-1016] are unchanged.
 
-The ZAP Grant assessment process MUST obtain reasonable confidence, on the evidence
-in the application, that funds disbursed through Zcash Adoption Pool Grants will
-be used for the explicit purpose of accelerating adoption as defined above. That is,
-they will be further disbursed or used to fund development that, in either case,
+Before approving a ZAP Grant, the ZAP Committee MUST obtain reasonable confidence,
+on the evidence in the application, that funds disbursed through that ZAP Grant
+will be used for the explicit purpose of accelerating adoption as defined above.
+That is, they will be further disbursed or used to fund development that, in either case,
 directly increases adoption. Here "development" is supposed to be interpreted as
 broadly as possible, in order to extend the scope of adoption programmes beyond
 what is otherwise likely to be funded from other sources. Direct disbursement,
@@ -225,8 +225,10 @@ possibilities.
 
 As stated earlier, existing constraints defined by ZIP 1015 and 1016 continue to
 apply, including constraints on grants of indefinite duration. This specifically
-means that the ZAP Committee SHOULD review such grants (on a schedule that the
-Zcash Adoption Pool Committee considers appropriate) for continuation of funding.
+means that the ZAP Committee SHOULD periodically review grants that have been
+previously approved for indefinite funding in order to continue receiving
+disbursements from the Zcash Adoption Pool. Such reviews for indefinite grants
+SHOULD occur on a schedule that the ZAP Committee considers appropriate.
 
 The ZAP Committee SHOULD publish non-normative assessment guidance, including on
 recipient categories expected to contribute most to adoption. Such guidance is
