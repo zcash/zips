@@ -53,9 +53,9 @@ hostile legislation, and smear campaigns.
 
 # Abstract
 
-The portion of Protocol-defined Ecosystem Funding allocated to Zcash Community Grants (ZCG)
-is reaffirmed and bound to its stated objective in ZIP 1015 [^zip-1015-zcg]: increasing
-adoption as broadly as possible.
+The portion of Protocol-defined Ecosystem Funding allocated to Zcash Community Grants
+(ZCG) is reaffirmed and bound to its stated objective in ZIP 1015 [^zip-1015-zcg],
+consistent with increasing adoption as broadly as possible.
 
 The store of funds for this purpose is renamed to "Zcash Adoption Pool".
 
