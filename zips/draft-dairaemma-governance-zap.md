@@ -168,6 +168,14 @@ holder and adoption interests as opposed should be evaluated skeptically against
 the threat and cost models defined above.
 
 
+# Privacy Implications
+
+Measuring adoption for a privacy-preserving payment network can easily suppress
+realized adoption, and actively slows the speed of adoption. The [Assessing adoption]
+section discusses the consequences for assessment of grant evidence and for the
+collection of information to assess grant effectiveness.
+
+
 # Requirements
 
 All requirements of ZIP 1015 continue to apply; in particular:
