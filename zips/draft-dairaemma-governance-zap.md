@@ -120,41 +120,6 @@ Moreover, adoption does this most cheaply, before the adversary has chosen their
 
 Increased and accelerated adoption therefore directly secures Zcash against political attack.
 
-
-# Assessing adoption
-
-A grant whose proceeds stop at the grant recipient adds at most one stakeholder;
-proceeds transferred onward in ZEC add one at each hop:
-
-    ZAP -> grant recipient -> [intermediary recipient(s)] -> end recipient(s)
-
-A grant's expected contribution is therefore proportional to the expected number of
-distinct parties in its disbursement chain. Assessment SHOULD weight the expected fan-out
-of the chain and the proportion of recipients for whom shielded ZEC is an
-operational requirement, on the evidence in the application.
-
-The metric to assess adoption is distinct shielded receives, not transaction count.
-Outflows, for example ZEC-to-BTC swaps, inflate transaction count while terminating
-the chain (the ZEC goes to a market maker, which does not count as new adoption).
-Assessment SHOULD therefore rank receipt metrics (external-asset-to-shielded-ZEC,
-and preferably shielded-ZEC-to-shielded-ZEC) above spend metrics, balance held, or
-undifferentiated transaction count. The point here is not that off-ramps are not
-useful, but that their use does not by itself contribute to accelerating Zcash or
-ZEC adoption.
-
-Measuring adoption for a privacy-preserving payment network can easily suppress
-realized adoption, and actively slows the speed of adoption. Therefore, this criterion
-SHOULD NOT be interpreted to require evidence that is not realistically obtainable,
-whose collection would reduce adoption or compromise grant, intermediary, or end
-recipient privacy, or could interfere with the effectiveness of other adoption
-efforts.
-
-Collection of information on intermediary or end recipients MUST be limited to
-what is necessary to reasonably assess grant effectiveness, MUST be aggregated or
-otherwise anonymized, and MUST be performed only with the informed consent of the
-parties concerned.
-
-
 ## Background
 
 Throughout the history of the Zcash project, there have been periodic calls to
@@ -258,6 +223,39 @@ Zcash Adoption Pool Committee considers appropriate) for continuation of funding
 The ZAP Committee SHOULD publish non-normative assessment guidance, including on
 recipient categories expected to contribute most to adoption. Such guidance is
 not part of this ZIP.
+
+## Assessing adoption
+
+A grant whose proceeds stop at the grant recipient adds at most one stakeholder;
+proceeds transferred onward in ZEC add one at each hop:
+
+    ZAP -> grant recipient -> [intermediary recipient(s)] -> end recipient(s)
+
+A grant's expected contribution is therefore proportional to the expected number of
+distinct parties in its disbursement chain. Assessment SHOULD weight the expected fan-out
+of the chain and the proportion of recipients for whom shielded ZEC is an
+operational requirement, on the evidence in the application.
+
+The metric to assess adoption is distinct shielded receives, not transaction count.
+Outflows, for example ZEC-to-BTC swaps, inflate transaction count while terminating
+the chain (the ZEC goes to a market maker, which does not count as new adoption).
+Assessment SHOULD therefore rank receipt metrics (external-asset-to-shielded-ZEC,
+and preferably shielded-ZEC-to-shielded-ZEC) above spend metrics, balance held, or
+undifferentiated transaction count. The point here is not that off-ramps are not
+useful, but that their use does not by itself contribute to accelerating Zcash or
+ZEC adoption.
+
+Measuring adoption for a privacy-preserving payment network can easily suppress
+realized adoption, and actively slows the speed of adoption. Therefore, this criterion
+SHOULD NOT be interpreted to require evidence that is not realistically obtainable,
+whose collection would reduce adoption or compromise grant, intermediary, or end
+recipient privacy, or could interfere with the effectiveness of other adoption
+efforts.
+
+Collection of information on intermediary or end recipients MUST be limited to
+what is necessary to reasonably assess grant effectiveness, MUST be aggregated or
+otherwise anonymized, and MUST be performed only with the informed consent of the
+parties concerned.
 
 
 # Acknowledgements
