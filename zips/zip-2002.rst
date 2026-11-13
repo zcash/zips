@@ -8,6 +8,7 @@
   Credits: Simon Liu
   Status: Draft
   Category: Consensus
+  Created: 2024-10-29
   License: MIT
   Discussions-To: <https://github.com/zcash/zips/issues/803>
   Pull-Request: <https://github.com/zcash/zips/pull/919>
@@ -28,14 +29,14 @@ Specification. [#protocol]_
 The terms "Mainnet" and "Testnet" are to be interpreted as described in
 § 3.12 ‘Mainnet and Testnet’. [#protocol-networks]_
 
-The terms "V7 transaction format" and "V7 transaction" are to be interpreted as
+The terms "v7 transaction format" and "v7 transaction" are to be interpreted as
 defined in ZIP 248. [#zip-0248]_
 
 
 Abstract
 ========
 
-This proposal makes the transaction fee explicit in the V7 transaction format,
+This proposal makes the transaction fee explicit in the v7 transaction format,
 as an entry in the transparent transaction value pool balance map defined in
 ZIP 248 [#zip-0248]_. Instead of fees being implicit in the difference between
 the input value and output value of the transaction, all value transfers,
@@ -77,7 +78,7 @@ Changes to ZIP 248
 ------------------
 
 This ZIP proposes to register bundle type 5 variant 0 ("Transaction fee") in
-the V7 transaction bundle type registry defined in ZIP 248 [#zip-0248]_.
+the v7 transaction bundle type registry defined in ZIP 248 [#zip-0248]_.
 
 +------------+---------------+----------------------+--------------------+------------------+
 | BundleType | BundleVariant | ``mValuePoolDeltas`` | ``mEffectBundles`` | ``mAuthBundles`` |
@@ -93,7 +94,11 @@ For non-coinbase transactions, the ``value`` field of this entry MUST be
 nonpositive, representing the fee being removed from the transparent
 transaction value pool. For coinbase transactions, the ``value`` field MUST be
 nonnegative, representing the total fees collected from other transactions in
-the block being added to the ZEC transparent transaction value pool.
+the block being added to the ZEC transparent transaction value pool. This is
+the gross fee amount, before the fee contribution removed from circulation
+under ZIP 235. [#zip-0235]_ The coinbase bundle's value pool delta accounts for
+that removal as specified in ZIP 248; it does not reduce the fee bundle's
+value.
 
 Changes to the Zcash Protocol Specification
 -------------------------------------------
@@ -109,11 +114,11 @@ ZIP 236 [#zip-0236]_), add the following consensus rules:
     ``bundleType`` $= \mathsf{FeeBundleId}$ MUST be 0. That is, fee amounts MUST
     be denominated in ZEC.
 
-  * [NU7 onward] For non-coinbase V7 transactions, the value of
+  * [NU7 onward] For non-coinbase v7 transactions, the value of
     $\mathsf{mValuePoolDeltas}[(\mathsf{FeeBundleId}, \mathsf{Zec})]$ MUST be
     nonpositive. Its absolute value represents the transaction fee in zatoshis.
 
-  * [NU7 onward] For coinbase V7 transactions, the value of
+  * [NU7 onward] For coinbase v7 transactions, the value of
     $\mathsf{mValuePoolDeltas}[(\mathsf{FeeBundleId}, \mathsf{Zec})]$ MUST be
     nonnegative. It represents the total transaction fees collected from all
     other transactions in the block.
@@ -127,11 +132,44 @@ In § 7.1 'Transaction Encoding and Consensus' [#protocol-txnconsensus]_, add:
 Modifications to Digest Algorithms
 ----------------------------------
 
-The fee amount is committed to the transaction identifier and signature
-digest via the ``value_pool_deltas_digest`` defined in ZIP 248 [#zip-0248]_.
-Since the fee bundle (bundle type 5) has no effecting data and no authorizing
-data, its only contribution to the transaction digest is through its entry
-in ``mValuePoolDeltas``.
+The fee amount is committed to the transaction identifier via
+``value_pool_deltas_digest``, as defined in ZIP 248 [#zip-0248]_. Since the fee
+bundle (bundle type 5) has no effecting data and no authorizing data, its only
+contribution to the transaction identifier is through its entry in
+``mValuePoolDeltas``.
+
+In the variant 0 signature digest, the fee bundle's entry, if present, MUST be included
+in ``value_pool_deltas_sig_digest`` for a transparent input signature with
+``hash_type = SIGHASH_ALL`` or a shielded signature. In these cases,
+absence of the entry commits to a zero fee. For every other valid transparent
+``hash_type``, the fee bundle's entry MUST be omitted from that digest, as
+specified in ZIP 248. This includes ``SIGHASH_ALL | SIGHASH_ANYONECANPAY``.
+Shielded signatures have no ``hash_type``.
+
+Omitting the fee commitment allows the fee to change when transparent inputs
+or unsigned outputs change, subject to transaction balance and all other
+signatures. A shielded signature or a transparent input signature with
+``hash_type = SIGHASH_ALL`` in the same transaction still commits to the fee.
+
+Rationale for the Fee Signature Commitment
+``````````````````````````````````````````
+
+.. raw:: html
+
+   <details>
+   <summary>Click to show/hide</summary>
+
+Before v7, the fee was implicit: additional transparent input value not
+allocated to an output increased the fee. Making the fee explicit should not
+prevent the changes to inputs and outputs permitted by transparent
+``hash_type`` rules. Such changes can also change the conventional fee
+recommended by ZIP 317. [#zip-0317]_ Omitting both transparent and fee bundle
+delta entries unless ``hash_type`` is exactly ``SIGHASH_ALL`` preserves this
+flexibility. Shielded signatures continue to commit to the fee.
+
+.. raw:: html
+
+   </details>
 
 
 Applicability
@@ -144,7 +182,7 @@ Deployment
 ==========
 
 This ZIP is proposed to be deployed with the next transaction version change,
-which is assumed to be V7. [#zip-0248]_
+which is assumed to be v7. [#zip-0248]_
 
 
 Reference implementation
@@ -163,5 +201,7 @@ References
 .. [#protocol-txnconsensus] `Zcash Protocol Specification, Version 2025.6.2 [NU6.1]. Section 7.1.2: Transaction Consensus Rules <protocol/protocol.pdf#txnconsensus>`_
 .. [#bitcointalk-fee-error] `Bitcoin Forum post by @Voiceeeeee, March 8, 2017. "PLEASE HELP.. I sent a transaction with a 2.5 BTC transaction fee" <https://bitcointalk.org/index.php?topic=1818791.0>`_
 .. [#zip-0200] `ZIP 200: Network Upgrade Mechanism <zip-0200.rst>`_
+.. [#zip-0235] `ZIP 235: Remove 60% of Transaction Fees From Circulation <zip-0235.md>`_
 .. [#zip-0236] `ZIP 236: Blocks should balance exactly <zip-0236.rst>`_
 .. [#zip-0248] `ZIP 248: Extensible Transaction Format <zip-0248.rst>`_
+.. [#zip-0317] `ZIP 317: Proportional Transfer Fee Mechanism <zip-0317.rst>`_

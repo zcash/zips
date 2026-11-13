@@ -34,18 +34,23 @@ interpreted as described in ZIP 229. [#zip-0229]_ Following the convention in
 the Zcash Protocol Specification, *slanted text* refers to pool names, to
 distinguish them from shielded protocols.
 
+The functions $\mathsf{TransactionFees}(\mathsf{height})$,
+$\mathsf{NSMFeeContribution}(\mathsf{height})$, and
+$\mathsf{MinerFees}(\mathsf{height})$ are to be interpreted as defined in
+ZIP 235. [#zip-0235]_
+
 The terms below are to be interpreted as follows:
 
-V7 transaction format
+v7 transaction format
   The transaction format defined by this ZIP, identified by transaction
   version 7. Its version group ID is not yet assigned.
 
-V7 transaction
-  A transaction that is encoded using the V7 transaction format.
+v7 transaction
+  A transaction that is encoded using the v7 transaction format.
 
-pre-V7 transaction format
-  Any transaction format that precedes the V7 transaction format; that is, any
-  of the V1 to V6 transaction formats.
+pre-v7 transaction format
+  Any transaction format that precedes the v7 transaction format; that is, any
+  of the v1 to v6 transaction formats.
 
 transparent transaction value pool
   An ephemeral value for the balance of an asset within the scope of a single
@@ -58,13 +63,28 @@ transparent transaction value pool
 Abstract
 ========
 
-This ZIP proposes an encoding for V7 Zcash transactions that is intended to
-reduce the impact of future changes to the Zcash transaction format on the
-Zcash ecosystem. It defines a new typecode-length-value encoding for a sequence
-of protocol bundles, and a "value balance" map that describes the effect of
-each bundle on the transparent transaction value pool for each asset. The
-entries of this map serve the same purpose as the Sapling and Orchard value
-balance fields have done in the past.
+This ZIP proposes an encoding for v7 Zcash transactions that reduces the
+impact of future transaction format changes on wallets and other clients.
+Previous format changes required clients to update their parsers even when
+they did not use newly introduced protocol features.
+
+The format defines typecode-length-value encodings for protocol bundles and
+a value pool delta map describing each bundle's effect on the transparent
+transaction value pool for each asset. The entries of this map serve the
+same purpose as the Sapling and Orchard value balance fields have done in
+the past. Effecting data and authorizing data are encoded separately, allowing
+authorizing data to be pruned without removing the transaction's effects.
+
+Clients can parse the common transaction envelope and enumerate public value
+flows without understanding every bundle type or variant. Computing the
+transaction identifier additionally requires a supplied digest for each
+unsupported effecting bundle. This does not eliminate the need to update
+wallets for consensus changes that alter how they must construct or interpret
+transactions.
+
+Future additive bundle introductions can avoid making wallets' support for
+unused features distinguishable on-chain, reducing the need for further
+transaction-format changes and their associated privacy leakage.
 
 
 Motivation
@@ -152,7 +172,10 @@ Requirements
 
 
 Non-requirements
-================
+----------------
+
+* It is not required to eliminate the need to update wallets for consensus
+  changes that alter how they must construct or interpret transactions.
 
 
 Specification
@@ -220,9 +243,11 @@ The separation of effecting data from authorizing data serves several purposes:
    authorizing data appears at the end of the encoded transaction, pruning
    is simply truncation.
 
-3. **Partial validation**: A wallet that does not understand a particular
-   bundle type can still compute the transaction identifier by hashing the
-   effecting data opaquely, without needing to parse its internal structure.
+3. **Partial processing**: A wallet can parse a transaction's envelope without
+   understanding every bundle type or variant. To compute the transaction
+   identifier, it needs the corresponding ``bundle_effects_digest`` for each
+   unsupported effecting bundle, as described in `Implications for Wallets`_;
+   hashing the opaque payload does not in general produce that digest.
 
 .. raw:: html
 
@@ -288,6 +313,11 @@ A bundle type MUST NOT permit entries in ``mAuthBundles`` unless it also permits
 entries in ``mEffectBundles``. That is, authorizing data cannot exist without
 corresponding effecting data for a given bundle type.
 
+If a bundle's encoding defines a per-element sequence in its authorizing data
+as corresponding to a per-element sequence in its effecting data, it MUST
+specify that the two sequences have the same length and that elements at the
+same index correspond.
+
 Once a ``(bundleType, bundleVariant)`` pair is assigned for a given transaction
 version, its semantics are fixed for the lifetime of that transaction version.
 A subsequent network upgrade may define a new transaction version that
@@ -300,10 +330,10 @@ the original bundle type. This ensures that a client that does not recognize a
 particular ``bundleVariant`` can still determine which pool(s) are affected by
 the bundle and inform its user accordingly.
 
-V7 Transaction Bundle Type Registry
+v7 Transaction Bundle Type Registry
 ```````````````````````````````````
 
-The following ``(bundleType, bundleVariant)`` pairs are registered for the V7
+The following ``(bundleType, bundleVariant)`` pairs are registered for the v7
 transaction format. All currently-defined values are encoded as single-byte
 ``compactSize`` values where they appear in the transaction format.
 
@@ -353,11 +383,12 @@ Potential Future Bundle Types
    <details>
    <summary>Click to show/hide</summary>
 
-The following bundle kinds have no allocated ``(bundleType, bundleVariant)``
-pair. Where a bundle type is given, the kind is a new variant of that existing
-type and only its variant identifier is unassigned. Those proposed by a ZIP
-name it; the rest are provided to illustrate how potential future upgrades
-might affect the bundle registry:
+This subsection is non-normative. The following bundle kinds illustrate
+possible future extensions; they do not register or activate any
+``(bundleType, bundleVariant)`` pair. Where a bundle type is given, the kind
+is a new variant of that existing type and only its variant identifier is
+unassigned. Those proposed by a ZIP name it; the rest illustrate how potential
+future upgrades might affect the bundle registry:
 
 +------------+-----------------+----------------------+--------------------+------------------+--------------+-------------------------------------------------------------+
 | BundleType | BundleVariant   | ``mValuePoolDeltas`` | ``mEffectBundles`` | ``mAuthBundles`` | Defining ZIP | Bundle kind                                                 |
@@ -445,14 +476,45 @@ Transaction Format
 $(\mathsf{BundleType}, \mathsf{AssetUuid})$. Lookups in this map are denoted
 with the syntax
 $\mathsf{mValuePoolDeltas}[(\mathsf{BundleType}, \mathsf{AssetUuid})].$ A
-lookup for a key that is not present yields 0, consistent with the requirement
-that a record having zero value is elided from the encoding.
+lookup for a key that is not present yields 0.
 
 ``mEffectBundles`` and ``mAuthBundles`` are interpreted as maps keyed by
 ``bundleType``.
 
 Encoding constraints on these maps (uniqueness, ordering, and cross-map
 consistency) are specified in `Parsing Rules`_.
+
+Rationale for non-extensible Common Transaction Fields
+``````````````````````````````````````````````````````
+
+.. raw:: html
+
+   <details>
+   <summary>Click to show/hide</summary>
+
+A transaction contains two kinds of information:
+
+* Changes enacted on global chain state. These belong in effecting bundles,
+  including changes that move no value (such as the potential key rotation
+  bundle in ZIP 270). Together with the value pool delta and authorizing data
+  maps, these provide extensibility for the kinds of future changes currently
+  envisaged.
+
+* Constraints on when the state change may be enacted. Pool-specific constraints
+  are encoded within the corresponding effecting or authorizing bundles, while
+  pool-agnostic constraints are encoded within the Common Transaction Fields.
+
+There are no current proposals for pool-agnostic constraints that would require
+extensible Common Transaction Fields. Making them extensible without a concrete
+use would also require choosing commitment rules for fields whose semantics are
+not yet known. The Common Transaction Fields are therefore kept fixed rather
+than adding speculative flexibility. If future ZIPs require additions or
+modifications to the Common Transaction Fields, a new transaction version can
+introduce them while retaining compatibility with this ZIP's bundle registry.
+
+.. raw:: html
+
+   </details>
 
 ValuePoolDelta
 --------------
@@ -517,9 +579,9 @@ BundleData
 Parsing Rules
 -------------
 
-The rules in this section are requirements on the byte encoding of a V7
+The rules in this section are requirements on the byte encoding of a v7
 transaction. A byte stream that violates any of these rules is not a
-well-formed V7 transaction and MUST be rejected by any parser, regardless
+well-formed v7 transaction and MUST be rejected by any parser, regardless
 of which bundle types the parser understands. Enforcement of these rules
 is what makes it safe for a wallet to parse, identify, and compute the
 transaction identifier for a transaction containing bundle types that the
@@ -550,27 +612,61 @@ wallet does not itself implement.
 * For each ``bundleType`` that appears in ``mAuthBundles``, a corresponding
   entry with the same ``bundleVariant`` MUST exist in ``mEffectBundles``.
 
-* Within the encoding of any bundle's effecting and authorizing data, every
-  per-element sequence in the authorizing data that is described as
-  corresponding to a per-element sequence in the effecting data MUST have
-  exactly the same length as that effecting-data sequence, and the element at
-  each index in the authorizing-data sequence corresponds to the element at
-  the same index in the effecting-data sequence. For the bundle types
-  defined by this ZIP this requires:
+A wallet that successfully parses a v7 transaction under these rules is
+guaranteed to be able to compute the transaction identifier (given, for each
+``(bundleType, bundleVariant)`` pair in ``mEffectBundles`` it does not
+understand, the corresponding 32-byte ``bundle_effects_digest`` value as
+described in `Implications for Wallets`_), and to enumerate the transparent
+value flows of the transaction at the granularity of bundle types.
 
-  * ``vSpendProofsSapling`` and ``vSpendAuthSigsSapling`` each have
-    ``nSpendsSapling`` elements;
-  * ``vOutputProofsSapling`` has ``nOutputsSapling`` elements;
-  * in each Orchard protocol bundle, ``vSpendAuthSigsOrchard`` has
-    ``nActionsOrchard`` elements, and ``proofsOrchard`` aggregates exactly
-    ``nActionsOrchard`` per-action proofs.
+Let ``CoinbaseBundleId``, ``SaplingBundleId``, ``OrchardBundleId``,
+``IronwoodBundleId``, and ``FeeBundleId`` be the identifiers of the coinbase,
+Sapling, Orchard, Ironwood, and fee bundles, respectively. In v7 transactions,
+$\mathsf{CoinbaseBundleId} = 1$, $\mathsf{SaplingBundleId} = 2$,
+$\mathsf{OrchardBundleId} = 3$, $\mathsf{IronwoodBundleId} = 4$, and
+$\mathsf{FeeBundleId} = 5$ as defined in the table above.
 
-A wallet that successfully parses a V7 transaction under these rules is
-guaranteed to be able to compute the transaction identifier (given, for
-each bundle type it does not understand, the corresponding 32-byte
-``bundle_effects_digest`` value as described in `Implications for Wallets`_),
-and to enumerate the transparent value flows of the transaction at the
-granularity of bundle types.
+Shielded balancing values
+`````````````````````````
+
+The logical Sapling, Orchard, and Ironwood balancing values are signed integers
+measured in zatoshis, as defined in the 'Balance and Binding Signature' sections
+of the protocol specification. [#protocol-saplingbalance]_ [#protocol-orchardbalance]_
+They are obtained from the v7 encoding as follows:
+
+.. math::
+
+   \begin{aligned}
+   \mathsf{v}^{\textit{SaplingPoolBalance}} &= \mathsf{mValuePoolDeltas}[(\mathsf{SaplingBundleId}, \mathsf{Zec})] \\
+   \mathsf{v}^{\textit{OrchardPoolBalance}} &= \mathsf{mValuePoolDeltas}[(\mathsf{OrchardBundleId}, \mathsf{Zec})] \\
+   \mathsf{v}^{\textit{IronwoodPoolBalance}} &= \mathsf{mValuePoolDeltas}[(\mathsf{IronwoodBundleId}, \mathsf{Zec})]
+   \end{aligned}
+
+Each balancing value has the sign convention defined for its pool: a positive
+value takes net value from the corresponding chain value pool and adds it to the
+transparent transaction value pool; a negative value does the reverse.
+
+Transaction inputs and outputs
+``````````````````````````````
+
+For variant 0 of the corresponding bundle types, the logical counts and flags
+used in the protocol specification are obtained from the v7 effecting data as
+follows:
+
+* $\mathtt{tx\_in\_count}$ and $\mathtt{tx\_out\_count}$ are the transparent
+  bundle's ``tx_in_count`` and ``tx_out_count`` fields.
+* $\mathtt{nSpendsSapling}$ and $\mathtt{nOutputsSapling}$ are the Sapling
+  bundle's ``nSpendsSapling`` and ``nOutputsSapling`` fields.
+* $\mathtt{nActionsOrchard}$ and $\mathtt{nActionsIronwood}$ are the
+  ``nActionsOrchard`` field of the Orchard and Ironwood bundles, respectively.
+* $\mathtt{enableSpendsOrchard}$ and $\mathtt{enableOutputsOrchard}$ are the
+  ``enableSpends`` and ``enableOutputs`` bits of the Orchard bundle's
+  ``flagsOrchard`` field. $\mathtt{enableSpendsIronwood}$ and
+  $\mathtt{enableOutputsIronwood}$ are the corresponding bits of the Ironwood
+  bundle's ``flagsOrchard`` field.
+
+Counts are nonnegative integers and flags are bits. If a bundle is absent,
+its counts and flags are zero.
 
 
 Consensus Rules
@@ -581,21 +677,44 @@ Zcash Protocol Specification. These rules are additional to the parsing rules
 above; a transaction that satisfies the parsing rules but violates any of
 these consensus rules is well-formed but invalid.
 
-Let ``CoinbaseBundleId`` be the identifier of the coinbase bundle, and
-``FeeBundleId`` be the identifier of the fee bundle. In V7 transactions,
-$\mathsf{CoinbaseBundleId} = 1$ and $\mathsf{FeeBundleId} = 5$ as defined in
-the table above.
+Bundle availability
+```````````````````
+
+For every ``(bundleType, bundleVariant)`` pair appearing in any of
+``mValuePoolDeltas``, ``mEffectBundles``, or ``mAuthBundles``, a full validator
+MUST verify that the pair is registered for v7 and activated for the consensus
+epoch of the block containing the transaction. A full validator MUST reject a
+transaction containing an unregistered or unactivated pair. Registration alone
+does not activate a bundle type or variant.
+
+These consensus checks do not prevent a wallet from parsing an unsupported
+bundle type or variant opaquely under `Parsing Rules`_.
 
 Bundle-local rules
 ``````````````````
 
-The following rules constrain the contents of individual bundles. A wallet
-or full validator only needs to enforce a given rule in this subsection if
-it understands the bundle type that the rule applies to.
+The following rules constrain the contents of individual bundles. Full
+validators MUST enforce every applicable rule. A wallet only needs to enforce
+a given rule in this subsection if it understands the bundle type and variant
+that the rule applies to.
 
 * A bundle type MUST NOT appear in any map for which the corresponding column
-  of the `V7 Transaction Bundle Type Registry`_ is marked ❌, and MUST NOT
+  of the `v7 Transaction Bundle Type Registry`_ is marked ❌, and MUST NOT
   appear in any map at all if its row in the registry is marked as Reserved.
+
+* For variant 0 of the transparent, Sapling, Orchard, and Ironwood bundles,
+  each corresponding entry in ``mValuePoolDeltas`` MUST have ``assetClass = 0``
+  (ZEC).
+
+* Each entry in ``mValuePoolDeltas`` for variant 0 of the transparent, coinbase,
+  Sapling, Orchard, or Ironwood bundle MUST have a corresponding entry in
+  ``mEffectBundles``.
+
+* If a transparent effecting bundle has ``tx_in_count > 0``, a corresponding
+  entry in ``mAuthBundles`` MUST be present.
+
+* Every Sapling, Orchard, or Ironwood effecting bundle MUST have a corresponding
+  entry in ``mAuthBundles``.
 
 * The ``assetClass`` value for any entry in ``mValuePoolDeltas`` having
   ``bundleType = FeeBundleId`` MUST be 0 (fee amounts are denominated in ZEC
@@ -628,6 +747,10 @@ The following rules relate the contents of a bundle to the other bundles of
 its transaction, or to the block that contains it. They MUST be enforced by
 full validators.
 
+* For every v7 or later transaction in a block, every entry in its
+  ``mValuePoolDeltas`` MUST have ``assetClass = 0`` (ZEC). Other asset classes
+  remain reserved for future consensus changes.
+
 * For coinbase transactions, the value of $\mathsf{mValuePoolDeltas}[(\mathsf{FeeBundleId}, \mathsf{Zec})]$
   MUST be nonnegative. This represents the total transaction fees collected from
   all other transactions in the block.
@@ -637,9 +760,18 @@ full validators.
   transaction (expressed as a negative value, since it is removed from the
   transparent transaction value pool).
 
-* Within the scope of a block, the sum of the fee bundle values MUST equal 0.
-  That is, the fees collected by the coinbase transaction MUST equal the sum of
-  fees paid by all other transactions in the block.
+* The fees collected by the coinbase transaction MUST equal the sum of the
+  fees paid by all other transactions in the block, regardless of their
+  transaction formats. For each non-coinbase transaction, its fee is:
+
+  * for a v7 transaction, the negation of
+    $\mathsf{mValuePoolDeltas}[(\mathsf{FeeBundleId}, \mathsf{Zec})]$;
+  * for a pre-v7 transaction, the implicit fee defined in § 3.4
+    'Transactions and Treestates'. [#protocol-transactions]_
+
+  For a v7 coinbase transaction, its fee bundle value MUST equal this sum.
+  In a block containing only v7 transactions, this is equivalent to requiring
+  the sum of fee bundle values to equal zero.
 
 * Exactly one transaction in a block MUST be a coinbase transaction, and it
   MUST be the first transaction in the block.
@@ -657,12 +789,15 @@ full validators.
   Lockbox, and Lockbox Disbursement'. [#protocol-fundingstreams]_
 
 * The value of $\mathsf{mValuePoolDeltas}[(\mathsf{CoinbaseBundleId}, \mathsf{Zec})]$
-  MUST equal the part of the block subsidy that is not deposited into the
-  lockbox.
+  MUST equal the block subsidy less the lockbox deposit and
+  $\mathsf{NSMFeeContribution}(\mathsf{height})$ for the block containing the
+  transaction.
 
   .. math::
 
-      \mathsf{mValuePoolDeltas}[(\mathsf{CoinbaseBundleId}, \mathsf{Zec})] = \mathsf{blockSubsidy} - \mathsf{lockboxValue}
+      \mathsf{mValuePoolDeltas}[(\mathsf{CoinbaseBundleId}, \mathsf{Zec})] = \mathsf{blockSubsidy} - \mathsf{lockboxValue} - \mathsf{NSMFeeContribution}(\mathsf{height})
+
+  Note that the coinbase value pool delta can be negative.
 
 * For every transaction, the sum of value pool delta values in each asset MUST
   equal 0.
@@ -671,34 +806,321 @@ full validators.
 
       \forall \mathsf{a}. \sum_{\mathsf{d} \in \mathsf{mValuePoolDeltas} | \mathsf{AssetUuid}(\mathsf{d}) = \mathsf{a}} \mathsf{d.value} = 0
 
-Sighash Versioning
--------------------
+  For v7 transactions, this rule replaces the remaining-value treatment of
+  the transparent transaction value pool in § 3.4 'Transactions and
+  Treestates', including the implicit transaction fee. [#protocol-transactions]_
+  For a v7 coinbase transaction, it also replaces the ``totalInputValue`` and
+  ``totalOutputValue`` definitions and their comparison in § 7.1.2
+  'Transaction Consensus Rules'. [#protocol-txnconsensus]_ The explicit
+  coinbase and fee bundle rules above determine the subsidy and fee
+  contributions instead. These replacements do not change the balance or
+  implicit-fee rules for pre-v7 transactions.
 
-This ZIP introduces sighash algorithm versioning. Where previously each
+* A v7 transaction MUST satisfy at least one of these input-side conditions:
+
+  * ``mEffectBundles`` contains an entry with ``bundleType = CoinbaseBundleId``.
+  * $\mathtt{tx\_in\_count} > 0$.
+  * $\mathtt{nSpendsSapling} > 0$.
+  * $\mathtt{nActionsOrchard} > 0$ and $\mathtt{enableSpendsOrchard} = 1$.
+  * $\mathtt{nActionsIronwood} > 0$ and $\mathtt{enableSpendsIronwood} = 1$.
+
+* A v7 transaction MUST satisfy at least one of these output-side conditions:
+
+  * $\mathtt{tx\_out\_count} > 0$.
+  * $\mathtt{nOutputsSapling} > 0$.
+  * $\mathtt{nActionsOrchard} > 0$ and $\mathtt{enableOutputsOrchard} = 1$.
+  * $\mathtt{nActionsIronwood} > 0$ and $\mathtt{enableOutputsIronwood} = 1$.
+  * $\mathsf{zip233\_amount} > 0$, as defined in ZIP 233. [#zip-0233]_
+
+In § 7.1.2 'Transaction Consensus Rules', [#protocol-txnconsensus]_ change:
+
+  [NU6.3 onward] If $\mathsf{effectiveVersion} \geq 6$ then this rule MUST hold:
+  $\mathtt{tx\_in\_count} > 0$ or $\mathtt{nSpendsSapling} > 0$ or
+  ($\mathtt{nActionsOrchard} > 0$ and $\mathtt{enableSpendsOrchard} = 1$) or
+  ($\mathtt{nActionsIronwood} > 0$ and $\mathtt{enableSpendsIronwood} = 1$).
+
+  [NU6.3 onward] If $\mathsf{effectiveVersion} \geq 6$ then this rule MUST hold:
+  $\mathtt{tx\_out\_count} > 0$ or $\mathtt{nOutputsSapling} > 0$ or
+  ($\mathtt{nActionsOrchard} > 0$ and $\mathtt{enableOutputsOrchard} = 1$) or
+  ($\mathtt{nActionsIronwood} > 0$ and $\mathtt{enableOutputsIronwood} = 1$).
+
+to:
+
+  [NU6.3 onward] If $\mathsf{effectiveVersion} = 6$ then this rule MUST hold:
+  $\mathtt{tx\_in\_count} > 0$ or $\mathtt{nSpendsSapling} > 0$ or
+  ($\mathtt{nActionsOrchard} > 0$ and $\mathtt{enableSpendsOrchard} = 1$) or
+  ($\mathtt{nActionsIronwood} > 0$ and $\mathtt{enableSpendsIronwood} = 1$).
+
+  [NU6.3 onward] If $\mathsf{effectiveVersion} = 6$ then this rule MUST hold:
+  $\mathtt{tx\_out\_count} > 0$ or $\mathtt{nOutputsSapling} > 0$ or
+  ($\mathtt{nActionsOrchard} > 0$ and $\mathtt{enableOutputsOrchard} = 1$) or
+  ($\mathtt{nActionsIronwood} > 0$ and $\mathtt{enableOutputsIronwood} = 1$).
+
+Signature hash references
+`````````````````````````
+
+In § 4.10 'SIGHASH Transaction Hashing', [#protocol-sighash]_ change:
+
+  The means of authorization differs between transparent inputs, inputs to
+  Sprout JoinSplit transfers, and Sapling Spend transfers or Orchard Action
+  transfers, but for a given transaction version the same SIGHASH transaction
+  hash algorithm is used.
+
+to:
+
+  The means of authorization differs between transparent inputs, inputs to
+  Sprout JoinSplit transfers, and Sapling Spend transfers or Orchard Action
+  transfers. For a given pre-v7 transaction version the same SIGHASH transaction
+  hash algorithm is used. For v7 transactions, the algorithm is selected for
+  each signer as specified in `ZIP 248, 'Sighash Variants' <zip-0248.rst#sighash-variants>`_.
+
+In the same section, after:
+
+  [NU6.3 onward] The SIGHASH algorithm used for version 6 transactions is
+  defined in ZIP 229.
+
+add:
+
+  The SIGHASH algorithms used for v7 transactions are defined in ZIP 248.
+
+In § 4.13 'Balance and Binding Signature (Sapling)', [#protocol-saplingbalance]_
+change:
+
+  Let $\mathsf{SigHash}$ be the SIGHASH transaction hash for the appropriate
+  transaction version, not associated with an input, using the SIGHASH type
+  $\mathsf{SIGHASH\_ALL}$. This is defined in ZIP 243 for a version 4 transaction,
+  or in ZIP 244 for a version 5 transaction, or in ZIP 229 for a version 6
+  transaction.
+
+to:
+
+  For a pre-v7 transaction, let $\mathsf{SigHash}$ be the SIGHASH transaction
+  hash for the appropriate transaction version, not associated with an input,
+  using the SIGHASH type $\mathsf{SIGHASH\_ALL}$. This is defined in ZIP 243 for
+  a version 4 transaction, or in ZIP 244 for a version 5 transaction, or in
+  ZIP 229 for a version 6 transaction.
+
+  For a v7 transaction, let $\mathsf{SigHash}$ be the digest selected by the
+  binding signature's ``sighashInfo``, as specified in
+  `ZIP 248, 'Sapling Sighash Algorithms' <zip-0248.rst#sapling-sighash-algorithms>`_.
+
+In § 4.14 'Balance and Binding Signature (Orchard)', [#protocol-orchardbalance]_
+change:
+
+  Let $\mathsf{SigHash}$ be the SIGHASH transaction hash for the appropriate
+  transaction version, not associated with an input, using the SIGHASH type
+  $\mathsf{SIGHASH\_ALL}$. This is defined in ZIP 244 for a version 5 transaction,
+  or in ZIP 229 for a version 6 transaction.
+
+to:
+
+  For a pre-v7 transaction, let $\mathsf{SigHash}$ be the SIGHASH transaction
+  hash for the appropriate transaction version, not associated with an input,
+  using the SIGHASH type $\mathsf{SIGHASH\_ALL}$. This is defined in ZIP 244 for
+  a version 5 transaction, or in ZIP 229 for a version 6 transaction.
+
+  For a v7 transaction, let $\mathsf{SigHash}$ be the digest selected by the
+  ``sighashInfo`` of the binding signature for this bundle, as specified in
+  `ZIP 248, 'Orchard Protocol Sighash Algorithms' <zip-0248.rst#orchard-protocol-sighash-algorithms>`_.
+
+In § 4.15 'Spend Authorization Signature (Sapling and Orchard)',
+[#protocol-spendauthsig]_ change:
+
+  Let $\mathsf{SigHash}$ be the SIGHASH transaction hash as defined in ZIP 243 or
+  as defined in ZIP 244 modified by ZIP 225, not associated with an input,
+  using the SIGHASH type $\mathsf{SIGHASH\_ALL}$.
+
+to:
+
+  For a pre-v7 transaction, let $\mathsf{SigHash}$ be the SIGHASH transaction
+  hash as defined in ZIP 243 or as defined in ZIP 244 modified by ZIP 225,
+  not associated with an input, using the SIGHASH type $\mathsf{SIGHASH\_ALL}$.
+
+  For a v7 transaction, let $\mathsf{SigHash}$ be the digest selected by this
+  spend authorization signature's ``sighashInfo``, as specified in
+  `ZIP 248, 'Sapling Sighash Algorithms'`_ for Sapling signatures or
+  `ZIP 248, 'Orchard Protocol Sighash Algorithms'`_ for Orchard and Ironwood
+  signatures.
+
+Changes to the Protocol Specification
+-------------------------------------
+
+Coinbase identification and metadata
+````````````````````````````````````
+
+In § 3.11 'Coinbase Transactions', [#protocol-coinbasetransactions]_ change:
+
+  A transaction that has a single transparent input with a null ``prevout``
+  field, is called a coinbase transaction.
+
+to:
+
+  A pre-v7 transaction that has a single transparent input with a null
+  ``prevout`` field is called a coinbase transaction. A v7 transaction is a
+  coinbase transaction if and only if its ``mEffectBundles`` map contains an
+  entry with ``bundleType = CoinbaseBundleId``.
+
+In § 7.1.2 'Transaction Consensus Rules', [#protocol-txnconsensus]_ change the
+paragraph starting with:
+
+  A coinbase transaction for a block at block height greater than 0
+
+to instead start with:
+
+  A pre-v7 coinbase transaction for a block at block height greater than 0
+
+In the same section, change:
+
+  A coinbase transaction script MUST have length in $\{2 .. 100\}$ bytes.
+
+to:
+
+  A pre-v7 coinbase transaction script MUST have length in $\{2 .. 100\}$ bytes.
+
+  A v7 coinbase transaction has no coinbase script. Its block height and
+  miner-chosen data are encoded in the coinbase bundle.
+
+Shielded balance encoding
+`````````````````````````
+
+In § 4.13 'Balance and Binding Signature (Sapling)', [#protocol-saplingbalance]_
+change:
+
+  $\mathsf{v}^{\textit{SaplingPoolBalance}}$ is encoded in a transaction as the
+  field ``valueBalanceSapling``. For a v4 transaction,
+  $\mathsf{v}^{\textit{SaplingPoolBalance}}$ is always explicitly encoded.
+  For v5, $\mathsf{v}^{\textit{SaplingPoolBalance}}$ is implicitly zero if the
+  transaction has no Spend descriptions or Output descriptions. Transaction
+  fields are described in § 7.1 'Transaction Encoding and Consensus'.
+
+to:
+
+  For a pre-v7 transaction, $\mathsf{v}^{\textit{SaplingPoolBalance}}$ is encoded
+  in the transaction as the field ``valueBalanceSapling``. For a v4 transaction,
+  $\mathsf{v}^{\textit{SaplingPoolBalance}}$ is always explicitly encoded.
+  For v5, $\mathsf{v}^{\textit{SaplingPoolBalance}}$ is implicitly zero if the
+  transaction has no Spend descriptions or Output descriptions. Transaction
+  fields are described in § 7.1 'Transaction Encoding and Consensus'.
+
+  For a v7 transaction, $\mathsf{v}^{\textit{SaplingPoolBalance}}$ is obtained as
+  specified in `ZIP 248, 'Shielded balancing values' <zip-0248.rst#shielded-balancing-values>`_.
+
+In § 4.14 'Balance and Binding Signature (Orchard)', [#protocol-orchardbalance]_
+using $\textit{pool}$ as defined there, change:
+
+  $\mathsf{v}^{\textit{poolBalance}}$ is encoded in a transaction as the field
+  ``valueBalanceOrchard/Ironwood``. If a transaction has no Action descriptions
+  for $\textit{pool}$, $\mathsf{v}^{\textit{poolBalance}}$ is implicitly zero.
+  Transaction fields are described in § 7.1 'Transaction Encoding and Consensus'.
+
+to:
+
+  For a pre-v7 transaction, $\mathsf{v}^{\textit{poolBalance}}$ is encoded in the
+  transaction as the field ``valueBalanceOrchard/Ironwood``. If a pre-v7
+  transaction has no Action descriptions for $\textit{pool}$, $\mathsf{v}^{\textit{poolBalance}}$ is
+  implicitly zero. Transaction fields are described in § 7.1 'Transaction
+  Encoding and Consensus'.
+
+  For a v7 transaction, $\mathsf{v}^{\textit{poolBalance}}$ is obtained as
+  specified in `ZIP 248, 'Shielded balancing values'`_.
+
+Shielded balance ranges
+```````````````````````
+
+In § 7.1.2 'Transaction Consensus Rules', [#protocol-txnconsensus]_ change:
+
+  * [Sapling onward] ``valueBalanceSapling``, if it exists, MUST be in the range
+    $\{-\mathsf{MAX\_MONEY} \,..\, \mathsf{MAX\_MONEY}\}$.
+  * [NU5 onward] ``valueBalanceOrchard``, if it exists, MUST be in the range
+    $\{-\mathsf{MAX\_MONEY} \,..\, \mathsf{MAX\_MONEY}\}$.
+  * [NU6.3 onward] ``valueBalanceIronwood``, if it exists, MUST be in the range
+    $\{-\mathsf{MAX\_MONEY} \,..\, \mathsf{MAX\_MONEY}\}$.
+  * [NU6.3 onward] ``valueBalanceOrchard``, if it exists, MUST be nonnegative.
+
+to:
+
+  * [Sapling onward] $\mathsf{v}^{\textit{SaplingPoolBalance}}$ MUST be in the
+    range $\{-\mathsf{MAX\_MONEY} \,..\, \mathsf{MAX\_MONEY}\}$.
+  * [NU5 onward] $\mathsf{v}^{\textit{OrchardPoolBalance}}$ MUST be in the range
+    $\{-\mathsf{MAX\_MONEY} \,..\, \mathsf{MAX\_MONEY}\}$.
+  * [NU6.3 onward] $\mathsf{v}^{\textit{IronwoodPoolBalance}}$ MUST be in the
+    range $\{-\mathsf{MAX\_MONEY} \,..\, \mathsf{MAX\_MONEY}\}$.
+  * [NU6.3 onward] $\mathsf{v}^{\textit{OrchardPoolBalance}}$ MUST be nonnegative.
+
+Chain value pool balance definitions
+````````````````````````````````````
+
+In § 4.17 'Chain Value Pool Balances', [#protocol-chainvaluepoolbalances]_
+change:
+
+  As defined in ZIP 209, the Sapling chain value pool balance for a given block
+  chain is the negation of the sum of all ``valueBalanceSapling`` values for
+  transactions in the chain.
+
+to:
+
+  As defined in ZIP 209, the Sapling chain value pool balance for a given block
+  chain is the negation of the sum of all
+  $\mathsf{v}^{\textit{SaplingPoolBalance}}$ values for transactions in the chain.
+
+In the same section, change:
+
+  Similarly to the Sapling chain value pool balance defined in ZIP 209, the
+  Orchard chain value pool balance for a given block chain is the negation of
+  the sum of all ``valueBalanceOrchard`` field values for transactions in the
+  chain.
+
+to:
+
+  Similarly to the Sapling chain value pool balance defined in ZIP 209, the
+  Orchard chain value pool balance for a given block chain is the negation of
+  the sum of all $\mathsf{v}^{\textit{OrchardPoolBalance}}$ values for transactions
+  in the chain.
+
+In the same section, change:
+
+  The Ironwood chain value pool balance for a given block chain is the negation
+  of the sum of all ``valueBalanceIronwood`` field values for transactions in
+  the block chain.
+
+to:
+
+  The Ironwood chain value pool balance for a given block chain is the negation
+  of the sum of all $\mathsf{v}^{\textit{IronwoodPoolBalance}}$ values for
+  transactions in the block chain.
+
+Sighash Variants
+----------------
+
+This ZIP introduces sighash algorithm variants. Where previously each
 transaction version had a single associated sighash algorithm, going forward it
 is possible for signers to use any sighash algorithm within the closed set
 specified for a given transaction version (and made available in consensus via
 network upgrades).
 
-The sighash version is encoded as a single byte alongside any associated data
-that the sighash algorithm version requires (for deterministically computing the
+The sighash variant is encoded as a single byte alongside any associated data
+that the sighash algorithm variant requires (for deterministically computing the
 digest):
 
-``sighashInfo = [sighashVersion] || associatedData``
+``sighashInfo = [sighashVariant] || associatedData``
 
 where ``associatedData`` is specific to the bundle it appears in.
 
-Each bundle type defines the sighash algorithm versions available to its
-signers, the ``associatedData`` that each version requires, and the digest that
+Each bundle type defines the sighash algorithm variants available to its
+signers, the ``associatedData`` that each variant requires, and the digest that
 a signature using it commits to. Those definitions are given for the bundle
 types registered by this ZIP in `Bundle Definitions`_.
 
-Version 0 is by convention the "commit to all effecting data" sighash algorithm.
-Other versions can commit to whatever makes sense for desired functionality
-within a given transaction version. Consensus rules choose the digest algorithm
-for each signer based on ``sighashVersion``.
+Variant 0 is by convention the "commit to all effecting data" sighash algorithm,
+subject to the transparent bundle's legacy ``hash_type`` rules specified below.
+Those rules affect commitments to the transparent bundle and the transaction
+fee; they do not relax commitments to any other bundle's effecting data or
+value pool deltas.
+Other variants can define different commitments, including partial commitments
+across bundles, within a given transaction version. Consensus rules choose the
+digest algorithm for each signer based on ``sighashVariant``.
 
-Sighash version information is present alongside each signature in the
+Sighash variant information is present alongside each signature in the
 authorizing data of each bundle.
 
 Digest Algorithms
@@ -717,7 +1139,7 @@ TxId Digest
 ```````````
 
 A new transaction digest algorithm is defined that constructs the identifier for
-a V7 transaction from a tree of hashes. The overall structure of the hash is as
+a v7 transaction from a tree of hashes. The overall structure of the hash is as
 follows::
 
     txid_digest
@@ -829,30 +1251,52 @@ is::
 
   BLAKE2b-256("ZTxIdEffBnd_Hash", [])
 
-v0 Signature Digest
-```````````````````
+Rationale for Per-Bundle Effects Digests
+''''''''''''''''''''''''''''''''''''''''
+
+.. raw:: html
+
+   <details>
+   <summary>Click to show/hide</summary>
+
+Each effecting bundle contributes a fixed-size digest to this hash. A wallet
+can therefore use a supplied digest for an unsupported bundle without parsing
+its internal structure, while computing the other bundle digests itself.
+The ``bundleType`` and ``bundleVariant`` tags remain committed to alongside
+each digest, and the header and complete value pool delta map remain separate
+commitments in the transaction identifier. This permits bundle-specific hash
+trees, including the subtrees used in compact representations, without
+requiring every receiving wallet to understand every bundle's hash tree.
+
+.. raw:: html
+
+   </details>
+
+Variant 0 Signature Digest
+``````````````````````````
 
 A new per-input transaction digest algorithm is defined that constructs a hash
 that may be signed by a transaction creator to commit to the effects of the
 transaction. This follows closely the algorithm from ZIP 244 [#zip-0244]_.
 
 The digest algorithm used for a given signature is determined by the
-``sighashVersion`` from the signer's ``sighashInfo``, as specified in the
-`Sighash Versioning`_ section. For sighash version 0 (the only version
-currently defined for V7 transactions), the digest algorithm is as specified
-below. Future network upgrades may define additional sighash algorithm versions
+``sighashVariant`` from the signer's ``sighashInfo``, as specified in the
+`Sighash Variants`_ section. For sighash variant 0 (the only variant
+currently defined for v7 transactions), the digest algorithm is as specified
+below. Future network upgrades may define additional sighash algorithm variants
 with divergent behavior.
 
-For transactions that have no transparent inputs, the v0 signature digest is
-identical to the transaction identifier digest.
+For transactions that have no transparent inputs, the variant 0 signature
+digest is identical to the transaction identifier digest.
 
 For transactions with transparent inputs, the signature digest replaces
-``effects_bundles_digest`` with a ``signature_bundles_digest`` that incorporates
+``value_pool_deltas_digest`` and ``effects_bundles_digest`` with
+``value_pool_deltas_sig_digest`` and ``signature_bundles_digest`` that incorporate
 ``hash_type``-dependent transparent signing data::
 
     signature_digest
     ├── header_digest
-    ├── value_pool_deltas_digest
+    ├── value_pool_deltas_sig_digest
     └── signature_bundles_digest
 
 signature_digest
@@ -860,9 +1304,9 @@ signature_digest
 
 A BLAKE2b-256 hash of the following values::
 
-   S.1: header_digest             (32-byte hash output)
-   S.2: value_pool_deltas_digest  (32-byte hash output)
-   S.3: signature_bundles_digest  (32-byte hash output)
+   S.1: header_digest                 (32-byte hash output)
+   S.2: value_pool_deltas_sig_digest  (32-byte hash output)
+   S.3: signature_bundles_digest      (32-byte hash output)
 
 The personalization field of this hash is set to::
 
@@ -871,6 +1315,28 @@ The personalization field of this hash is set to::
 This value has the same personalization as the transaction identifier digest,
 so that what is being signed in the case that there are no transparent inputs
 is exactly the transaction id.
+
+S.2: value_pool_deltas_sig_digest
+'''''''''''''''''''''''''''''''''
+
+For a signature over a transparent input whose ``hash_type`` is not
+``SIGHASH_ALL``, this is constructed as specified for
+``value_pool_deltas_digest`` (T.2), except that all entries with
+``bundleType = 0`` (the transparent bundle) or ``bundleType = 5`` (the fee
+bundle) are omitted, regardless of ``bundleVariant`` or ``assetClass``. The
+complete encodings of the remaining entries are concatenated in their original
+transaction order, without a count prefix. No other entry is omitted.
+
+The personalization remains ``ZTxIdVPDeltaHash``. If no entries remain, the
+digest is::
+
+  BLAKE2b-256("ZTxIdVPDeltaHash", [])
+
+For a transparent input signature with ``hash_type = SIGHASH_ALL``,
+``value_pool_deltas_sig_digest`` is identical to ``value_pool_deltas_digest``
+(T.2). For shielded signatures, which have no ``hash_type``, and transactions
+with no transparent inputs, it is also identical to ``value_pool_deltas_digest``
+(T.2).
 
 S.3: signature_bundles_digest
 '''''''''''''''''''''''''''''
@@ -881,6 +1347,34 @@ identical to ``effects_bundles_digest``.
 Otherwise, ``signature_bundles_digest`` is constructed the same as
 ``effects_bundles_digest``, except that ``transparent_effects_digest`` is
 replaced with ``transparent_sig_digest``.
+
+Rationale for Variant 0 Transparent Commitments
+'''''''''''''''''''''''''''''''''''''''''''''''
+
+.. raw:: html
+
+   <details>
+   <summary>Click to show/hide</summary>
+
+The legacy ``hash_type`` rules select which transparent inputs and outputs a
+transparent signature commits to. Unless ``hash_type`` is exactly
+``SIGHASH_ALL``, all transparent bundle value pool delta entries are
+excluded so that they do not independently commit to the aggregate value of
+transparent inputs and outputs for any asset. This includes
+``SIGHASH_ALL | SIGHASH_ANYONECANPAY``. Omitting whole entries accommodates
+the canonical absence of zero-valued entries.
+
+The fee bundle's entries are also excluded in these cases, as specified in
+ZIP 2002 [#zip-2002]_. Otherwise, the fixed fee and other bundles' value pool
+deltas would constrain the net transparent value through the per-asset balance
+rule. Excluding both lets the fee change when inputs or unsigned outputs change,
+subject to transaction balance and all other signatures. Commitments to all
+other bundles are unchanged. Shielded signatures have no ``hash_type`` and
+continue to commit to the complete value pool delta map.
+
+.. raw:: html
+
+   </details>
 
 Authorizing Data Commitment
 ```````````````````````````
@@ -906,9 +1400,6 @@ A BLAKE2b-256 hash of the following value::
 The personalization field of this hash is set to::
 
   "ZTxAuthHash_" || CONSENSUS_BRANCH_ID
-
-For transaction versions before V7, a placeholder value consisting of 32 bytes
-of ``0xFF`` is used in place of the authorizing data commitment.
 
 A.1: auth_bundles_digest
 ''''''''''''''''''''''''
@@ -938,7 +1429,7 @@ Choice of transaction format when sending
 When creating a transaction, a wallet SHOULD use the oldest transaction format
 that is valid at the height at which the transaction is expected to be mined,
 and that supports every protocol feature the transaction requires. A wallet
-SHOULD use the V7 transaction format only for transactions that require a
+SHOULD use the v7 transaction format only for transactions that require a
 feature that no older valid format supports.
 
 Rationale for choice of transaction format
@@ -951,20 +1442,20 @@ Rationale for choice of transaction format
 
 The oldest format that can express a transaction is the format that the
 largest number of receiving wallets can parse. A wallet that has not yet
-added support for parsing V7 transactions can still detect funds sent to it
-in a transaction that does not use V7 features.
+added support for parsing v7 transactions can still detect funds sent to it
+in a transaction that does not use v7 features.
 
 .. raw:: html
 
    </details>
 
-Support for receiving funds in V7 transactions
+Support for receiving funds in v7 transactions
 ``````````````````````````````````````````````
 
-Zcash wallets MUST support parsing V7 transactions by the time they are allowed
+Zcash wallets MUST support parsing v7 transactions by the time they are allowed
 on the network.
 
-Because the V7 transaction format uses a type-length-value encoding for
+Because the v7 transaction format uses a type-length-value encoding for
 bundles, a wallet is not required to understand the internal encoding of every
 bundle in order to parse a transaction. However, a wallet that encounters a
 bundle with an unrecognized ``bundleType`` SHOULD alert the user that the
@@ -973,11 +1464,30 @@ encounters a bundle with a recognized ``bundleType`` but unrecognized
 ``bundleVariant`` SHOULD alert the user that the transaction affects a pool the
 wallet is aware of, but in a way the wallet does not fully understand.
 
-For bundle types not understood by a wallet, the wallet can compute the
-transaction identifier so long as it has been provided with the 32-byte
-``bundle_effects_digest`` value for each bundle that it does not understand.
-This enables partial verification of transactions containing unknown bundle
-types.
+For each unsupported ``(bundleType, bundleVariant)`` pair in
+``mEffectBundles``, a wallet needs the corresponding 32-byte
+``bundle_effects_digest`` value in order to compute the transaction identifier.
+This includes an unsupported variant of a recognized bundle type. For each
+such bundle, the wallet uses the supplied digest as T.3c, together with the
+``bundleType`` and ``bundleVariant`` encoded in that transaction's
+``mEffectBundles`` entry, in `T.3: effects_bundles_digest`_. It computes the
+digests of supported bundles normally and includes all bundles in transaction
+order. The header and complete value pool delta map are hashed as specified
+in T.1 and T.2. Thus access to the unsupported bundles' digests enables the
+wallet to compute the transaction identifier without interpreting those
+bundles' internal payloads. How those digests are made available to the
+wallet is outside the scope of this ZIP.
+
+The supplied digests act as commitments to subtrees that the wallet does not
+need to compute. If the resulting transaction identifier matches one obtained
+from a trusted source, this authenticates the effecting data the wallet
+understands, the header, and the value pool delta map. Without a transaction
+identifier obtained from a trusted source, computing the correct identifier
+instead depends on the supplied bundle digests being correct.
+
+Recognizing a bundle type identifies the affected value pool or protocol
+component, but does not imply that the wallet understands or can operate
+under the semantics of an unsupported variant.
 
 A wallet MUST NOT construct or sign a transaction containing a bundle type or
 variant that it does not fully understand.
@@ -988,16 +1498,39 @@ Bundle Definitions
 
 The sections above are independent of any particular bundle type. This section
 defines the bundle types that this ZIP registers: the encoding of their
-effecting and authorizing data, the sighash algorithm versions available to
+effecting and authorizing data, the sighash algorithm variants available to
 their signers, and their contributions to the digests defined in
 `Digest Algorithms`_. A ZIP that registers a further bundle type defines the
-same things for it, as required by `Bundle Type Registration`_.
+same things for it, as required by `Bundle Type Registration`_. In particular,
+each bundle type and variant defines when its entries are present or omitted;
+the canonical omission rules below apply to the bundle kinds that specify them.
+
+For the bundle types defined by this ZIP, the corresponding authorizing
+sequences take their lengths from the effecting data:
+
+* ``tx_in_auth`` has ``tx_in_count`` elements;
+* ``vSpendProofsSapling`` and ``vSpendAuthSigsSapling`` each have
+  ``nSpendsSapling`` elements;
+* ``vOutputProofsSapling`` has ``nOutputsSapling`` elements;
+* in each Orchard protocol bundle, ``vSpendAuthSigsOrchard`` has
+  ``nActionsOrchard`` elements.
+
+Decoding a recognized ``vBundleData`` payload MUST consume exactly
+``nBundleDataLen`` bytes; missing fields, truncated fields, or trailing bytes
+MUST cause rejection. Unsupported payloads are treated as opaque byte arrays
+of their declared lengths.
 
 Transparent Bundle
 ``````````````````
 
 The transparent bundle's value pool delta in ``mValuePoolDeltas`` represents
 the net value flowing from the transparent inputs to the transparent outputs.
+
+An entry for this bundle in ``mEffectBundles`` MUST contain at least one
+transparent input or output. If both ``tx_in_count`` and ``tx_out_count``
+would be zero, the effecting bundle MUST be omitted instead. An entry in
+``mAuthBundles`` MUST NOT be present when ``tx_in_count = 0``; the empty
+authorizing bundle is omitted.
 
 A full validator MUST verify that the ZEC value pool delta for
 ``bundleType = 0`` equals the total value of the transparent inputs minus the
@@ -1073,7 +1606,7 @@ TransparentInputAuth
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
 | Bytes                       | Name                     | Data Type                              | Description                                                         |
 +=============================+==========================+========================================+=====================================================================+
-|``varies``                   |``sighashInfo``           |``TransparentSighashInfo``              |The sighash version and associated information for this input,       |
+|``varies``                   |``sighashInfo``           |``TransparentSighashInfo``              |The sighash variant and associated information for this input,       |
 |                             |                          |                                        |as defined in                                                        |
 |                             |                          |                                        |`Transparent Sighash Information (``TransparentSighashInfo``)`_.     |
 +-----------------------------+--------------------------+----------------------------------------+---------------------------------------------------------------------+
@@ -1091,17 +1624,17 @@ Transparent Sighash Information (``TransparentSighashInfo``)
 +=============================+==============================+==================================+===================================================+
 | varies                      |``sizeSighashInfo``           |``compactSize``                   |The size in bytes of ``sighashInfo``.              |
 +-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
-| ``sizeSighashInfo``         |``sighashInfo``               |``byte[sizeSighashInfo]``         |The sighash version and associated information,    |
-|                             |                              |                                  |as defined in `Sighash Versioning`_.               |
+| ``sizeSighashInfo``         |``sighashInfo``               |``byte[sizeSighashInfo]``         |The sighash variant and associated information,    |
+|                             |                              |                                  |as defined in `Sighash Variants`_.                 |
 +-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
 
 Transparent Sighash Algorithms
 ''''''''''''''''''''''''''''''
 
-For the transparent bundle at ``bundleVariant = 0``, sighash version 0 is the
-only version defined, and its ``associatedData`` is the empty byte string. A
-signature made with it commits to the digest defined in
-`S.3.0: transparent_sig_digest`_.
+For the transparent bundle at ``bundleVariant = 0``, sighash variant 0 is the
+only variant defined, and its ``associatedData`` is the empty byte string. A
+signature made with it commits to the digest defined in `Variant 0 Signature
+Digest`_.
 
 Transparent Digests
 '''''''''''''''''''
@@ -1120,10 +1653,8 @@ The personalization field of this hash is set to::
 
   "ZTxIdTranspaHash"
 
-In the case that the transaction has no transparent components,
-``transparent_effects_digest`` is::
-
-  BLAKE2b-256("ZTxIdTranspaHash", [])
+If there are no transparent inputs or outputs, there is no transparent
+effecting bundle and no entry for it in ``effects_bundles_digest``.
 
 T.3.0a: prevouts_digest
 ~~~~~~~~~~~~~~~~~~~~~~~
@@ -1247,7 +1778,15 @@ If the ``SIGHASH_ANYONECANPAY`` flag is set::
 S.3.0e: sequence_sig_digest
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Identical to ``sequence_digest`` (T.3.0b) regardless of ``hash_type``.
+If the ``SIGHASH_ANYONECANPAY`` flag is not set, identical to
+``sequence_digest`` (T.3.0b).
+
+Otherwise::
+
+  BLAKE2b-256("ZTxIdSequencHash", [])
+
+The signing input's own ``nSequence`` is committed to by ``txin_sig_digest``
+(S.3.0g), regardless of ``hash_type``.
 
 S.3.0f: outputs_sig_digest
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1256,7 +1795,11 @@ If the sighash type is neither ``SIGHASH_SINGLE`` nor ``SIGHASH_NONE``, identica
 to ``outputs_digest`` (T.3.0c).
 
 If the sighash type is ``SIGHASH_SINGLE`` and a transparent output exists at the
-same index as the input being signed, a hash of that output's encoding.
+same index as the input being signed, a BLAKE2b-256 hash of that output's encoding.
+
+The personalization field of this hash is set to::
+
+  "ZTxIdOutputsHash"
 
 Otherwise::
 
@@ -1297,15 +1840,14 @@ The personalization field of this hash is set to::
 
   "ZTxAuthTransHash"
 
-In the case that the transaction has no transparent inputs::
-
-  BLAKE2b-256("ZTxAuthTransHash", [])
+If there are no transparent inputs, there is no transparent authorizing
+bundle and no entry for it in ``auth_bundles_digest``.
 
 
 Coinbase Bundle
 ```````````````
 
-A transaction is a *coinbase transaction* if and only if ``mEffectBundles``
+A v7 transaction is a *coinbase transaction* if and only if ``mEffectBundles``
 contains an entry with ``bundleType = 1``. The coinbase bundle replaces the
 otherwise-unspendable transparent input that identified a coinbase transaction
 in previous transaction versions, and carries the block height that that input
@@ -1315,14 +1857,17 @@ The block subsidy is the whole of the new issuance for the block, which
 consensus splits between the miner, the funding streams that pay to an address,
 and the funding streams that deposit into the deferred pool (the "lockbox")
 [#zip-2001]_. Only the part that is not deposited into the lockbox is paid out
-by this transaction, so the coinbase bundle's value pool delta in
-``mValuePoolDeltas`` is the block subsidy less the lockbox deposit. The fees
-collected from the other transactions in the block are contributed separately,
-as the value pool delta of the fee bundle.
+by this transaction. The full fees collected from the other transactions in
+the block are contributed separately, as the value pool delta of the fee
+bundle. The coinbase bundle's value pool delta is the block subsidy less the
+lockbox deposit and the fee contribution removed from circulation under
+ZIP 235. [#zip-0235]_ It can therefore be positive, zero, or negative. Together
+with the gross fee delta, it leaves the subsidy less the lockbox deposit plus
+$\mathsf{MinerFees}(\mathsf{height})$ available to the output bundles.
 
-The bundle's own effecting data carries the two components, as ``blockSubsidy``
-and ``lockboxValue``, so that the split is recoverable from the transaction
-rather than only their difference.
+The bundle's own effecting data carries ``blockSubsidy`` and ``lockboxValue``,
+so that these amounts are recoverable from the transaction. The fee
+contribution is derived from the gross fee delta using ZIP 235's calculation.
 
 The coinbase bundle has no authorizing data.
 
@@ -1373,11 +1918,15 @@ no coinbase bundle contributes no entry for it to ``effects_bundles_digest``.
 Sapling Bundle
 ``````````````
 
+An entry for this bundle in ``mEffectBundles`` MUST contain at least one
+Sapling Spend or Output description. If both ``nSpendsSapling`` and
+``nOutputsSapling`` would be zero, the bundle MUST be omitted instead.
+
 Sapling Effecting Data
 ''''''''''''''''''''''
 
 The effecting data for the Sapling bundle describes the Sapling spends and
-outputs. Unlike the V5 transaction format defined in ZIP 225 [#zip-0225]_,
+outputs. Unlike the v5 transaction format defined in ZIP 225 [#zip-0225]_,
 the value balance is not included here; it appears in ``mValuePoolDeltas``
 instead.
 
@@ -1469,8 +2018,8 @@ Sapling Signature (``SaplingSignature``)
 +=============================+==============================+==================================+===================================================+
 | varies                      |``sizeSighashInfo``           |``compactSize``                   |The size in bytes of ``sighashInfo``.              |
 +-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
-| ``sizeSighashInfo``         |``sighashInfo``               |``byte[sizeSighashInfo]``         |The sighash version and associated information,    |
-|                             |                              |                                  |as defined in `Sighash Versioning`_.               |
+| ``sizeSighashInfo``         |``sighashInfo``               |``byte[sizeSighashInfo]``         |The sighash variant and associated information,    |
+|                             |                              |                                  |as defined in `Sighash Variants`_.                 |
 +-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
 | 64                          |``signature``                 |``byte[64]``                      |An encoding of a RedJubjub signature, which may be |
 |                             |                              |                                  |either a ``spendAuthSig`` or ``bindingSig``        |
@@ -1484,10 +2033,10 @@ rules in `Parsing Rules`_.
 Sapling Sighash Algorithms
 ''''''''''''''''''''''''''
 
-For the Sapling bundle at ``bundleVariant = 0``, sighash version 0 is the only
-version defined, and its ``associatedData`` is the empty byte string. A Sapling
+For the Sapling bundle at ``bundleVariant = 0``, sighash variant 0 is the only
+variant defined, and its ``associatedData`` is the empty byte string. A Sapling
 ``spendAuthSig`` or ``bindingSig`` made with it commits to the digest defined
-in `v0 Signature Digest`_, computed with ``hash_type = SIGHASH_ALL`` (0x01).
+in `Variant 0 Signature Digest`_, computed with ``hash_type = SIGHASH_ALL`` (0x01).
 
 Sapling Digests
 '''''''''''''''
@@ -1505,15 +2054,8 @@ The personalization field of this hash is set to::
 
   "ZTxIdSaplingH_v7"
 
-Note that unlike ZIP 244, neither the value balance nor the anchor is included
-here. The value balance is committed via ``value_pool_deltas_digest``, and the
-anchor via ``sapling_auth_digest``; the personalization differs from ZIP 244's
-``ZTxIdSaplingHash`` because what is directly hashed has changed.
-
-In the case that the transaction has no Sapling spends or outputs,
-``sapling_effects_digest`` is::
-
-  BLAKE2b-256("ZTxIdSaplingH_v7", [])
+If there are no Sapling spends or outputs, there is no Sapling effecting
+bundle and no entry for it in ``effects_bundles_digest``.
 
 T.3.2a: sapling_spends_digest
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1550,15 +2092,12 @@ A BLAKE2b-256 hash of the non-nullifier information for all Sapling spends
 belonging to the transaction. For each spend, the following elements are
 included in the hash::
 
-   T.3.2a.ii.1: cv     (32 bytes)
-   T.3.2a.ii.2: anchor (32 bytes)
-   T.3.2a.ii.3: rk     (32 bytes)
-
-The anchor is hashed for *each* spend (even though it is shared in the encoding).
+   T.3.2a.ii.1: cv (32 bytes)
+   T.3.2a.ii.2: rk (32 bytes)
 
 The personalization field of this hash is set to::
 
-  "ZTxIdSSpendNHash"
+  "ZTxIdSSpendNH_v6"
 
 T.3.2b: sapling_outputs_digest
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1639,12 +2178,8 @@ The personalization field of this hash is set to::
 
   "ZTxAuthSapliH_v7"
 
-The personalization differs from ZIP 244's ``ZTxAuthSapliHash`` because this
-digest now also commits to the anchor.
-
-In the case that the transaction has no Sapling spends or outputs::
-
-  BLAKE2b-256("ZTxAuthSapliH_v7", [])
+If there are no Sapling spends or outputs, there is no Sapling authorizing
+bundle and no entry for it in ``auth_bundles_digest``.
 
 
 Orchard Protocol Bundles
@@ -1656,13 +2191,18 @@ upon by its own bundle type: the Orchard bundle, ``bundleType = 3``, acts on
 the *Orchard pool*, and the Ironwood bundle, ``bundleType = 4``, acts on the
 *Ironwood pool*.
 
+An entry for either bundle type in ``mEffectBundles`` MUST contain at least
+one Action description (``nActionsOrchard > 0`` or ``nActionsIronwood > 0``).
+If there would be no Actions for that bundle type, the bundle MUST be omitted
+instead.
+
 Both bundle types use the encoding defined in this section. Where a field is
 described below as belonging to the bundle's pool, that pool is the
 *Orchard pool* for an Orchard bundle and the *Ironwood pool* for an Ironwood
 bundle.
 
 The bits of ``flagsOrchard`` have the same meaning for both pools, and so are
-named without the ``Orchard`` suffix they carried in the V5 transaction format,
+named without the ``Orchard`` suffix they carried in the v5 transaction format,
 following ZIP 229 [#zip-0229]_. Their values are constrained per pool by the
 `Bundle-local rules`_.
 
@@ -1670,7 +2210,7 @@ Orchard Protocol Effecting Data
 '''''''''''''''''''''''''''''''
 
 The effecting data for an Orchard protocol bundle describes the Orchard
-actions. Unlike the V5 transaction format defined in ZIP 225 [#zip-0225]_, the
+actions. Unlike the v5 transaction format defined in ZIP 225 [#zip-0225]_, the
 value balance is not included here; it appears in ``mValuePoolDeltas``
 instead.
 
@@ -1756,8 +2296,8 @@ Orchard Signature (``OrchardSignature``)
 +=============================+==============================+==================================+===================================================+
 | varies                      |``sizeSighashInfo``           |``compactSize``                   |The size in bytes of ``sighashInfo``.              |
 +-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
-| ``sizeSighashInfo``         |``sighashInfo``               |``byte[sizeSighashInfo]``         |The sighash version and associated information,    |
-|                             |                              |                                  |as defined in `Sighash Versioning`_.               |
+| ``sizeSighashInfo``         |``sighashInfo``               |``byte[sizeSighashInfo]``         |The sighash variant and associated information,    |
+|                             |                              |                                  |as defined in `Sighash Variants`_.                 |
 +-----------------------------+------------------------------+----------------------------------+---------------------------------------------------+
 | 64                          |``signature``                 |``byte[64]``                      |An encoding of a RedPallas signature, which may be |
 |                             |                              |                                  |either a ``spendAuthSig`` or ``bindingSig``        |
@@ -1771,10 +2311,10 @@ required by the parsing rules in `Parsing Rules`_.
 Orchard Protocol Sighash Algorithms
 '''''''''''''''''''''''''''''''''''
 
-For the Orchard and Ironwood bundles at ``bundleVariant = 0``, sighash version
-0 is the only version defined, and its ``associatedData`` is the empty byte
+For the Orchard and Ironwood bundles at ``bundleVariant = 0``, sighash variant
+0 is the only variant defined, and its ``associatedData`` is the empty byte
 string. An Orchard ``spendAuthSig`` or ``bindingSig`` made with it commits to
-the digest defined in `v0 Signature Digest`_, computed with
+the digest defined in `Variant 0 Signature Digest`_, computed with
 ``hash_type = SIGHASH_ALL`` (0x01).
 
 Orchard Protocol Digests
@@ -1799,15 +2339,8 @@ The personalization field of this hash is set to::
 
   "ZTxIdOrchardH_v7"
 
-Note that unlike ZIP 244, neither the value balance nor the anchor is included
-here. The value balance is committed via ``value_pool_deltas_digest``, and the
-anchor via ``orchard_auth_digest``; the personalization differs from ZIP 244's
-``ZTxIdOrchardHash`` because what is directly hashed has changed.
-
-In the case that the transaction has no Orchard actions, ``orchard_effects_digest``
-is::
-
-  BLAKE2b-256("ZTxIdOrchardH_v7", [])
+If there are no Orchard actions, there is no Orchard effecting bundle and
+no entry for it in ``effects_bundles_digest``.
 
 T.3.3a: orchard_actions_compact_digest
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1864,20 +2397,15 @@ each personalization string is replaced as follows:
 +=====================================+======================+======================+
 | effects digest                      |``ZTxIdOrchardH_v7``  |``ZTxIdIronwd_Hash``  |
 +-------------------------------------+----------------------+----------------------+
-| actions compact digest              |``ZTxIdOrcActCHash``  |``ZTxIdIrnActCHash``  |
+| actions compact digest              |``ZTxIdOrcActCHash``  |``ZTxIdIrnActCH_v6``  |
 +-------------------------------------+----------------------+----------------------+
-| actions memos digest                |``ZTxIdOrcActMHash``  |``ZTxIdIrnActMHash``  |
+| actions memos digest                |``ZTxIdOrcActMHash``  |``ZTxIdIrnActMH_v6``  |
 +-------------------------------------+----------------------+----------------------+
-| actions noncompact digest           |``ZTxIdOrcActNHash``  |``ZTxIdIrnActNHash``  |
+| actions noncompact digest           |``ZTxIdOrcActNHash``  |``ZTxIdIrnActNH_v6``  |
 +-------------------------------------+----------------------+----------------------+
 
-The personalization strings differ so that the digest of a bundle acting on one
-pool cannot be reused as the digest of a bundle acting on the other.
-
-In the case that the transaction has no Ironwood actions,
-``ironwood_effects_digest`` is::
-
-  BLAKE2b-256("ZTxIdIronwd_Hash", [])
+If there are no Ironwood actions, there is no Ironwood effecting bundle and
+no entry for it in ``effects_bundles_digest``.
 
 A.1.3: orchard_auth_digest
 ..........................
@@ -1897,12 +2425,8 @@ The personalization field of this hash is set to::
 
   "ZTxAuthOrchaH_v7"
 
-The personalization differs from ZIP 244's ``ZTxAuthOrchaHash`` because this
-digest now also commits to the anchor.
-
-In the case that the transaction has no Orchard actions::
-
-  BLAKE2b-256("ZTxAuthOrchaH_v7", [])
+If there are no Orchard actions, there is no Orchard authorizing bundle and
+no entry for it in ``auth_bundles_digest``.
 
 A.1.4: ironwood_auth_digest
 ...........................
@@ -1914,9 +2438,8 @@ that the personalization field of the hash is set to::
 
   "ZTxAuthIrnwdHash"
 
-In the case that the transaction has no Ironwood actions::
-
-  BLAKE2b-256("ZTxAuthIrnwdHash", [])
+If there are no Ironwood actions, there is no Ironwood authorizing bundle and
+no entry for it in ``auth_bundles_digest``.
 
 
 Rationale
@@ -1934,15 +2457,25 @@ subsidy carried in the coinbase bundle's value pool delta, every transaction
 balances to zero in every asset, and a wallet can enumerate the value flows of
 a coinbase transaction using the same rule it applies to any other transaction.
 
+The input and output requirements prevent trivial transactions (with no inputs
+or outputs). They allow fee-free transfers within a single shielded pool: such
+a transaction can satisfy both requirements through its spends and outputs even
+when it has no value pool delta entries. A zero net delta does not imply that
+no value moves within a pool.
+
 Carrying ``blockSubsidy`` and ``lockboxValue`` in the effecting data states
 both components of the issuance in the bundle they belong to, and commits them
 to the transaction identifier along with the rest of that data. The value pool
-delta is their difference, so without them a client could see how much the
-coinbase pays out but not how much was issued or how much went to the lockbox.
-Deriving them instead is not open to every client: the subsidy is not a
-function of the block height alone once issuance depends on accumulated chain
-state, so evaluating the issuance schedule would require a client to track that
-state.
+delta combines their difference with the fee contribution removed from
+circulation under ZIP 235. Without the explicit fields, a client could see the
+net delta but not how much was issued or how much went to the lockbox. Deriving
+them instead is not open to every client: the subsidy is not a function of the
+block height alone once issuance depends on accumulated chain state, so
+evaluating the issuance schedule would require a client to track that state.
+The NSM fee contribution is derivable from the gross fee bundle value already
+present in the coinbase transaction, so it needs neither an additional coinbase
+effecting field nor a ZIP 233 entry. ZIP 233 separately provides an explicit
+bundle for voluntary removal from circulation. [#zip-0233]_
 
 The Orchard and Ironwood bundles share one encoding because the *Orchard pool*
 and the *Ironwood pool* are two pools of the same shielded protocol. The action
@@ -1958,12 +2491,20 @@ separate types also keep the two value pool deltas separable, which a client
 needs in order to report the two chain value pool balances independently.
 
 The Sapling and Orchard protocol anchors are authorizing data rather than
-effecting data, following ZIP 229 [#zip-0229]_. An anchor selects the note
-commitment tree state that the bundle's proofs are verified against, which is a
-property of how the spends are authorized rather than of what the transaction
-does. Placing it there lets a bundle be re-anchored to a more recent root
-without changing the transaction identifier, while the proofs still bind to the
-anchor actually used.
+effecting data. An anchor selects the note commitment tree state that the
+bundle's proofs are verified against, which is a property of how the spends
+are authorized rather than of what the transaction does. Placing it there
+lets a bundle be re-anchored to a more recent root without changing the
+transaction identifier, while the proofs still bind to the anchor actually
+used.
+
+Bundle digests retain the input formats and personalizations of ZIP 229
+[#zip-0229]_ wherever the committed data is unchanged. Effects roots have
+different personalizations because value balances are committed separately
+in the value pool delta map. Authorizing digests have different
+personalizations because signatures include ``sighashInfo`` and anchors
+precede the proofs and signatures. Orchard and Ironwood use distinct
+personalizations to separate commitments for their respective pools.
 
 The coinbase bundle also gives the coinbase metadata a place of its own. In
 previous transaction versions that metadata was encoded as the ``scriptSig`` of
@@ -1991,9 +2532,6 @@ Deployment
 Reference implementation
 ========================
 
-
-Open issues
-===========
 
 Notes from design sessions
 ==========================
@@ -2178,57 +2716,33 @@ Questions
     * When sending, you need to understand all bundles you are including,
       and then you can calculate the fee.
 
-* Can wallets still compute the txid and wtxid of an arbitrary transaction?
-
-  * Yes, provided that effecting and authorizing data is separated. Then they
-    can hash the effecting data even without understanding it to compute the
-    txid, and they can hash the authorizing data even without understanding
-    it to compute the authorizing data commitment part of the wtxid (ZIP
-    239 [#zip-0239]_).
-  * *However*, this reintroduces a more direct linkage between the [w]txid
-    computation and the transaction encoding. It's arguably fine, and
-    potentially simpler -- since the [w]txid computation need not change at
-    all for most protocol changes.
-  * If the hashing uses flat hashes over the effectingData and
-    authorizingData of each bundle (which it has to because the internal
-    structure is not known), then it might be more difficult to do Merkle
-    proofs over subsets of the data within a bundle. We haven't used that so
-    far; is it really needed?
-
-  * Should the authorizing data be entirely separate from the effecting data,
-    and encoded at the end of the transaction in a batch, so that pruning is
-    simply truncation?
-
-* The light wallet protocol will be updated to allow the client to specify the
-  set of bundle types that the client understands. In the case that this
-  information is provided, the light client server will then send the root
-  hashes for each bundle type that the client **does not** understand when
-  returning raw transaction data, so that the light client can correctly
-  recompute and validate the txid; also, the compact transactions can be pruned
-  to exclude bundles of bundle types. that the client will not understand.
-
-TODO
-====
-
-Rename ``assetDigest`` to ``assetUuid`` in ZIP 227
-
-
 References
 ==========
 
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words <https://www.rfc-editor.org/info/bcp14>`_
 .. [#protocol] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1] or later <protocol/protocol.pdf>`_
 .. [#protocol-blockchain] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.3: The Block Chain <protocol/protocol.pdf#blockchain>`_
+.. [#protocol-transactions] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.4: Transactions and Treestates <protocol/protocol.pdf#transactions>`_
+.. [#protocol-coinbasetransactions] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.11: Coinbase Transactions <protocol/protocol.pdf#coinbasetransactions>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
+.. [#protocol-saplingbalance] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.13: Balance and Binding Signature (Sapling) <protocol/protocol.pdf#saplingbalance>`_
+.. [#protocol-orchardbalance] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.14: Balance and Binding Signature (Orchard) <protocol/protocol.pdf#orchardbalance>`_
+.. [#protocol-chainvaluepoolbalances] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.17: Chain Value Pool Balances <protocol/protocol.pdf#chainvaluepoolbalances>`_
+.. [#protocol-txnconsensus] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.1.2: Transaction Consensus Rules <protocol/protocol.pdf#txnconsensus>`_
+.. [#protocol-sighash] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.10: SIGHASH Transaction Hashing <protocol/protocol.pdf#sighash>`_
+.. [#protocol-spendauthsig] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.15: Spend Authorization Signature (Sapling and Orchard) <protocol/protocol.pdf#spendauthsig>`_
 .. [#protocol-subsidies] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 7.8: Block Subsidy and Founders' Reward <protocol/protocol.pdf#subsidies>`_
 .. [#protocol-fundingstreams] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 7.10: Payment of Funding Streams, Deferred Lockbox, and Lockbox Disbursement <protocol/protocol.pdf#fundingstreams>`_
-.. [#zip-0203] `ZIP 203: Transaction Expiry <https://zips.z.cash/zip-0203>`_
-.. [#zip-0212] `ZIP 212: Allow Recipient to Derive Ephemeral Secret from Note Plaintext <https://zips.z.cash/zip-0212>`_
-.. [#zip-0225] `ZIP 225: Version 5 Transaction Format <https://zips.z.cash/zip-0225>`_
+.. [#zip-0203] `ZIP 203: Transaction Expiry <zip-0203.rst>`_
+.. [#zip-0212] `ZIP 212: Allow Recipient to Derive Ephemeral Secret from Note Plaintext <zip-0212.rst>`_
+.. [#zip-0225] `ZIP 225: Version 5 Transaction Format <zip-0225.rst>`_
 .. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
-.. [#zip-0239] `ZIP 239: Relay of Version 5 Transactions <https://zips.z.cash/zip-0239>`_
-.. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <https://zips.z.cash/zip-0244>`_
-.. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <https://zips.z.cash/zip-0307>`_
+.. [#zip-0233] `ZIP 233: Network Sustainability Mechanism: Removing Funds From Circulation <zip-0233.md>`_
+.. [#zip-0235] `ZIP 235: Remove 60% of Transaction Fees From Circulation <zip-0235.md>`_
+.. [#zip-0239] `ZIP 239: Relay of Version 5 Transactions <zip-0239.rst>`_
+.. [#zip-0244] `ZIP 244: Transaction Identifier Non-Malleability <zip-0244.rst>`_
+.. [#zip-0307] `ZIP 307: Light Client Protocol for Payment Detection <zip-0307.rst>`_
 .. [#zip-2001] `ZIP 2001: Lockbox Funding Streams <zip-2001.rst>`_
+.. [#zip-2002] `ZIP 2002: Explicit Fees <zip-2002.rst>`_
 .. [#zip-2006] `ZIP 2006: Restricting Transfers into the Orchard Pool <zip-2006.md>`_
 
