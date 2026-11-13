@@ -241,6 +241,7 @@ be deleted.
     <tr> <td class="left">draft-mcgee-future-dev-legal-defense-fund</td> <td class="left"><a href="zips/draft-mcgee-future-dev-legal-defense-fund.md">Future Dev and Legal Defense Fund Lockbox, and Removal of ZCG Funds to the Network Sustainability Mechanism</a></td> <td class="left"><a href="https://forum.zcashcommunity.com/t/future-dev-and-legal-defense-fund-zip/58611">https://forum.zcashcommunity.com/t/future-dev-and-legal-defense-fund-zip/58611</a></td>
     <tr> <td class="left">draft-mcgee-keyholders-organizations</td> <td class="left"><a href="zips/draft-mcgee-keyholders-organizations.md">Update to ZIP 1016 & ZIP 271: Key-Holder Organizations</a></td> <td class="left"><a href="URL TBD">URL TBD</a></td>
     <tr> <td class="left">draft-str4d-orchard-balance-proof</td> <td class="left"><a href="zips/draft-str4d-orchard-balance-proof.md">Air drops, Proof-of-Balance, and Stake-weighted Polling</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/1229">zips#1229</a></td>
+    <tr> <td class="left">draft-valargroup-sapling-disable-deposits</td> <td class="left"><a href="zips/draft-valargroup-sapling-disable-deposits.md">Disabling Sapling Pool Deposits</a></td> <td class="left"><a href="https://forum.zcashcommunity.com/t/sapling-withdraw-only-discussion-kickoff/55223">https://forum.zcashcommunity.com/t/sapling-withdraw-only-discussion-kickoff/55223</a></td>
   </table></embed>
 
 Withdrawn, Rejected, or Obsolete ZIPs
