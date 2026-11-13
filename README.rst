@@ -233,6 +233,7 @@ be deleted.
 
   <embed><table>
     <tr> <th>Draft name</th> <th>Title</th> <th>Discussions-To</th> </tr>
+    <tr> <td class="left">draft-aquietinvestor-coinholder-directed-grants</td> <td class="left"><a href="zips/draft-aquietinvestor-coinholder-directed-grants.md">Coinholder-Directed Retroactive Grants Program</a></td> <td class="left"></td>
     <tr> <td class="left">draft-arya-dairaemma-disable-addition-of-transparent-chain-value</td> <td class="left"><a href="zips/draft-arya-dairaemma-disable-addition-of-transparent-chain-value.md">Disabling Addition of New Value to the Transparent Chain Value Pool</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/1115">zips#1115</a></td>
     <tr> <td class="left">draft-arya-jvff-p2p-quic-transport</td> <td class="left"><a href="zips/draft-arya-jvff-p2p-quic-transport.md">Version 2 Zcash P2P Network Protocol</a></td> <td class="left"><a href="https://github.com/zcash/zips/issues/352">zips#352</a></td>
     <tr> <td class="left">draft-dairaemma-governance-zap</td> <td class="left"><a href="zips/draft-dairaemma-governance-zap.md">Zcash Adoption Pool (ZAP)</a></td> <td class="left"><a href="https://forum.zcashcommunity.com/t/zcash-adoption-pool-zap/58656">https://forum.zcashcommunity.com/t/zcash-adoption-pool-zap/58656</a></td>
