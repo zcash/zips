@@ -268,6 +268,75 @@ otherwise anonymized, and MUST be performed only with the informed consent of th
 parties concerned.
 
 
+# Rationale
+
+Since no consensus changes are needed to achieve the goals of this proposal, none
+are made. Despite potential redundancy, the authors believe it is necessary to
+explicitly reaffirm some of the current rules of ZIPs 1015, 1016, and 214. The
+purposes of that are to distinguish it from other concurrent proposals, and to
+dispel potential misconceptions that have arisen about this proposal in discussions
+on the Zcash Community Forum.
+
+## Other proposals
+
+`draft-mcgee-future-dev-legal-defense-fund` [^draft-mcgee-future-dev-legal-defense-fund]
+would end the `FS_FPF_ZCG_H3` funding stream and requires ZCG to send 50,000 ZEC
+—about 55% of ZCG's current treasury— to the Network Sustainability Mechanism (NSM).
+Its argument for doing so apparently hinges primarily on ZCG having approximately
+91,453 ZEC of unspent funds (as of October 21, 2026).
+
+It is unclear to us why unspent funds in ZCG's treasury are a problem relative
+to the much larger amount of unspent funds in the Coinholder-Controlled Fund,
+or relative to the initially unspendable funds in the NSM. Funds in the NSM are
+unspendable at least until they are diverted to new issuance starting in February
+2031 [^zip-0237]. After that the increase in miner rewards due to the 50,000 ZEC
+is initially 0.006875 ZEC per block, or 2.64% of the 0.26041666 ZEC scheduled
+block subsidy after the third halving [^zip-0218], decreasing over time. The
+primary effects of `draft-mcgee-future-dev-legal-defense-fund` are therefore
+to deprive the ZCG treasury, and the projects that could be funded by it, of
+50,000 ZEC; and to put future funds from the 8% stream in a lockbox with no
+disbursement mechanism until "a future ZIP decides how it is spent". Another
+proposal, `draft-howard-wind-down-zcg` (zips#1423) [^draft-howard-wind-down-zcg],
+would go further and shut down the ZCG entirely for new grants, stripping it of all
+of its treasury after current grant obligations.
+
+Our proposal would continue to make that money available, as needed, to
+projects consistent with accelerating the adoption of Zcash and ZEC. As
+stated earlier, "direct disbursement, educational initiatives, legal defence,
+and technical development are all possibilities." It is neither anticipated
+nor necessary for this money to be spent immediately. The authors of this
+proposal believe that prudent management of the funds in the Zcash Adoption
+Pool is a matter for the ZAP Committee and not something to be dictated by
+a ZIP, since it depends heavily on market conditions and on what grant
+applications are actually submitted.
+
+## Inclusivity is essential to Zcash governance
+
+Sometimes it is necessary to speak plainly and on the record. During this
+governance debate, the Owners of this ZIP have faced considerable hostility
+and antipathy to who we are. We are both trans women, and one of us is a sex
+worker. Other participants in the debate have at times insisted that it be
+conducted primarily on X, or have assumed participation on X as table stakes.
+But X is not a safe platform for trans women, and especially not for trans
+sex workers. It is literally impossible for either of us to participate there
+without the replies being swamped by hate speech.
+
+We therefore support `draft-emersonian-zcash-town-square` [^draft-emersonian-zcash-town-square],
+which would affirm the Zcash Community Forum as the official venue for
+discussion of Zcash governance, funding, and protocol direction. It would
+also require certain announcements by funded organizations' Executives and
+Official Accounts on other platforms to be cross-posted, within 24 hours,
+to that Forum. This would make it practical for participants in Zcash
+governance discussions who face an inordinate level of hate on other platforms
+(especially but not limited to X) to keep up with all turns in the debate.
+
+A stronger stance against hate speech in future Zcash governance debates will
+be critical to the integrity and inclusivity of that governance, and therefore
+of the Zcash community and network. We are profoundly disappointed with how
+many others in the Zcash community this is apparently not obvious to. You did
+not have our backs.
+
+
 # Acknowledgements
 
 The authors would like to thank the attendees of the Zcon7 conference for
@@ -283,6 +352,10 @@ for the space to discuss it in person.
 
 [^zip-0214]: [ZIP 214: Consensus rules for a Zcash Development Fund](zip-0214.rst)
 
+[^zip-0218]: [ZIP 218: 25-second Block Target Spacing](zip-0218.md)
+
+[^zip-0237]: [ZIP 237: Network Sustainability Mechanism: Halving-Preserving Issuance](zip-0237.md)
+
 [^zip-1015]: [ZIP 1015: Block Subsidy Allocation for Non-Direct Development Funding](zip-1015.rst)
 
 [^zip-1015-zcg]: [ZIP 1015: Block Subsidy Allocation for Non-Direct Development Funding — Zcash Community Grants](zip-1015#zcash-community-grants-zcg)
@@ -290,3 +363,9 @@ for the space to discuss it in person.
 [^zip-1015-lockbox]: [ZIP 1015: Block Subsidy Allocation for Non-Direct Development Funding — Lockbox](zip-1015#lockbox)
 
 [^zip-1016]: [ZIP 1016: Community and Coinholder Funding Model](zip-1016.md)
+
+[^draft-mcgee-future-dev-legal-defense-fund]: [draft-mcgee-future-dev-legal-defense-fund: Future Dev and Legal Defense Fund Lockbox, and Removal of ZCG Funds to the Network Sustainability Mechanism](draft-mcgee-future-dev-legal-defense-fund.md)
+
+[^draft-howard-wind-down-zcg]: [draft-howard-wind-down-zcg: Winding Down Zcash Community Grants and Removal of ZCG Funds to the Network Sustainability Mechanism (zcash/zips#1423)](https://github.com/zcash/zips/pull/1423)
+
+[^draft-emersonian-zcash-town-square]: [draft-emersonian-zcash-town-square: The Zcash Town Square: Official Discussion and Announcement Cross-Posting](draft-emersonian-zcash-town-square.md)
