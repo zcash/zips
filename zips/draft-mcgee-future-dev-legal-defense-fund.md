@@ -234,8 +234,8 @@ Mainnet reaches height $A$.
 
 Payments to the NSM removal address before height $A$ count toward the removal
 and are added to the NSM Value Balance at height $A$ — but only where the
-fallback is selected. The ZCG Committee MUST NOT pay the address before the
-deployment ZIP that sets $A$ selects the fallback.
+fallback is selected. The ZCG Committee MUST NOT pay the address before block
+height $A$ on Mainnet.
 
 Since the funds ZCG administers are held by FPF, the ZCG Committee fulfills
 this obligation by directing FPF to create the transactions, as it directs FPF
