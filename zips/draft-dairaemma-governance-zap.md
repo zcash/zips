@@ -277,6 +277,32 @@ purposes of that are to distinguish it from other concurrent proposals, and to
 dispel potential misconceptions that have arisen about this proposal in discussions
 on the Zcash Community Forum.
 
+## Inclusivity is essential to Zcash governance
+
+Sometimes it is necessary to speak plainly and on the record. During this
+governance debate, the Owners of this ZIP have faced considerable hostility
+and antipathy to who we are. We are both trans women, and one of us is a sex
+worker. Other participants in the debate have at times insisted that it be
+conducted primarily on X, or have assumed participation on X as table stakes.
+But X is not a safe platform for trans women, and especially not for trans
+sex workers. It is literally impossible for either of us to participate there
+without the replies being swamped by hate speech.
+
+We therefore support `draft-emersonian-zcash-town-square` [^draft-emersonian-zcash-town-square],
+which would affirm the Zcash Community Forum as the official venue for
+discussion of Zcash governance, funding, and protocol direction. It would
+also require certain announcements by funded organizations' Executives and
+Official Accounts on other platforms to be cross-posted, within 24 hours,
+to that Forum. This would make it practical for participants in Zcash
+governance discussions who face an inordinate level of hate on other platforms
+(especially but not limited to X) to keep up with all turns in the debate.
+
+A stronger stance against hate speech in future Zcash governance debates will
+be critical to the integrity and inclusivity of that governance, and therefore
+of the Zcash community and network. We are profoundly disappointed with how
+many others in the Zcash community this is apparently not obvious to. You did
+not have our backs.
+
 
 # Acknowledgements
 
@@ -300,3 +326,5 @@ for the space to discuss it in person.
 [^zip-1015-lockbox]: [ZIP 1015: Block Subsidy Allocation for Non-Direct Development Funding — Lockbox](zip-1015#lockbox)
 
 [^zip-1016]: [ZIP 1016: Community and Coinholder Funding Model](zip-1016.md)
+
+[^draft-emersonian-zcash-town-square]: [draft-emersonian-zcash-town-square: The Zcash Town Square: Official Discussion and Announcement Cross-Posting](draft-emersonian-zcash-town-square.md)
