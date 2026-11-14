@@ -281,19 +281,21 @@ on the Zcash Community Forum.
 
 `draft-mcgee-future-dev-legal-defense-fund` [^draft-mcgee-future-dev-legal-defense-fund]
 would end the `FS_FPF_ZCG_H3` funding stream and requires ZCG to send 50,000 ZEC
-—about 55% of ZCG's current treasury— to the Network Sustainability Mechanism.
+—about 55% of ZCG's current treasury— to the Network Sustainability Mechanism (NSM).
 Its argument for doing so apparently hinges primarily on ZCG having approximately
-91,453 ZEC of unspent funds (as of October 26, 2026).
+91,453 ZEC of unspent funds (as of October 21, 2026).
 
 It is unclear to us why unspent funds in ZCG's treasury are a problem relative
 to the much larger amount of unspent funds in the Coinholder-Controlled Fund,
 or relative to the initially unspendable funds in the NSM. Funds in the NSM are
-unspendable at least until they are diverted to new issuance in February 2031 [^zip-0237].
-After that the increase in miner rewards due to the 50,000 ZEC is intially 0.006875
-ZEC per block, or 2.64% of the 0.26041666 ZEC scheduled block subsidy after the third
-halving [^zip-0218], decreasing over time. The primary effect of
-`draft-mcgee-future-dev-legal-defense-fund` is therefore simply to deprive the ZCG
-treasury, and the projects that could be funded by it, of 50,000 ZEC. Another
+unspendable at least until they are diverted to new issuance starting in February
+2031 [^zip-0237]. After that the increase in miner rewards due to the 50,000 ZEC
+is initially 0.006875 ZEC per block, or 2.64% of the 0.26041666 ZEC scheduled
+block subsidy after the third halving [^zip-0218], decreasing over time. The
+primary effects of `draft-mcgee-future-dev-legal-defense-fund` are therefore
+to deprive the ZCG treasury, and the projects that could be funded by it, of
+50,000 ZEC; and to put future funds from the 8% stream in a lockbox with no
+disbursement mechanism until "a future ZIP decides how it is spent". Another
 proposal, `draft-howard-wind-down-zcg` (zips#1423) [^draft-howard-wind-down-zcg],
 would go further and shut down the ZCG entirely for new grants, stripping it of all
 of its treasury after current grant obligations.
