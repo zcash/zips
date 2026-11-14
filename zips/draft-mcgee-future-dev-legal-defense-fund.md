@@ -187,8 +187,8 @@ The NSM removal address is the Mainnet P2SH address
 Its script hash, `41c98a140039816273e50db317422c11c2bfcc88`, is HASH160 of the
 one-byte redeem script `0x6a`: the single opcode `OP_RETURN`, a script that
 fails whatever a spender supplies. To check this, decode the address with
-Base58Check, confirm its version prefix (`1cbd`) and checksum, and compare its
-script hash with HASH160 of the byte `0x6a`.
+Base58Check, confirm its P2SH prefix (`[0x1c, 0xbd]`) and checksum, and compare
+its script hash with HASH160 of the byte `0x6a`.
 
 Let $\mathsf{RemovalOutput}(h)$ be the total value of the transparent outputs
 in block $h$, in any transaction including the coinbase transaction, whose
@@ -200,7 +200,7 @@ circulation in the list defined in ZIP 237 [^zip-0237]:
 
 | Mechanism | Source |
 |---|---|
-| Payments to the NSM removal address | $\mathsf{NSMAddressRemovals}(h)$ |
+| Payments to the NSM removal address | $\mathsf{NSMAddressRemovals}(\mathsf{height})$ |
 
 $$\mathsf{NSMAddressRemovals}(h) := \begin{cases} 0 & \text{if } h < A \\ \displaystyle\sum_{i=0}^{A} \mathsf{RemovalOutput}(i) & \text{if } h = A \\ \mathsf{RemovalOutput}(h) & \text{if } h > A \end{cases}$$
 
@@ -213,12 +213,14 @@ Nothing sent to this address can be returned.
 
 **Wallet handling.** The NSM removal address looks like any other Mainnet P2SH
 address; nothing about it warns a user that funds sent to it cannot be
-recovered. Software that accepts payment destinations — typed or pasted by a
-user, read from a payment request URI, or kept in an address book — SHOULD
-recognize the NSM removal address, by its script hash or its exact string, at
-every such entry point; SHOULD present a payment to it as an irreversible
-removal of funds from circulation, not an ordinary payment; and SHOULD NOT
-offer it as an ordinary payment destination.
+recovered. Software that accepts payment destinations (e.g. typed or pasted by
+a user, read from a payment request URI, or kept in an address book)
+
+* SHOULD recognize the NSM removal address, by its script hash or its exact
+  string, at every such entry point;
+* SHOULD present a payment to it as an irreversible removal of funds from
+  circulation, not an ordinary payment; and
+* SHOULD NOT offer it as an ordinary payment destination.
 
 ## The removal of ZCG funds
 
@@ -252,8 +254,7 @@ In ZIP 1016's section on ZCG [^zip-1016], end ZCG's funding stream at this
 ZIP's activation height, and state that from then until the third halving the
 same 8% goes into the Future Dev and Legal Defense Fund Lockbox, as this ZIP
 specifies. In its section on the Coinholder-Controlled Fund, give the 12%
-stream's duration by `FS_CCF_H3`'s own start and end heights in ZIP 214, which
-this ZIP leaves unchanged.
+stream's duration by `FS_CCF_H3`'s own start and end heights in ZIP 214.
 
 
 # Rationale
