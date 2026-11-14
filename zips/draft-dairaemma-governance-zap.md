@@ -321,6 +321,12 @@ But X is not a safe platform for trans women, and especially not for trans
 sex workers. It is literally impossible for either of us to participate there
 without the replies being swamped by hate speech.
 
+X also imposes literal limits on speech for non-paying users, and replies
+cannot be read without being logged into an account. This is an issue
+particularly affecting sex workers and invested constituencies with interests
+in financial privacy and Zcash who are routinely banned from the platform,
+or must self-censor to avoid that outcome.
+
 We therefore support `draft-emersonian-zcash-town-square` [^draft-emersonian-zcash-town-square],
 which would affirm the Zcash Community Forum as the official venue for
 discussion of Zcash governance, funding, and protocol direction. It would
