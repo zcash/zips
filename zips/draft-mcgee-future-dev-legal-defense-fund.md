@@ -1,5 +1,5 @@
     ZIP: Unassigned
-    Title: Future Dev and Legal Defense Fund Lockbox, and Removal of ZCG Funds to the Network Sustainability Mechanism
+    Title: Future Dev and Legal Defense Fund Lockbox, and Removal of 50,000 ZEC of ZCG Funds to the Network Sustainability Mechanism
     Owners: Sean Bowe (Tachyon Group) <ewillbefull@gmail.com>
             Zooko Wilcox (Shielded Labs) <zooko@shieldedlabs.net>
             Jason McGee (Shielded Labs) <jason@shieldedlabs.net>
@@ -114,6 +114,9 @@ to decide upon and specify a suitable decentralized mechanism for permitting
 withdrawals from this lockbox in a future ZIP in order to make these funds
 available for funding Zcash development and legal defense.
 
+This is not intended to imply that funds for Zcash development and legal
+defense cannot come from other sources.
+
 **Funding streams.** A new revision of ZIP 214 makes these changes at $A$:
 
 * The end height of `FS_FPF_ZCG_H3` becomes $A$. Its recipient list keeps the
@@ -187,8 +190,8 @@ The NSM removal address is the Mainnet P2SH address
 Its script hash, `41c98a140039816273e50db317422c11c2bfcc88`, is HASH160 of the
 one-byte redeem script `0x6a`: the single opcode `OP_RETURN`, a script that
 fails whatever a spender supplies. To check this, decode the address with
-Base58Check, confirm its version prefix (`1cbd`) and checksum, and compare its
-script hash with HASH160 of the byte `0x6a`.
+Base58Check, confirm its P2SH prefix (`[0x1c, 0xbd]`) and checksum, and compare
+its script hash with HASH160 of the byte `0x6a`.
 
 Let $\mathsf{RemovalOutput}(h)$ be the total value of the transparent outputs
 in block $h$, in any transaction including the coinbase transaction, whose
@@ -200,7 +203,7 @@ circulation in the list defined in ZIP 237 [^zip-0237]:
 
 | Mechanism | Source |
 |---|---|
-| Payments to the NSM removal address | $\mathsf{NSMAddressRemovals}(h)$ |
+| Payments to the NSM removal address | $\mathsf{NSMAddressRemovals}(\mathsf{height})$ |
 
 $$\mathsf{NSMAddressRemovals}(h) := \begin{cases} 0 & \text{if } h < A \\ \displaystyle\sum_{i=0}^{A} \mathsf{RemovalOutput}(i) & \text{if } h = A \\ \mathsf{RemovalOutput}(h) & \text{if } h > A \end{cases}$$
 
@@ -213,12 +216,14 @@ Nothing sent to this address can be returned.
 
 **Wallet handling.** The NSM removal address looks like any other Mainnet P2SH
 address; nothing about it warns a user that funds sent to it cannot be
-recovered. Software that accepts payment destinations — typed or pasted by a
-user, read from a payment request URI, or kept in an address book — SHOULD
-recognize the NSM removal address, by its script hash or its exact string, at
-every such entry point; SHOULD present a payment to it as an irreversible
-removal of funds from circulation, not an ordinary payment; and SHOULD NOT
-offer it as an ordinary payment destination.
+recovered. Software that accepts payment destinations (e.g. typed or pasted by
+a user, read from a payment request URI, or kept in an address book)
+
+* SHOULD recognize the NSM removal address, by its script hash or its exact
+  string, at every such entry point;
+* SHOULD present a payment to it as an irreversible removal of funds from
+  circulation, not an ordinary payment; and
+* SHOULD NOT offer it as an ordinary payment destination.
 
 ## The removal of ZCG funds
 
@@ -232,8 +237,8 @@ Mainnet reaches height $A$.
 
 Payments to the NSM removal address before height $A$ count toward the removal
 and are added to the NSM Value Balance at height $A$ — but only where the
-fallback is selected. The ZCG Committee MUST NOT pay the address before the
-deployment ZIP that sets $A$ selects the fallback.
+fallback is selected. The ZCG Committee MUST NOT pay the address before block
+height $A$ on Mainnet.
 
 Since the funds ZCG administers are held by FPF, the ZCG Committee fulfills
 this obligation by directing FPF to create the transactions, as it directs FPF
@@ -252,8 +257,7 @@ In ZIP 1016's section on ZCG [^zip-1016], end ZCG's funding stream at this
 ZIP's activation height, and state that from then until the third halving the
 same 8% goes into the Future Dev and Legal Defense Fund Lockbox, as this ZIP
 specifies. In its section on the Coinholder-Controlled Fund, give the 12%
-stream's duration by `FS_CCF_H3`'s own start and end heights in ZIP 214, which
-this ZIP leaves unchanged.
+stream's duration by `FS_CCF_H3`'s own start and end heights in ZIP 214.
 
 
 # Rationale
@@ -296,9 +300,17 @@ the value moves to the NSM Value Balance in the same block, keeping ZIP 237's
 invariant: in each block from NU7 on, the Issued Supply plus the NSM Value
 Balance grows by exactly the scheduled block subsidy.
 
-**Other proposals.** ZIP draft #1414 sends the 8% stream to the NSM
-[^draft-end-zcg-stream], and draft #1423 winds ZCG down [^draft-wind-down-zcg].
-Where they overlap with this ZIP, they are alternatives to it.
+## Other proposals
+
+Draft #1423 would wind ZCG down [^draft-wind-down-zcg]. Where it overlaps
+with this ZIP, it is an alternative to it.
+
+`draft-dairaemma-governance-zap` [^draft-dairaemma-governance-zap] requires
+that "the `FS_FPF_ZCG_H3` funding stream SHALL continue at its existing value
+and for the duration specified in ZIP 214 Revision 3", therefore it and this
+proposal are incompatible. It explicitly names legal defense as a possible
+use of ZAP Grants, which would not require a further consensus change for
+disbursement.
 
 
 # Deployment
@@ -353,7 +365,7 @@ None yet.
 
 [^zip-2008]: [ZIP 2008: Update to `FS_FPF_ZCG_H3` address list](https://zips.z.cash/zip-2008)
 
-[^draft-end-zcg-stream]: [Draft: Ending the ZCG Funding Stream in Favor of the NSM (zcash/zips#1414)](https://github.com/zcash/zips/pull/1414)
+[^draft-dairaemma-governance-zap]: [`draft-dairaemma-governance-zap`: Zcash Adoption Pool (ZAP)](draft-dairaemma-governance-zap.md)
 
 [^draft-wind-down-zcg]: [Draft: Winding Down Zcash Community Grants (zcash/zips#1423)](https://github.com/zcash/zips/pull/1423)
 
