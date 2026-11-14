@@ -268,6 +268,16 @@ otherwise anonymized, and MUST be performed only with the informed consent of th
 parties concerned.
 
 
+# Rationale
+
+Since no consensus changes are needed to achieve the goals of this proposal, none
+are made. Despite potential redundancy, the authors believe it is necessary to
+explicitly reaffirm some of the current rules of ZIPs 1015, 1016, and 214. The
+purposes of that are to distinguish it from other concurrent proposals, and to
+dispel potential misconceptions that have arisen about this proposal in discussions
+on the Zcash Community Forum.
+
+
 # Acknowledgements
 
 The authors would like to thank the attendees of the Zcon7 conference for
