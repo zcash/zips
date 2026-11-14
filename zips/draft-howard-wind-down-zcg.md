@@ -1,5 +1,5 @@
     ZIP: Unassigned
-    Title: Winding Down Zcash Community Grants
+    Title: Winding Down Zcash Community Grants and Removal of ZCG Funds to the Network Sustainability Mechanism
     Owners: Tom Howard <tom@zcashlabs.org>
     Credits: Maxime Desalle
              Sean Bowe (Tachyon Group)
