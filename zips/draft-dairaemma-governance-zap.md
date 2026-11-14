@@ -358,4 +358,8 @@ for the space to discuss it in person.
 
 [^zip-1016]: [ZIP 1016: Community and Coinholder Funding Model](zip-1016.md)
 
+[^draft-mcgee-future-dev-legal-defense-fund]: [draft-mcgee-future-dev-legal-defense-fund: Future Dev and Legal Defense Fund Lockbox, and Removal of ZCG Funds to the Network Sustainability Mechanism](draft-mcgee-future-dev-legal-defense-fund.md)
+
+[^draft-howard-wind-down-zcg]: [draft-howard-wind-down-zcg: Winding Down Zcash Community Grants and Removal of ZCG Funds to the Network Sustainability Mechanism (zcash/zips#1423)](https://github.com/zcash/zips/pull/1423)
+
 [^draft-emersonian-zcash-town-square]: [draft-emersonian-zcash-town-square: The Zcash Town Square: Official Discussion and Announcement Cross-Posting](draft-emersonian-zcash-town-square.md)
