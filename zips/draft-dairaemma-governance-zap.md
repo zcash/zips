@@ -288,15 +288,15 @@ Its argument for doing so apparently hinges primarily on ZCG having approximatel
 It is unclear to us why unspent funds in ZCG's treasury are a problem relative
 to the much larger amount of unspent funds in the Coinholder-Controlled Fund,
 or relative to the initially unspendable funds in the NSM. Funds in the NSM are
-unspendable at least until they are diverted to new issuance in 2031. After that
-the increase in miner rewards due to the 50,000 ZEC is intially 0.006875 ZEC per
-block, or 2.64% of the 0.26041666 ZEC scheduled block subsidy after the third halving,
-decreasing over time. The primary effect of `draft-mcgee-future-dev-legal-defense-fund`
-is therefore simply to deprive the ZCG treasury, and the projects that could be
-funded by it, of 50,000 ZEC. Another proposal, `draft-howard-wind-down-zcg`
-(zips#1423) [^draft-howard-wind-down-zcg], would go further and shut down the
-ZCG entirely for new grants, stripping it of all of its treasury after current
-grant obligations.
+unspendable at least until they are diverted to new issuance in February 2031 [^zip-0237].
+After that the increase in miner rewards due to the 50,000 ZEC is intially 0.006875
+ZEC per block, or 2.64% of the 0.26041666 ZEC scheduled block subsidy after the third
+halving [^zip-0218], decreasing over time. The primary effect of
+`draft-mcgee-future-dev-legal-defense-fund` is therefore simply to deprive the ZCG
+treasury, and the projects that could be funded by it, of 50,000 ZEC. Another
+proposal, `draft-howard-wind-down-zcg` (zips#1423) [^draft-howard-wind-down-zcg],
+would go further and shut down the ZCG entirely for new grants, stripping it of all
+of its treasury after current grant obligations.
 
 Our proposal would continue to make that money available, as needed, to
 projects consistent with accelerating the adoption of Zcash and ZEC. As
@@ -349,6 +349,10 @@ for the space to discuss it in person.
 [^protocol-networks]: [Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.12: Mainnet and Testnet](protocol/protocol.pdf#networks)
 
 [^zip-0214]: [ZIP 214: Consensus rules for a Zcash Development Fund](zip-0214.rst)
+
+[^zip-0218]: [ZIP 218: 25-second Block Target Spacing](zip-0218.md)
+
+[^zip-0237]: [ZIP 237: Network Sustainability Mechanism: Halving-Preserving Issuance](zip-0237.md)
 
 [^zip-1015]: [ZIP 1015: Block Subsidy Allocation for Non-Direct Development Funding](zip-1015.rst)
 
