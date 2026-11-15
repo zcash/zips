@@ -197,9 +197,10 @@ is not $[\mathsf{ask}]\, \mathcal{G}$ for the shared $\mathsf{ask}$, and is not
 a valid $\mathsf{ak}$ for the key shares.
 
 .. note::
-    At the time of writing, the test vectors of the
-    ``COCKTAIL(Pallas, BLAKE2b-512)`` ciphersuite of COCKTAIL-DKG v0.2.1 are
-    computed over the Pallas generator $(-1, 2)$, not over
+    At the time of writing, the published test vectors of the
+    ``COCKTAIL(Pallas, BLAKE2b-512)`` ciphersuite of COCKTAIL-DKG, which are
+    stated to be current as of v0.2.0 of that specification, are computed over
+    the Pallas generator $(-1, 2)$, not over
     $\mathcal{G}^{\mathsf{Orchard}}$, so the output of that ciphersuite cannot
     be used with this ZIP unchanged. A COCKTAIL-DKG ciphersuite over
     $\mathcal{G}^{\mathsf{Orchard}}$ (and one over $\mathcal{G}^{\mathsf{Sapling}}$)
@@ -399,14 +400,26 @@ signing session, the Constructor is the Coordinator, and its choice is the
 derivation specified above.
 
 A transaction with several spends of the same FROST key needs one signature per
-spend, each under its own randomized validating key. Each spend MUST use its
-own signing session, with its own nonces, commitments,
-$\mathtt{randomizer\_seed}$ and $\mathtt{randomizer}$. Since the SIGHASH
-commits to every randomized validating key, the Coordinator MUST complete Round
-One of every session before it derives any $\mathtt{randomizer}$. A participant
-MUST NOT use one pair of nonces in two sessions: the sessions sign the same
-message under different keys, so a reused nonce pair would reveal the
-participant's signing key share.
+spend, each under its own randomized validating key. This applies to every
+spend whose spend authorization signature is made with the FROST key, whatever
+the value of the note spent: a transaction builder can add a zero-valued spend
+of the FROST key, for example to pair it with an output, and that spend needs a
+signature like any other. It does not apply to dummy spends, which are signed
+with their own spend authorizing keys.
+
+Each spend MUST use its own signing session, with its own nonces, commitments,
+$\mathtt{randomizer\_seed}$ and $\mathtt{randomizer}$. Each message of a
+session MUST identify the session it belongs to, so that the commitments and
+the signature share of one spend cannot be taken for those of another. Since
+the SIGHASH commits to every randomized validating key, the Coordinator MUST
+complete Round One of every session before it derives any
+$\mathtt{randomizer}$.
+
+A participant MUST NOT use one pair of nonces in two sessions. The sessions
+sign the same message under different randomized keys, so each signature share
+made with the same pair of nonces is one more linear equation in the two nonces
+and the participant's signing key share; enough of them reveal the signing key
+share.
 
 Let $\textsf{FROST.sign}$ be the regular FROST signing function with arguments
 ``(identifier, sk_i, group_public_key, nonce_i, msg, commitment_list)``,
