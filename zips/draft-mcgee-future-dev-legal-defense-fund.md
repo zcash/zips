@@ -1,5 +1,5 @@
     ZIP: Unassigned
-    Title: Future Dev and Legal Defense Fund Lockbox, and Removal of ZCG Funds to the Network Sustainability Mechanism
+    Title: Future Dev and Legal Defense Fund Lockbox, and Removal of 50,000 ZEC of ZCG Funds to the Network Sustainability Mechanism
     Owners: Sean Bowe (Tachyon Group) <ewillbefull@gmail.com>
             Zooko Wilcox (Shielded Labs) <zooko@shieldedlabs.net>
             Jason McGee (Shielded Labs) <jason@shieldedlabs.net>
@@ -113,6 +113,9 @@ mechanism is currently defined for this lockbox; the Zcash community will need
 to decide upon and specify a suitable decentralized mechanism for permitting
 withdrawals from this lockbox in a future ZIP in order to make these funds
 available for funding Zcash development and legal defense.
+
+This is not intended to imply that funds for Zcash development and legal
+defense cannot come from other sources.
 
 **Funding streams.** A new revision of ZIP 214 makes these changes at $A$:
 
@@ -297,9 +300,17 @@ the value moves to the NSM Value Balance in the same block, keeping ZIP 237's
 invariant: in each block from NU7 on, the Issued Supply plus the NSM Value
 Balance grows by exactly the scheduled block subsidy.
 
-**Other proposals.** ZIP draft #1414 sends the 8% stream to the NSM
-[^draft-end-zcg-stream], and draft #1423 winds ZCG down [^draft-wind-down-zcg].
-Where they overlap with this ZIP, they are alternatives to it.
+## Other proposals
+
+Draft #1423 would wind ZCG down [^draft-wind-down-zcg]. Where it overlaps
+with this ZIP, it is an alternative to it.
+
+`draft-dairaemma-governance-zap` [^draft-dairaemma-governance-zap] requires
+that "the `FS_FPF_ZCG_H3` funding stream SHALL continue at its existing value
+and for the duration specified in ZIP 214 Revision 3", therefore it and this
+proposal are incompatible. It explicitly names legal defense as a possible
+use of ZAP Grants, which would not require a further consensus change for
+disbursement.
 
 
 # Deployment
@@ -354,7 +365,7 @@ None yet.
 
 [^zip-2008]: [ZIP 2008: Update to `FS_FPF_ZCG_H3` address list](https://zips.z.cash/zip-2008)
 
-[^draft-end-zcg-stream]: [Draft: Ending the ZCG Funding Stream in Favor of the NSM (zcash/zips#1414)](https://github.com/zcash/zips/pull/1414)
+[^draft-dairaemma-governance-zap]: [`draft-dairaemma-governance-zap`: Zcash Adoption Pool (ZAP)](draft-dairaemma-governance-zap.md)
 
 [^draft-wind-down-zcg]: [Draft: Winding Down Zcash Community Grants (zcash/zips#1423)](https://github.com/zcash/zips/pull/1423)
 
