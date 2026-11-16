@@ -102,7 +102,7 @@ investments in the network, but increasing the costs that political adversaries 
 rationally launch political attacks.
 
 Political attacks are not the only threat to the integrity of Zcash. The network has faced two
-critical soundness vulnerabilities in its zero-knowledge proof systems [^bctv14-vuln] [^zip-0257].
+critical soundness vulnerabilities in its zero-knowledge proofs [^bctv14-vuln] [^zip-0257].
 While there is no reason to believe that either of these were exploited, if they had been then
 it could have led to counterfeiting in the Sprout and Orchard shielded pools. There have also
 been many vulnerabilities in node implementations that could have led to denial of service or
