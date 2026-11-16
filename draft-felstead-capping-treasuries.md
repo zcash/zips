@@ -4,9 +4,11 @@
     Credits: Julian (Zcash Community Forum)
     Status: Draft
     Category: Process
+    Updates: 1016
     Created: 2026-11-15
     License: MIT
-    Discussions-To: https://github.com/zcash/zips/issues/1464
+    Discussions-To: <https://github.com/zcash/zips/issues/1464>
+    Pull-Request: <https://github.com/zcash/zips/pull/1466>
 
 
 # Terminology
