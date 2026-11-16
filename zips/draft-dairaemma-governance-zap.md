@@ -101,6 +101,17 @@ is therefore not persuasion of any one actor, or unanimity within the set of act
 investments in the network, but increasing the costs that political adversaries must expend to
 rationally launch political attacks.
 
+Political attacks are not the only threat to the integrity of Zcash. The network has faced two
+critical soundness vulnerabilities in its zero-knowledge proof systems [^bctv14-vuln] [^zip-0257].
+While there is no reason to believe that either of these were exploited, if they had been then
+it could have led to counterfeiting in the Sprout and Orchard shielded pools. There have also
+been many vulnerabilities in node implementations that could have led to denial of service or
+consensus divergence (a "chain fork") [^zip-0256]. This is all indicative of the current
+complexity of the protocol and its implementations. The <span class="raleway">Ironwood</span>
+formalization effort [^ironwood-book] greatly increased our confidence in the Orchard protocol,
+but that effort cannot be a one-off or restricted to Orchard/Ironwood. A sustained effort to
+maintain and double down on assurance is essential, and that will require additional funding.
+
 ## Defense strategy
 
 An adversary is deterred when the cost of its aim exceeds the benefit. The cost for political
@@ -121,6 +132,11 @@ Adoption converts the party with no economic dependency on Zcash into a stakehol
 Moreover, adoption does this most cheaply, before the adversary has chosen their attack.
 
 Increased and accelerated adoption therefore directly secures Zcash against political attack.
+
+Further, a currency that people do not have confidence in will not be adopted. That confidence
+relates to its robustness against both political and technical attacks. As well as being important
+in its own right, effective defense therefore lowers an obstacle to adoption, which strengthens
+political security in a virtuous circle.
 
 ## Background
 
@@ -218,12 +234,12 @@ ZIPs 1015 and 1016 [^zip-1015] [^zip-1016] are unchanged.
 Before approving a ZAP Grant, the ZAP Committee MUST obtain reasonable confidence,
 on the evidence in the application, that funds disbursed through that ZAP Grant
 will be used for the explicit purpose of accelerating adoption as defined above.
-That is, they will be further disbursed or used to fund development that, in either case,
-directly increases adoption. Here "development" is supposed to be interpreted as
-broadly as possible, in order to extend the scope of adoption programmes beyond
-what is otherwise likely to be funded from other sources. Direct disbursement,
-educational initiatives, legal defence, and technical development are all
-possibilities.
+That is, the funds will be further disbursed or used to fund development intended
+to accelerate adoption — this explicitly includes educational initiatives; legal
+defense; assurance efforts (for the protocol, nodes, infrastructure, wallets, etc.);
+and other adoption-focused technical development as possibilities. "Development" is
+supposed to be interpreted as broadly as possible, in order to extend the scope of
+adoption programmes beyond what is otherwise likely to be funded from other sources.
 
 As stated earlier, existing constraints defined by ZIP 1015 and 1016 continue to
 apply, including constraints on grants of indefinite duration. This specifically
@@ -256,6 +272,14 @@ and preferably shielded-ZEC-to-shielded-ZEC) above spend metrics, balance held, 
 undifferentiated transaction count. The point here is not that off-ramps are not
 useful, but that their use does not by itself contribute to accelerating Zcash or
 ZEC adoption.
+
+It is recognized that the benefit of a grant to adoption as defined above may be
+quite indirect. For example, it is hard to assess a protocol assurance effort,
+funding of legal defense, or the development of localization or accessibility
+features that would expand the user populations able to make use of Zcash, directly
+on the basis of distinct shielded receives. A plausible, well-founded argument that
+the grant is expected to contribute to accelerating adoption would be sufficient in
+such cases.
 
 Measuring adoption for a privacy-preserving payment network can easily suppress
 realized adoption, and actively slows the speed of adoption. Therefore, this criterion
@@ -304,13 +328,13 @@ of its treasury after current grant obligations.
 
 Our proposal would continue to make that money available, as needed, to
 projects consistent with accelerating the adoption of Zcash and ZEC. As
-stated earlier, "direct disbursement, educational initiatives, legal defence,
-and technical development are all possibilities." It is neither anticipated
-nor necessary for this money to be spent immediately. The authors of this
-proposal believe that prudent management of the funds in the Zcash Adoption
-Pool is a matter for the ZAP Committee and not something to be dictated by
-a ZIP, since it depends heavily on market conditions and on what grant
-applications are actually submitted.
+stated earlier, this explicitly includes educational initiatives, legal
+defense, assurance efforts, and other adoption-focused technical development.
+It is neither anticipated nor necessary for this money to be spent immediately.
+The authors of this proposal believe that prudent management of the funds in
+the Zcash Adoption Pool is a matter for the ZAP Committee and not something to
+be dictated by a ZIP, since it depends heavily on market conditions and on what
+grant applications are actually submitted.
 
 ## Inclusivity is essential to Zcash governance
 
@@ -356,13 +380,17 @@ for the space to discuss it in person.
 
 [^BCP14]: [Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"](https://www.rfc-editor.org/info/bcp14)
 
-[^protocol-networks]: [Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.12: Mainnet and Testnet](protocol/protocol.pdf#networks)
+[^protocol-networks]: [Zcash Protocol Specification, Version 2026.9.0 [NU7]. Section 3.12: Mainnet and Testnet](protocol/protocol.pdf#networks)
 
 [^zip-0214]: [ZIP 214: Consensus rules for a Zcash Development Fund](zip-0214.rst)
 
 [^zip-0218]: [ZIP 218: 25-second Block Target Spacing](zip-0218.md)
 
 [^zip-0237]: [ZIP 237: Network Sustainability Mechanism: Halving-Preserving Issuance](zip-0237.md)
+
+[^zip-0256]: [ZIP 256: Deployment of Consensus Bug Fixes Between NU6.1 and NU6.2](zip-0256.md)
+
+[^zip-0257]: [ZIP 257: Deployment of the Orchard Temporary Vulnerability Mitigation and NU6.2 Network Upgrade](zip-0257.md)
 
 [^zip-1015]: [ZIP 1015: Block Subsidy Allocation for Non-Direct Development Funding](zip-1015.rst)
 
@@ -377,3 +405,7 @@ for the space to discuss it in person.
 [^draft-howard-wind-down-zcg]: [draft-howard-wind-down-zcg: Winding Down Zcash Community Grants and Removal of ZCG Funds to the Network Sustainability Mechanism (zcash/zips#1423)](https://github.com/zcash/zips/pull/1423)
 
 [^draft-emersonian-zcash-town-square]: [draft-emersonian-zcash-town-square: The Zcash Town Square: Official Discussion and Announcement Cross-Posting](draft-emersonian-zcash-town-square.md)
+
+[^bctv14-vuln]: [ECC Blog, February 2019: Zcash Counterfeiting Vulnerability Successfully Remediated](https://zodl.com/zcash-counterfeiting-vulnerability-successfully-remediated/)
+
+[^ironwood-book]: <a href="https://zcash.github.io/ironwood/" class="raleway">The Ironwood Book</a>
