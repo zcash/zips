@@ -274,7 +274,7 @@ useful, but that their use does not by itself contribute to accelerating Zcash o
 ZEC adoption.
 
 It is recognized that the benefit of a grant to adoption as defined above may be
-quite indirect. For example, it is hard to assess a protocol assurance effort,
+quite indirect. For example, it is hard to assess a protocol assurance or research effort,
 funding of legal defense, or the development of localization or accessibility
 features that would expand the user populations able to make use of Zcash, directly
 on the basis of distinct shielded receives. A plausible, well-founded argument that
