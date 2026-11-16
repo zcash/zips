@@ -3,9 +3,11 @@
     Title: Zcash Adoption Pool (ZAP)
     Owners: Daira-Emma Hopwood <daira@jacaranda.org>
             Violet Rollergirl
-    Credits: Blake Benthall (emersonian)
+    Credits: Blake Benthall (@emersonian)
              Mylo Bennett
              Alison Stevenson
+             Arya
+             @vaspholdings
     Status: Draft
     Category: Consensus Process
     Created: 2026-10-30
