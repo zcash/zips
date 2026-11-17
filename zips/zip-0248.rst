@@ -1417,8 +1417,19 @@ binds them to the previous-output references already committed to by the
 transaction identifier; they need not be adjacent to those references in the
 hash tree.
 
-The transparent signature context binds the signature to the input being
-signed, preventing its application to another input with a compatible script.
+Each spend signature's context includes the zero-based index of the input being
+signed within its bundle's effecting-data array. This binds the signature to
+that position, even when another input uses the same authorization key. The
+bundle type and variant distinguish indices belonging to different bundles.
+Shielded binding signatures have an empty context, distinct from every
+spend-signature context.
+
+The index is encoded as a fixed two-byte unsigned little-endian integer. The
+Sapling spend and Orchard protocol action counts are already constrained by
+consensus to be less than $2^{16}$. [#protocol-txnconsensus]_ Each transparent
+input's effecting data occupies 40 bytes, so the 2,000,000-byte block size limit
+also bounds its index below $2^{16}$. [#protocol-blockheader]_ No additional
+count limit is needed.
 
 The transaction identifier and the two aggregate input digests can each be
 computed once per transaction and reused for every signature. The aggregate
@@ -1430,12 +1441,13 @@ authorizing the same input.
 
 BLAKE2b processes 128-byte blocks. With the currently defined one-byte bundle
 type and variant encodings, the prefix through ``bundleVariant`` is 99 bytes.
-The empty context for shielded signatures therefore leaves the entire preimage
+A shielded spend signature has a two-byte context, giving a 101-byte preimage;
+a shielded binding signature's empty context gives a 99-byte preimage. Both fit
 in one block. For a transparent input with a script public key of $L$ bytes,
-the preimage length is $147 + \mathsf{CompactSizeLen}(L) + L$ bytes, where
+the preimage length is $149 + \mathsf{CompactSizeLen}(L) + L$ bytes, where
 $\mathsf{CompactSizeLen}(L)$ is the length in bytes of the CompactSize encoding of
-$L$. A 25-byte P2PKH script gives 173 bytes (45 bytes in the second block); a
-23-byte P2SH script gives 171 bytes (43 bytes in the second block). The latter
+$L$. A 25-byte P2PKH script gives 175 bytes (47 bytes in the second block); a
+23-byte P2SH script gives 173 bytes (45 bytes in the second block). The latter
 commits to the script public key, not the redeem script. The shared 99-byte
 prefix does not fill a block: the first block also contains the first 29 bytes
 of the input's ``prevout_hash``. In general, each of these transparent digests
@@ -1818,6 +1830,11 @@ concatenation of the following fields for the input being signed::
    S.7.ii:  value        (8-byte signed little-endian)
    S.7.iii: scriptPubKey (with compactSize length prefix)
    S.7.iv:  nSequence    (4-byte unsigned little-endian)
+   S.7.v:   input_index  (2-byte unsigned little-endian)
+
+``input_index`` is the zero-based position of the input being signed in
+``tx_in_effecting``, in the range $0 \leq \mathtt{input\_index} < \mathtt{tx\_in\_count}$.
+It is not the ``prevout_index`` of the output being spent.
 
 A.1.0: transparent_auth_digest
 ..............................
@@ -2032,8 +2049,13 @@ Sapling Sighash Algorithms
 For the Sapling bundle at ``bundleVariant = 0``, sighash variant 0 is the only
 variant defined, and its ``associatedData`` is the empty byte string. A Sapling
 ``spendAuthSig`` or ``bindingSig`` made with it commits to the digest defined
-in `Variant 0 Signature Digest`_, with ``bundleType = 2``,
-``bundleVariant = 0``, and an empty ``signature_context``.
+in `Variant 0 Signature Digest`_, with ``bundleType = 2`` and
+``bundleVariant = 0``.
+
+For ``vSpendAuthSigsSapling[i]``, ``signature_context`` is the two-byte unsigned
+little-endian encoding of $i$, the zero-based position of the corresponding
+spend in ``vSpendsSapling``, where $0 \leq i < \mathtt{nSpendsSapling}$.
+For ``bindingSigSapling``, ``signature_context`` is the empty byte string.
 
 Sapling Digests
 '''''''''''''''
@@ -2312,8 +2334,17 @@ For the Orchard and Ironwood bundles at ``bundleVariant = 0``, sighash variant
 0 is the only variant defined, and its ``associatedData`` is the empty byte
 string. An Orchard protocol ``spendAuthSig`` or ``bindingSig`` made with it
 commits to the digest defined in `Variant 0 Signature Digest`_, with
-``bundleType = 3`` for Orchard or ``bundleType = 4`` for Ironwood,
-``bundleVariant = 0``, and an empty ``signature_context``.
+``bundleType = 3`` for Orchard or ``bundleType = 4`` for Ironwood, and
+``bundleVariant = 0``.
+
+In either an Orchard or an Ironwood bundle, the ``signature_context`` for
+``vSpendAuthSigsOrchard[i]`` is the two-byte unsigned little-endian encoding of
+$i$, the zero-based position of the corresponding action in that bundle's
+``vActionsOrchard``, where $0 \leq i < \mathtt{nActionsOrchard}$. These field
+names refer to the shared encoding used by both bundle types. The index is
+local to the bundle containing the signature; it does not count actions in
+other bundles. For the ``bindingSigOrchard`` of either bundle type,
+``signature_context`` is the empty byte string.
 
 Orchard Protocol Digests
 ''''''''''''''''''''''''
@@ -2720,6 +2751,7 @@ References
 .. [#BCP14] `Information on BCP 14 — "RFC 2119: Key words for use in RFCs to Indicate Requirement Levels" and "RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words <https://www.rfc-editor.org/info/bcp14>`_
 .. [#protocol] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1] or later <protocol/protocol.pdf>`_
 .. [#protocol-blockchain] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.3: The Block Chain <protocol/protocol.pdf#blockchain>`_
+.. [#protocol-blockheader] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Block Header Encoding and Consensus <protocol/protocol.pdf#blockheader>`_
 .. [#protocol-transactions] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.4: Transactions and Treestates <protocol/protocol.pdf#transactions>`_
 .. [#protocol-coinbasetransactions] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 3.11: Coinbase Transactions <protocol/protocol.pdf#coinbasetransactions>`_
 .. [#protocol-networks] `Zcash Protocol Specification, Version 2025.6.3 [NU6.1]. Section 3.12: Mainnet and Testnet <protocol/protocol.pdf#networks>`_
