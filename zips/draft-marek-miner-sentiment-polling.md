@@ -79,11 +79,6 @@ Answer Character
 :   A byte that is an Option Character, a hyphen `-`, or a parenthesis `(` or
     `)`.
 
-Participation Threshold
-:   The minimum percentage of the blocks in a Voting Period that answer a
-    question, for the Miner Poll results on that question to be considered
-    representative of miners.
-
 
 # Abstract
 
@@ -178,7 +173,6 @@ it. A Poll Definition gives:
 * the Voting Start Height and the Voting End Height;
 * the questions, the options for each question, and the maximum number of
   selections for each multiple-choice question;
-* the Participation Threshold, as a percentage;
 * a link to the announcement of the ZCAP Poll.
 
 The questions and options MUST be identical in wording, order, and number to
@@ -201,8 +195,8 @@ letter `a` to `z`, an ASCII digit `0` to `9`, or a hyphen `-`. It MUST NOT equal
 the Election Identifier of any earlier Poll Definition on the same network.
 
 A published Poll Definition MUST NOT be changed. To change its questions,
-options, Voting Period, or Participation Threshold, the Poll Organizer publishes a
-new Poll Definition, which supersedes it and is subject to the requirements in
+options, or Voting Period, the Poll Organizer publishes a new Poll Definition,
+which supersedes it and is subject to the requirements in
 [Voting Period]. A Poll Definition can only be superseded before the block at its
 Voting Start Height is mined, and a superseded Poll Definition is not tallied.
 Once the Voting Period of a Poll Definition has started, its Miner Poll MUST be
@@ -345,16 +339,11 @@ The results of the Miner Poll consist of:
 * for each question $q$, the count $N - A_q$ of blocks that do not answer $q$,
   and the percentage $100 \cdot (N - A_q) / N$;
 * $N$, $P$, and the overall participation $100 \cdot P / N$ as a percentage;
-* for each question $q$, whether $100 \cdot A_q / N$ is at least the
-  Participation Threshold;
 * the height and hash of the block at the Voting End Height in the block chain
   that was tallied.
 
 Percentages in the results, and in any summary of them by the Poll Organizer,
 MUST be relative to $N$. The counts are authoritative.
-
-The results on question $q$ are representative of miners if and only if
-$100 \cdot A_q / N$ is at least the Participation Threshold.
 
 ## Publication of Results
 
@@ -400,15 +389,11 @@ memo is not a text memo and carries no Miner Ballot.
 
 If the Voting Period has 100,000 blocks and only 10, all mined by one pool, carry
 `zpoll:nu8:2311-`, option 2 of question 1 has 10 votes (0.01%) and 99,990 blocks
-(99.99%) do not answer question 1. Question 1 is answered in only 0.01% of the
-Voting Period, so its results are not representative of miners unless the
-Participation Threshold is at most 0.01%.
+(99.99%) do not answer question 1.
 
 If instead 99,990 blocks carry `zpoll:nu8:2311-` and 10 carry `zpoll:nu8:23113`,
 overall participation is 100% and questions 1 to 4 are each answered in 100% of
-the Voting Period. Question 5, however, is answered in only 0.01%, so its results
-are not representative of miners unless the Participation Threshold is at most
-0.01%.
+the Voting Period, but question 5 is answered in only 0.01%.
 
 The following table shows how Miner Data is interpreted for this Election:
 
@@ -482,10 +467,10 @@ Period, is fully observable, as the membership of the ZCAP is. Shares among the
 blocks that answer a question follow from the published counts $c_{q,o}$ and
 $A_q$.
 
-The Participation Threshold flags low turnout. It applies to each question:
-since a Miner Ballot can leave questions unanswered, a heavily answered question
-would otherwise make the results on an unanswered question appear
-representative.
+Participation is reported for each question, since a Miner Ballot can leave
+questions unanswered and overall participation would overstate it for those
+questions. This ZIP sets no minimum participation for results to count; readers
+judge it from the published counts.
 
 The tally does not group blocks by miner, because coinbase outputs and pool tags
 are chosen by miners and do not reliably identify them.
