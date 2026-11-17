@@ -1330,24 +1330,78 @@ Every signature uses the ``amounts_sig_digest`` and ``scriptpubkeys_sig_digest``
 defined in `Transparent Digests`_, independently of which bundle contains the
 signature.
 
-Rationale for Variant 0 Transparent Commitments
-'''''''''''''''''''''''''''''''''''''''''''''''
+Rationale for Variant 0 Commitments
+'''''''''''''''''''''''''''''''''''
 
 .. raw:: html
 
    <details>
    <summary>Click to show/hide</summary>
 
-Using the transaction identifier ensures that each variant 0 signature commits
-to the complete value pool delta map, including the fee, and the complete
-effects of every bundle. The signature digest uses a distinct personalization
-from the transaction identifier because it hashes that identifier with
-additional signing data rather than reproducing its hash tree. The consensus
-branch ID is already committed to by the transaction identifier, both in its
-header digest and in its root personalization, so it need not be repeated in
-the signature digest's personalization. The sighash variant byte
-domain-separates the digest from other sighash variants, and the bundle tags
-identify the bundle whose signature is being made.
+The signature digest algorithms previously defined for Zcash have three distinct
+variants:
+
+* For v1 and v2 transactions, it followed the Bitcoin convention of using the
+  "hash the transaction" transaction ID digest algorithm while including or
+  omitting information as relevant for the transparent sighash kind.
+
+* For v3 and v4, a SegWit-style signature hash algorithm used a two-level hash:
+  the outer digest was over commitments to the various different parts of the
+  transaction, while the TxId was unaltered.
+
+* For v5 and v6, both the TxId and the sighash were tree commitments to the
+  transaction data, with the sighash digest algorithm reusing as many of the
+  inner commitments computed by the TxId digest as possible, but substituting in
+  different digests where signature-relevant data was included or omitted.
+
+All of these variants diverged from the TxId digest because of how the
+transparent sighash kinds carried over from Bitcoin were defined. Due to a
+combination of subtleties around the interpretation of the sighash kinds for
+transparent-only wallets being ported from Bitcoin, and the lack of equivalent
+information exposed by the shielded actions, the sighash kinds were not adapted
+to include equivalent logic on the shielded pools. Instead, they always acted as
+if the shielded components of a transaction were defined with ``SIGHASH_ALL``.
+As a consequence, the sighash kinds are only effective in transparent-only
+transactions.
+
+When transaction ID malleability was addressed for v5 transactions in ZIP 244
+[#zip-0244]_, the TxId and sighash digest algorithms were defined such that if
+you were signing a transaction that contained no transparent information, you
+just signed the TxId. In addition to being more efficient (as TxIds are usually
+computed at parsing time and cached), it is clear that this has the property one
+expects for a signature that is committing to all of the effecting data in a
+transaction.
+
+For this ZIP's variant 0 digest, we instead commit directly to the TxId in a
+wrapping digest; the additional signature-specific information that previously
+was committed in-situ with the effecting data is instead committed beside the
+TxId. This has the same overall binding property, while improving the efficiency
+for all shielded signatures as well as ``SIGHASH_ALL`` transparent signatures.
+
+This simplicity and efficiency is only possible by dropping support for
+non ``SIGHASH_ALL`` transparent signatures from variant 0. This is justified for
+several reasons:
+
+* These transparent signatures can still be created on the network today with v5
+  or v6 transactions. There are no functionality changes to the transparent
+  signing capabilities in transparent bundle variant 0.
+
+* The sighash variants introduced in this ZIP provide an equivalent mechanism
+  that does not inherit the semantic baggage of the transparent sighash kinds.
+  A future ZIP could define a sighash variant that provides equivalent
+  functionality, while potentially also expanding it to compatible shielded
+  logic, if demand for such functionality in v7 transactions appears.
+
+  * One difference between the transparent sighash kinds and sighash variants is
+    that a sighash variant is specified at a per-input level, whereas sighash
+    kinds are specified at a per-signature level. The latter can be leveraged in
+    P2SH scripts, albeit being tricky to reason about. However, this difference
+    can be eliminated by either defining the future sighash variant to use the
+    sighash kind bytes that remain embedded into scripts, or by leveraging the
+    ``associatedData`` field to store any additional per-signature metadata
+    necessary for the variant.
+
+* TODO collect data about observed usage of non ``SIGHASH_ALL`` sighash kinds.
 
 The additional transaction-wide amount and script commitments preserve the
 hardware-wallet protections of ZIP 244. [#zip-0244]_ The explicit fee defined in
