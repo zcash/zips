@@ -53,11 +53,11 @@ pre-v7 transaction format
   of the v1 to v6 transaction formats.
 
 transparent transaction value pool
-  An ephemeral value for the balance of an asset within the scope of a single
-  transaction, which is modified by additions and subtractions in the
-  processing of the effects of transaction bundles. When all of the effects of
-  a transaction are accounted for, each such balance is zero; i.e., the total of
-  additions to the balance equals the total of subtractions from it.
+  An ephemeral balance within the scope of a single transaction, which is
+  modified by additions and subtractions in the processing of the effects of
+  transaction bundles. When all of the effects of a transaction are accounted
+  for, this balance is zero; i.e., the total of additions to the balance equals
+  the total of subtractions from it.
 
 
 Abstract
@@ -70,10 +70,10 @@ they did not use newly introduced protocol features.
 
 The format defines typecode-length-value encodings for protocol bundles and
 a value pool delta map describing each bundle's effect on the transparent
-transaction value pool for each asset. The entries of this map serve the
-same purpose as the Sapling and Orchard value balance fields have done in
-the past. Effecting data and authorizing data are encoded separately, allowing
-authorizing data to be pruned without removing the transaction's effects.
+transaction value pool. The entries of this map serve the same purpose as the
+Sapling and Orchard value balance fields have done in the past. Effecting data
+and authorizing data are encoded separately, allowing authorizing data to be
+pruned without removing the transaction's effects.
 
 Clients can parse the common transaction envelope and enumerate public value
 flows without understanding every bundle type or variant. Computing the
@@ -152,9 +152,8 @@ Requirements
 
 * The transaction format can be parsed without any knowledge of any Zcash
   payment protocols.
-* Movement of value into and out of the transparent value pools (the ZEC
-  transparent value pool, plus the transparent value pool for each ZSA asset)
-  can be understood with only partial knowledge of the Zcash payment protocols.
+* Movement of value into and out of the transparent transaction value pool can
+  be understood with only partial knowledge of the Zcash payment protocols.
 * The information content of transactions should not change as part of
   this ZIP. Other ZIPs activated along with this ZIP may however make
   use of it in introducing such changes.
@@ -205,9 +204,9 @@ identified by a ``(bundleType, bundleVariant)`` pair, where:
 
 A transaction MUST NOT contain more than one variant of any given bundle type.
 This constraint is enforced by the map structure of the transaction encoding:
-the maps ``mEffectBundles``, and ``mAuthBundles`` are each keyed by
-``bundleType`` alone; ``mValuePoolDeltas`` is keyed by bundle type and asset
-ID.
+the maps ``mValuePoolDeltas``, ``mEffectBundles``, and ``mAuthBundles`` are each
+keyed by ``bundleType`` alone, and the parsing rules require the same
+``bundleVariant`` for a given ``bundleType`` across all three maps.
 
 Each bundle type/variant pair defines:
 
@@ -262,14 +261,14 @@ mechanism through which value flows between bundles.
 
 Each bundle may contribute a **value pool delta** — a signed value indicating
 how much the bundle adds to or removes from the transparent transaction value
-pool for a given asset. A positive delta means the bundle is adding value to
-the pool (e.g., a shielded spend releasing value), while a negative delta means
-the bundle is consuming value from the pool (e.g., a shielded output absorbing
-value, or a transaction fee).
+pool. A positive delta means the bundle is adding value to the pool (e.g., a
+shielded spend releasing value), while a negative delta means the bundle is
+consuming value from the pool (e.g., a shielded output absorbing value, or a
+transaction fee).
 
-For a valid transaction, the sum of all value pool deltas for each asset MUST
-equal zero. This ensures that value is neither created nor destroyed — it is
-only transferred between bundles within the transaction.
+For a valid transaction, the sum of all value pool deltas MUST equal zero.
+This ensures that value is neither created nor destroyed — it is only
+transferred between bundles within the transaction.
 
 This holds for coinbase transactions as well. The part of the block subsidy
 that the transaction pays out enters the transparent transaction value pool as
@@ -472,14 +471,10 @@ Transaction Format
 | varies                      |``mAuthBundles``              |``BundleData[nAuthBundles]``                    |A map from bundle identifier to the authorizing data of a bundle.    |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 
-``mValuePoolDeltas`` is interpreted as a map keyed by the tuple
-$(\mathsf{BundleType}, \mathsf{AssetUuid})$. Lookups in this map are denoted
-with the syntax
-$\mathsf{mValuePoolDeltas}[(\mathsf{BundleType}, \mathsf{AssetUuid})].$ A
-lookup for a key that is not present yields 0.
-
-``mEffectBundles`` and ``mAuthBundles`` are interpreted as maps keyed by
-``bundleType``.
+``mValuePoolDeltas``, ``mEffectBundles``, and ``mAuthBundles`` are interpreted
+as maps keyed by ``bundleType``. Lookups in ``mValuePoolDeltas`` are denoted
+with the syntax $\mathsf{mValuePoolDeltas}[\mathsf{BundleType}]$. A lookup for a
+key that is not present yields 0.
 
 Encoding constraints on these maps (uniqueness, ordering, and cross-map
 consistency) are specified in `Parsing Rules`_.
@@ -527,37 +522,35 @@ ValuePoolDelta
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 | varies                      |``bundleVariant``             |``compactSize``                                 |An encoding of the bundle variant identifier.                        |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| 1                           |``assetClass``                |``uint8``                                       |An asset class identifier. 0x00 for the ZEC asset, 0x01 for other    |
-|                             |                              |                                                |assets.                                                              |
-+-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| one of {0, 64}              |``assetUuid``                 |``byte[0] or byte[64]``                         |If `assetClass == 0`, the zero-length byte array, otherwise a byte   |
-|                             |                              |                                                |array containing a universally unique 64-byte identifier for the     |
-|                             |                              |                                                |asset.                                                               |
-+-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
-| 8                           |``value``                     |``nonzero int64``                               |The net change to the transparent transaction value pool for the     |
-|                             |                              |                                                |given asset, produced by the bundle with this bundle type identifier.|
+| 8                           |``value``                     |``nonzero int64``                               |The net change to the transparent transaction value pool, produced by|
+|                             |                              |                                                |the bundle with this bundle type identifier, in zatoshis.            |
 |                             |                              |                                                |This value MUST be nonzero; if a ``ValuePoolDelta`` record would     |
 |                             |                              |                                                |have zero value, it MUST be elided from the encoding                 |
 |                             |                              |                                                |of ``mValuePoolDeltas`` instead.                                     |
 +-----------------------------+------------------------------+------------------------------------------------+---------------------------------------------------------------------+
 
-Let $\mathsf{Zec}$ be a distinguished value representing the ZEC asset. It is
-used as the asset identifier when $\mathsf{assetClass} = 0$.
+The values of all entries in ``mValuePoolDeltas`` are required to sum to zero;
+this balance rule is specified in `Cross-bundle and chain-context rules`_.
 
-Let $\mathsf{AssetUuid}(\mathsf{d})$ be the asset indicated by the ``mValuePoolDeltas`` entry $\mathsf{d}.$
+Rationale for ValuePoolDelta
+````````````````````````````
 
-.. math::
+.. raw:: html
 
-    \mathsf{AssetUuid}(\mathsf{d}) =
-    \begin{cases}
-       \mathsf{Zec} & \text{if } \mathsf{d}.\mathsf{assetClass} = 0 \\
-       \mathsf{d}.\mathsf{assetUuid} & \text{if } \mathsf{d}.\mathsf{assetClass} = 1 \\
-       \bot & \text{otherwise}
-    \end{cases}
+   <details>
+   <summary>Click to show/hide</summary>
 
-$\mathsf{AssetUuid}$ groups the entries of ``mValuePoolDeltas`` by asset. The
-values of the entries in each such group are required to sum to zero; this
-balance rule is specified in `Cross-bundle and chain-context rules`_.
+A previous version of ValuePoolDelta supported representing different asset
+kinds via an ``assetUuid``. This was removed because it is unnecessary; any
+future ZIP proposing support for non-ZEC assets could instead propose a new
+bundle type with a non-ZEC asset value map in its effecting data, and consensus
+rules defining how to interpret and balance that map. This provides equivalent
+extensibility without adding fields to every value pool delta entry or requiring
+all transaction parsers to understand asset identifiers.
+
+.. raw:: html
+
+   </details>
 
 BundleData
 ----------
@@ -589,26 +582,18 @@ transaction identifier for a transaction containing bundle types that the
 wallet does not itself implement.
 
 * Each of ``mValuePoolDeltas``, ``mEffectBundles``, and ``mAuthBundles`` MUST
-  contain at most one entry per key, and the entries MUST be encoded in
-  strictly increasing key order. For ``mValuePoolDeltas`` the key order is
-  ``(bundleType, assetClass, assetUuid)`` compared lexicographically (with
-  ``assetUuid`` compared as a byte string). For ``mEffectBundles`` and
-  ``mAuthBundles`` the key order is ``bundleType``.
+  contain at most one entry per ``bundleType``, and the entries MUST be encoded
+  in strictly increasing ``bundleType`` order.
 
 * Every ``ValuePoolDelta`` record MUST have a nonzero ``value`` field. A
   ``ValuePoolDelta`` record that would have ``value = 0`` MUST be elided from
   the encoding of ``mValuePoolDeltas``.
 
-* In every ``ValuePoolDelta`` record, ``assetUuid`` MUST be the zero-length
-  byte array if ``assetClass = 0``, and MUST be a 64-byte value if
-  ``assetClass = 1``. No other value of ``assetClass`` is permitted.
-
 * For each ``bundleType`` that appears in any of ``mValuePoolDeltas``,
   ``mEffectBundles``, or ``mAuthBundles``, all entries for that ``bundleType``
-  across all three maps MUST encode the same ``bundleVariant``. (This,
-  combined with the constraint that each of ``mEffectBundles`` and
-  ``mAuthBundles`` is keyed by ``bundleType``, ensures that a transaction
-  uses at most one variant of any given bundle type.)
+  across all three maps MUST encode the same ``bundleVariant``. (Together
+  with the uniqueness rule above, this ensures that a transaction uses at most
+  one variant of any given bundle type.)
 
 * For each ``bundleType`` that appears in ``mAuthBundles``, a corresponding
   entry with the same ``bundleVariant`` MUST exist in ``mEffectBundles``.
@@ -638,9 +623,9 @@ They are obtained from the v7 encoding as follows:
 .. math::
 
    \begin{aligned}
-   \mathsf{v}^{\textit{SaplingPoolBalance}} &= \mathsf{mValuePoolDeltas}[(\mathsf{SaplingBundleId}, \mathsf{Zec})] \\
-   \mathsf{v}^{\textit{OrchardPoolBalance}} &= \mathsf{mValuePoolDeltas}[(\mathsf{OrchardBundleId}, \mathsf{Zec})] \\
-   \mathsf{v}^{\textit{IronwoodPoolBalance}} &= \mathsf{mValuePoolDeltas}[(\mathsf{IronwoodBundleId}, \mathsf{Zec})]
+   \mathsf{v}^{\textit{SaplingPoolBalance}} &= \mathsf{mValuePoolDeltas}[\mathsf{SaplingBundleId}] \\
+   \mathsf{v}^{\textit{OrchardPoolBalance}} &= \mathsf{mValuePoolDeltas}[\mathsf{OrchardBundleId}] \\
+   \mathsf{v}^{\textit{IronwoodPoolBalance}} &= \mathsf{mValuePoolDeltas}[\mathsf{IronwoodBundleId}]
    \end{aligned}
 
 Each balancing value has the sign convention defined for its pool: a positive
@@ -718,10 +703,6 @@ that the rule applies to.
   of the `v7 Transaction Bundle Type Registry`_ is marked ❌, and MUST NOT
   appear in any map at all if its row in the registry is marked as Reserved.
 
-* For variant 0 of the transparent, Sapling, Orchard, and Ironwood bundles,
-  each corresponding entry in ``mValuePoolDeltas`` MUST have ``assetClass = 0``
-  (ZEC).
-
 * Each entry in ``mValuePoolDeltas`` for variant 0 of the transparent, coinbase,
   Sapling, Orchard, or Ironwood bundle MUST have a corresponding entry in
   ``mEffectBundles``.
@@ -737,15 +718,6 @@ that the rule applies to.
 
 * Every Sapling, Orchard, or Ironwood effecting bundle MUST have a corresponding
   entry in ``mAuthBundles``.
-
-* The ``assetClass`` value for any entry in ``mValuePoolDeltas`` having
-  ``bundleType = FeeBundleId`` MUST be 0 (fee amounts are denominated in ZEC
-  and no other asset).
-
-* The ``assetClass`` value for any entry in ``mValuePoolDeltas`` having
-  ``bundleType = CoinbaseBundleId`` MUST be 0 (the block subsidy is
-  denominated in ZEC and no other asset). The same applies to the
-  ``blockSubsidy`` and ``lockboxValue`` fields of its effecting data.
 
 * A coinbase transaction MUST NOT spend any transparent output. If a
   transparent bundle is present in a coinbase transaction, its effecting data
@@ -769,15 +741,11 @@ The following rules relate the contents of a bundle to the other bundles of
 its transaction, or to the block that contains it. They MUST be enforced by
 full validators.
 
-* For every v7 or later transaction in a block, every entry in its
-  ``mValuePoolDeltas`` MUST have ``assetClass = 0`` (ZEC). Other asset classes
-  remain reserved for future consensus changes.
-
-* For coinbase transactions, the value of $\mathsf{mValuePoolDeltas}[(\mathsf{FeeBundleId}, \mathsf{Zec})]$
+* For coinbase transactions, the value of $\mathsf{mValuePoolDeltas}[\mathsf{FeeBundleId}]$
   MUST be nonnegative. This represents the total transaction fees collected from
   all other transactions in the block.
 
-* For non-coinbase transactions, the value of $\mathsf{mValuePoolDeltas}[(\mathsf{FeeBundleId}, \mathsf{Zec})]$
+* For non-coinbase transactions, the value of $\mathsf{mValuePoolDeltas}[\mathsf{FeeBundleId}]$
   MUST be nonpositive. This represents the transaction fee paid by the
   transaction (expressed as a negative value, since it is removed from the
   transparent transaction value pool).
@@ -787,7 +755,7 @@ full validators.
   transaction formats. For each non-coinbase transaction, its fee is:
 
   * for a v7 transaction, the negation of
-    $\mathsf{mValuePoolDeltas}[(\mathsf{FeeBundleId}, \mathsf{Zec})]$;
+    $\mathsf{mValuePoolDeltas}[\mathsf{FeeBundleId}]$;
   * for a pre-v7 transaction, the implicit fee defined in § 3.4
     'Transactions and Treestates'. [#protocol-transactions]_
 
@@ -810,23 +778,22 @@ full validators.
   deferred pool, as defined in § 7.10 'Payment of Funding Streams, Deferred
   Lockbox, and Lockbox Disbursement'. [#protocol-fundingstreams]_
 
-* The value of $\mathsf{mValuePoolDeltas}[(\mathsf{CoinbaseBundleId}, \mathsf{Zec})]$
+* The value of $\mathsf{mValuePoolDeltas}[\mathsf{CoinbaseBundleId}]$
   MUST equal the block subsidy less the lockbox deposit and
   $\mathsf{NSMFeeContribution}(\mathsf{height})$ for the block containing the
   transaction.
 
   .. math::
 
-      \mathsf{mValuePoolDeltas}[(\mathsf{CoinbaseBundleId}, \mathsf{Zec})] = \mathsf{blockSubsidy} - \mathsf{lockboxValue} - \mathsf{NSMFeeContribution}(\mathsf{height})
+      \mathsf{mValuePoolDeltas}[\mathsf{CoinbaseBundleId}] = \mathsf{blockSubsidy} - \mathsf{lockboxValue} - \mathsf{NSMFeeContribution}(\mathsf{height})
 
   Note that the coinbase value pool delta can be negative.
 
-* For every transaction, the sum of value pool delta values in each asset MUST
-  equal 0.
+* For every transaction, the sum of all value pool delta values MUST equal 0.
 
   .. math::
 
-      \forall \mathsf{a}. \sum_{\mathsf{d} \in \mathsf{mValuePoolDeltas} | \mathsf{AssetUuid}(\mathsf{d}) = \mathsf{a}} \mathsf{d.value} = 0
+      \sum_{\mathsf{d} \in \mathsf{mValuePoolDeltas}} \mathsf{d.value} = 0
 
   For v7 transactions, this rule replaces the remaining-value treatment of
   the transparent transaction value pool in § 3.4 'Transactions and
@@ -1220,16 +1187,13 @@ values are concatenated::
 
    T.2a: bundleType    (compactSize encoding)
    T.2b: bundleVariant (compactSize encoding)
-   T.2c: assetClass    (1 byte)
-   T.2d: assetUuid     (0 or 64 bytes, depending on assetClass)
-   T.2e: value         (8-byte signed little-endian)
+   T.2c: value         (8-byte signed little-endian)
 
 The personalization field of this hash is set to::
 
   "ZTxIdVPDeltaHash"
 
-In the case that the transaction has no value pool delta entries (which would
-only occur for transactions that have no effect on any value pool),
+In the case that the transaction has no value pool delta entries,
 ``value_pool_deltas_digest`` is::
 
   BLAKE2b-256("ZTxIdVPDeltaHash", [])
@@ -1617,10 +1581,10 @@ would be zero, the effecting bundle MUST be omitted instead. An entry in
 ``mAuthBundles`` MUST NOT be present when ``tx_in_count = 0``; the empty
 authorizing bundle is omitted.
 
-A full validator MUST verify that the ZEC value pool delta for
-``bundleType = 0`` equals the total value of the transparent inputs minus the
-total value of the transparent outputs. (The input values are not encoded in
-the transaction itself; they are obtained from the UTXOs being spent.)
+A full validator MUST verify that the value pool delta for ``bundleType = 0``
+equals the total value of the transparent inputs minus the total value of the
+transparent outputs. (The input values are not encoded in the transaction
+itself; they are obtained from the UTXOs being spent.)
 
 This rule applies to coinbase transactions unchanged. A coinbase transaction
 has no transparent inputs, so its transparent value pool delta is the negation
@@ -2484,8 +2448,8 @@ universal. Previously the coinbase transaction was the sole exception: its
 deltas summed to the negation of the block subsidy rather than to zero, because
 the subsidy entered the transparent transaction value pool implicitly. With the
 subsidy carried in the coinbase bundle's value pool delta, every transaction
-balances to zero in every asset, and a wallet can enumerate the value flows of
-a coinbase transaction using the same rule it applies to any other transaction.
+balances to zero, and a wallet can enumerate the value flows of a coinbase
+transaction using the same rule it applies to any other transaction.
 
 The input and output requirements prevent trivial transactions (with no inputs
 or outputs). They allow fee-free transfers within a single shielded pool: such
