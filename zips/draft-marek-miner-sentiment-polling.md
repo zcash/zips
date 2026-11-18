@@ -165,7 +165,7 @@ and is a single JSON object with the following members:
 |--------|------|---------|
 | `version` | integer | The version of this format. MUST be 1. |
 | `title` | string | A non-empty, human-readable title for the Miner Poll. |
-| `url` | string | The URL of a public announcement of the Miner Poll. |
+| `url` | string | The URL of a public announcement of the Miner Poll. Whether a Poll Definition is valid does not depend on the syntax of this string. |
 | `votingStartHeight` | integer | The Voting Start Height, which is the height of the first block of the Voting Period, from 1 to 499999999. |
 | `votingEndHeight` | integer | The Voting End Height, which is one more than the height of the last block of the Voting Period. It MUST be greater than `votingStartHeight` and at most 500000000. |
 | `questions` | array | One or more questions, each a JSON object as below. |
@@ -201,11 +201,13 @@ In addition:
 * The Option Codes of all options of all questions MUST be distinct. A Poll
   Definition therefore has at most 255 options in total.
 
-The following JSON Schema [^json-schema] expresses the structural requirements
-above. It does not express the requirements that `votingEndHeight` is greater
-than `votingStartHeight`, that `winners` is less than the number of options,
-that Option Codes are distinct, or that numbers have no fraction or exponent
-part.
+The following JSON Schema [^json-schema] is a non-normative aid for checking
+the structural requirements above. Where the schema, or the way a particular
+validator applies it, differs from the requirements above, the requirements
+above govern. The schema does not express the requirements that
+`votingEndHeight` is greater than `votingStartHeight`, that `winners` is less
+than the number of options, that Option Codes are distinct, or that numbers
+have no fraction or exponent part.
 
 ```json
 {
@@ -218,7 +220,7 @@ part.
   "properties": {
     "version": { "const": 1 },
     "title": { "type": "string", "minLength": 1 },
-    "url": { "type": "string", "format": "uri" },
+    "url": { "type": "string" },
     "votingStartHeight": { "type": "integer", "minimum": 1, "maximum": 499999999 },
     "votingEndHeight": { "type": "integer", "minimum": 2, "maximum": 500000000 },
     "questions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/question" } }
