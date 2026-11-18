@@ -60,9 +60,9 @@ Option Code
     Poll Definition.
 
 Level of Support
-:   An integer from 0 to 255 that a miner assigns to an option. 0 means that the
-    miner does not rate the option; from 1 to 255, a greater Level of Support
-    means greater support.
+:   An integer from 0 to 255 that a miner assigns to an option that it rates. A
+    greater Level of Support means greater support, and 0 means no support. A
+    miner that does not rate an option abstains on it.
 
 Miner Ballot
 :   The Poll Digest and the list of (Option Code, Level of Support) pairs
@@ -130,8 +130,9 @@ hashers are not identified, and their preferences are not recorded.
   Unicode normalization form have the same Poll Digest.
 * The Poll Definition commits to how the responses to each question are
   interpreted.
-* Miners can express graded support for each option, and can decline to rate an
-  option.
+* Miners can express graded support for each option, including no support, and
+  can abstain on an option or on a whole question. A result distinguishes no
+  support from abstention.
 * Every block counts as a single ballot.
 * The result is fully determined by the Poll Definition and public block chain
   data.
@@ -294,9 +295,13 @@ the coinbase bundle of that block's coinbase transaction as follows:
   whose `signalCode` is the Option Code of that option and whose
   `levelOfSupport` is the miner's Level of Support for it.
 
-`vMinerSignals` SHOULD NOT have entries whose `levelOfSupport` is 0; such an
-entry has the same effect as no entry. ZIP 248 requires the entries to be in
-strictly ascending order of `signalCode`.
+An entry whose `levelOfSupport` is 0 records that the miner does not support
+the option. A miner abstains on an option by including no entry for it, and
+abstains on a question by including no entry for any of its options. ZIP 248
+requires the entries to be in strictly ascending order of `signalCode`, so
+`vMinerSignals` has at most one entry for each option. ZIP 248 also omits
+`pollDigest` when `vMinerSignals` is empty, so a miner that rates no option of
+$P$ casts no Miner Ballot for $P$.
 
 Since each block counts separately, a miner MAY change its Miner Ballot during
 the Voting Period. A miner that wants its Miner Ballot to count in proportion to
@@ -314,8 +319,8 @@ Software that prepares Miner Ballots SHOULD:
    the Poll Digest published by the Poll Coordinator;
 3. display the Voting Period, and each question with its `description`, its
    options, and its method of interpretation, including its number of winners;
-4. for each option, let the miner choose a Level of Support from 0 to 255,
-   with 0 as the default;
+4. for each option, let the miner either choose a Level of Support from 0 to
+   255 or leave the option unrated, with unrated as the default;
 5. include the resulting Miner Ballot only in the coinbase transactions of
    blocks at heights within the Voting Period.
 
@@ -329,14 +334,20 @@ $P$, $B$ has a Miner Ballot for $P$ if and only if:
 
 * the coinbase transaction of $B$ has a coinbase bundle;
 * `nMinerSignals` is greater than 0, and `pollDigest` equals the Poll Digest of
-  $P$;
-* each `signalCode` in `vMinerSignals` is an Option Code of $P$; and
-* at least one `levelOfSupport` in `vMinerSignals` is nonzero.
+  $P$; and
+* each `signalCode` in `vMinerSignals` is an Option Code of $P$.
 
-If $B$ has a Miner Ballot for $P$, then $L_{B,o}$, the Level of Support of $B$
-for option $o$, is the `levelOfSupport` of the entry whose `signalCode` is the
-Option Code of $o$, or 0 if there is no such entry. If $B$ has no Miner Ballot
-for $P$, then $L_{B,o} = 0$ for every option $o$.
+The values of `levelOfSupport` do not affect whether $B$ has a Miner Ballot. In
+particular, $B$ has a Miner Ballot when every `levelOfSupport` in
+`vMinerSignals` is 0.
+
+If $B$ has a Miner Ballot for $P$, then $B$ rates option $o$ if and only if
+`vMinerSignals` has an entry whose `signalCode` is the Option Code of $o$. If
+$B$ rates $o$, then $L_{B,o}$, the Level of Support of $B$ for $o$, is the
+`levelOfSupport` of that entry. If $B$ does not rate $o$, then $L_{B,o} = 0$.
+
+If $B$ has no Miner Ballot for $P$, then $B$ rates no option, and
+$L_{B,o} = 0$ for every option $o$.
 
 Blocks before the activation of ZIP 248 have no coinbase bundle, and so have no
 Miner Ballot.
@@ -353,8 +364,9 @@ Let $N$ be the number of blocks in the Voting Period, i.e. Voting End Height −
 Voting Start Height, and let $V$ be the set of blocks in the Voting Period.
 $N$ is at least 1, because the Voting End Height is greater than the Voting
 Start Height. Each block in $V$ is one ballot, regardless of who mined it or
-the value of its coinbase outputs. A block rates option $o$ if $L_{B,o} > 0$; a
-block without a Miner Ballot rates no option.
+the value of its coinbase outputs. An option that a block does not rate counts
+with a Level of Support of 0 in the scoring and the runoff below, whether or
+not the block has a Miner Ballot.
 
 A Miner Ballot gives each option a score, which is sufficient information to
 interpret the responses to a question by several voting methods. Score voting
@@ -364,7 +376,8 @@ between the two options with the greatest score totals. STAR voting is
 RECOMMENDED, and the winners of a question are defined by it.
 
 For a question $q$, let $A_q$ be the number of blocks in $V$ that rate at least
-one option of $q$. If $A_q = 0$, $q$ has no result. Otherwise, for a question
+one option of $q$. A block that has a Miner Ballot and rates no option of $q$
+abstains on $q$. If $A_q = 0$, $q$ has no result. Otherwise, for a question
 whose `tally` has `"method": "star"` and `"winners": W`, the winners of $q$ are
 chosen by $W$ rounds of STAR voting [^star-voting], as follows. Let $C$ be the
 set of options of $q$. In each round:
@@ -407,11 +420,13 @@ A published result of a Miner Poll SHOULD include:
 * the height and hash of the last block of the Voting Period in the block
   chain that was tallied;
 * $N$, and the number of blocks in $V$ that have a Miner Ballot;
-* for each option $o$, and each Level of Support $\ell$ from 1 to 255, the
-  number of blocks $B$ in $V$ with $L_{B,o} = \ell$, where nonzero;
-* for each question $q$: $A_q$ and the percentage $100 \cdot A_q / N$; and, for
-  each round, the score totals, the possible finalist pairs, their runoff
-  counts, and the winner, or that the round is tied.
+* for each option $o$, and each Level of Support $\ell$ from 0 to 255, the
+  number of blocks in $V$ that rate $o$ with a Level of Support of $\ell$,
+  where nonzero;
+* for each question $q$: $A_q$ and the percentage $100 \cdot A_q / N$; the
+  number of blocks in $V$ that abstain on $q$; and, for each round, the score
+  totals, the possible finalist pairs, their runoff counts, and the winner, or
+  that the round is tied.
 
 The counts of blocks by option and Level of Support determine everything else in
 the result, and are authoritative. Any percentage in a summary of the result
@@ -425,8 +440,10 @@ it, as follows:
 
 * The Poll Definition SHOULD have the same questions and options as the
   Ecosystem Poll, identical in wording and order, so that the results of the two
-  polls can be compared. An explicit "Abstain" option of the Ecosystem Poll is
-  an ordinary option.
+  polls can be compared. The exception is an explicit "Abstain" option of the
+  Ecosystem Poll, which SHOULD be left out of the Poll Definition: a miner
+  abstains on a question by rating none of its options, and a published result
+  gives the number of blocks that do so.
 * A question for which the Ecosystem Poll allows a single selection SHOULD have
   `"winners": 1`. A question for which it allows up to $k$ selections, such as
   the election of $k$ members of a committee, SHOULD have `"winners": k`.
@@ -564,10 +581,12 @@ Miner Ballot. Then:
   5110000$, $S_2 = 2560000$, and $S_3 = 2570000$, so the finalists are options 1
   and 3. In the runoff, 20000 blocks rate option 1 above option 3 and 10000 rate
   option 3 above option 1, so option 1 wins. $A_1 = 30000$ (74.40%).
-* Question 2: $S_5 = 4000000$ and $S_4 = S_6 = 0$, so the possible finalist
-  pairs are $\{5, 4\}$ and $\{5, 6\}$. Option 5 wins both runoffs, 20000 to 0,
-  so option 5 wins although options 4 and 6 are tied. $A_2 = 20000$ (49.60%).
-* Question 3: no block rates any of its options, so it has no result.
+* Question 2: Miner B abstains. $S_5 = 4000000$ and $S_4 = S_6 = 0$, so the
+  possible finalist pairs are $\{5, 4\}$ and $\{5, 6\}$. Option 5 wins both
+  runoffs, 20000 to 0, so option 5 wins although options 4 and 6 are tied.
+  $A_2 = 20000$ (49.60%).
+* Question 3: both miners abstain, so no block rates any of its options, and
+  it has no result.
 * Question 4: option 10 wins the runoff against option 11, 20000 to 10000.
 * Question 5 has two winners. In the first round, the score totals are
   $S_{12} = 5100000$, $S_{13} = 6550000$, $S_{14} = 2000000$, and
@@ -586,7 +605,7 @@ are interpreted for this Poll Definition:
 | `09 01ff 0280 … 0e32 f2e5…d2c9` | Miner Ballot, as above. |
 | `00` | No Miner Ballot: no signals. |
 | `01 10ff f2e5…d2c9` | No Miner Ballot: 16 is not an Option Code of this Poll Definition. |
-| `01 0100 f2e5…d2c9` | No Miner Ballot: no nonzero Level of Support. |
+| `01 0100 f2e5…d2c9` | Miner Ballot that rates option 1 at 0, and abstains on questions 2 to 5. |
 | `01 01ff` followed by any other Poll Digest | No Miner Ballot for this Poll Definition. |
 | `02 0aff 01ff f2e5…d2c9` | Cannot occur: signal codes are not in ascending order, so ZIP 248 makes the block invalid. |
 
@@ -629,9 +648,9 @@ ballots prefer, which reduces the incentive to exaggerate scores. Question 5 of
 the [Example] shows the runoff overriding the score totals. Bloc STAR voting,
 which repeats STAR voting with each winner removed, chooses several winners
 without a separate ballot format, so the same Miner Ballot can answer a question
-that has one winner and a question that has several. A Level of Support of 0
-counts as the lowest possible score, as an unscored candidate does in STAR
-voting.
+that has one winner and a question that has several. An option that a Miner
+Ballot does not rate counts as if it were rated 0, the lowest possible score,
+as a candidate left blank does in STAR voting.
 
 STAR voting is usually described with scores from 0 to 5. The scores here range
 from 0 to 255 because that is the range of `levelOfSupport`; a finer scale does
@@ -653,6 +672,23 @@ of breaking it leads to the same winner, as in question 2 of the [Example], so
 it does not make the round tied. With tens of thousands of blocks in a Voting
 Period, ties that do affect the winner are unlikely except among options that
 few blocks rate.
+
+## Rationale for distinguishing no support from abstention
+
+A Miner Ballot that rates an option at 0 says that the miner considered the
+option and does not support it. A Miner Ballot with no entry for an option says
+nothing about that option. The two count alike in the scoring and the runoff,
+so the distinction does not change the winners, but a result records it.
+
+A Miner Ballot that rates every option of a question at 0 answers the question.
+It shows that the miner understood the options and approves of none of them,
+and it counts toward participation in that question. A Miner Ballot that rates
+none of the options of a question abstains on it. A question on which many
+miners abstain, while they answer the other questions, may have been unclear.
+
+For this reason a Poll Definition does not need an "Abstain" option. Such an
+option would be scored, and could win a round, as if it were one of the
+choices, when abstention is already expressed by rating nothing.
 
 ## Rationale for reporting participation
 
