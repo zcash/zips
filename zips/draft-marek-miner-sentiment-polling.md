@@ -10,9 +10,9 @@
 
 # Terminology
 
-The key words "MUST", "MUST NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", and
-"MAY" in this document are to be interpreted as described in BCP 14 [^BCP14]
-when, and only when, they appear in all capitals.
+The key words "MUST", "SHOULD", "SHOULD NOT", "RECOMMENDED", and "MAY" in this
+document are to be interpreted as described in BCP 14 [^BCP14] when, and only
+when, they appear in all capitals.
 
 The character § is used when referring to sections of the Zcash Protocol
 Specification. [^protocol]
@@ -94,9 +94,8 @@ Period is one ballot. Anyone can compute the result from the block chain and
 the Poll Definition.
 
 This ZIP does not specify who holds Miner Polls or what weight their results
-carry. It RECOMMENDS that whoever coordinates an Ecosystem Poll also publish a
-Poll Definition with the same questions, so that miners can be polled
-alongside.
+carry. It gives recommendations for a party that coordinates an Ecosystem Poll
+and wants to poll miners on the same questions alongside it.
 
 
 # Motivation
@@ -110,14 +109,11 @@ from circulation [^zip-0235]. An upgrade also activates safely only if miners
 run node software that supports it.
 
 Miners already have the ability to put free-form text in coinbase
-transactions, but without a common format that text cannot be tallied. This
-ZIP proposes that the coinbase bundle defined by ZIP 248 include structured
-miner signalling fields, and gives those fields a meaning: it specifies how a
-poll is defined and identified, how a miner responds to it, and how responses
-are interpreted. Because the Poll Definition commits to the method of
-interpretation of each question, the result of a Miner Poll is determined by
-the Poll Definition and the block chain, and should be interpreted using those
-semantics after miners have voted.
+transactions, but without a common format that text cannot be tallied. There
+is no agreed way to identify the poll to which a miner responds, to encode the
+miner's response, or to interpret the responses. Unless the method of
+interpretation is fixed before miners respond, it can be chosen after their
+responses are known.
 
 
 # Privacy Implications
@@ -372,9 +368,9 @@ coinbase outputs. A block rates option $o$ if $L_{B,o} > 0$; a block without a
 Miner Ballot rates no option.
 
 A Miner Ballot gives each option a score, which is sufficient information to
-interpret the responses to a question by several voting methods. This ZIP
-RECOMMENDS STAR voting, and version 1 of the Poll Definition format supports
-only that method.
+interpret the responses to a question by several voting methods. STAR voting
+is RECOMMENDED, and version 1 of the Poll Definition format supports only that
+method.
 
 For a question $q$, let $A_q$ be the number of blocks in $V$ that rate at least
 one option of $q$. If $A_q = 0$, $q$ has no result. Otherwise, for a question
