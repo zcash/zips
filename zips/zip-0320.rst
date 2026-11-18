@@ -19,7 +19,7 @@
 Terminology
 ===========
 
-The key words "MUST", "SHOULD", "NOT RECOMMENDED", and "MAY" in this document
+The key words "MUST", "MUST NOT", "SHOULD", "NOT RECOMMENDED", and "MAY" in this document
 are to be interpreted as described in BCP 14 [#BCP14]_ when, and only when,
 they appear in all capitals.
 
@@ -122,29 +122,57 @@ only transparent (P2SH or P2PKH) UTXOs are spent in the creation of the transact
 For simplicity of parsing and interpreting such transactions, they also SHOULD only
 send to transparent outputs.
 
-A TEX address can be produced from a Mainnet Zcash P2PKH Address by executing the
+The lead bytes of a P2PKH address and the human-readable prefix (HRP) of a TEX address
+depend on the network:
+
+======== ========================= ================== ========================
+Network  P2PKH address lead bytes  TEX HRP            Length of a TEX address
+======== ========================= ================== ========================
+Mainnet  ``[0x1C, 0xB8]``          ``"tex"``          42 characters
+Testnet  ``[0x1D, 0x25]``          ``"textest"``      46 characters
+Regtest  ``[0x1D, 0x25]``          ``"texregtest"``   49 characters
+======== ========================= ================== ========================
+
+Regtest is not a public network. Implementations that support a Regtest network
+SHOULD use the ``"texregtest"`` HRP for it, so that they interoperate.
+
+A TEX address can be produced from a Zcash P2PKH Address by executing the
 following steps:
 
 1. Decode the address to a byte sequence using the Base58Check decoding
-   algorithm [#Base58Check]_.
+   algorithm [#Base58Check]_. If the checksum is invalid, return an error.
 2. If the length of the resulting byte sequence is not 22 bytes or if its two-byte
-   address prefix is not $[\mathtt{0x1C}, \mathtt{0xB8}]$, return an error.
+   address prefix is not the P2PKH address lead bytes for the network in the table
+   above, return an error. In particular, a P2SH address MUST be rejected.
    Otherwise, let the **validating key hash** be the remaining 20 bytes of the
    sequence after removing the two-byte address prefix.
 3. Reencode the 20-byte **validating key hash** using the Bech32m encoding
-   defined in [#bip-0350]_ with the human-readable prefix (HRP) ``"tex"``.
+   defined in [#bip-0350]_ with the TEX HRP for the network. As required by
+   ZIP 173 [#zip-0173-uppercase-lowercase]_, the result MUST be all lowercase.
 
-For Testnet addresses, the required lead bytes of a P2PKH address in step 2 are
-$[\mathtt{0x1D}, \mathtt{0x25}]$, and the ``"textest"`` HRP is used when
-reencoding in step 3.
+A TEX address can be parsed by reversing this encoding. A Consumer MUST reject
+the address if any of the following steps fails:
 
-A TEX address can be parsed by reversing this encoding, i.e.:
+1. Decode the address using Bech32m [#bip-0350]_, following the decoding rules
+   of ZIP 173 [#zip-0173-decoding]_ [#zip-0173-uppercase-lowercase]_:
 
-1. Decode the address to a byte sequence using Bech32m [#bip-0350]_, checking
-   that the HRP is ``"tex"`` for a Mainnet TEX Address and ``"textest"`` for a
-   Testnet TEX Address.
-2. If the length of the resulting byte sequence is not 20 bytes, return an error.
+   * the address MUST NOT mix uppercase and lowercase characters. An all-uppercase
+     address MUST be accepted, and is treated as its lowercase form;
+   * the checksum MUST be a valid Bech32m checksum. An address whose checksum is
+     only valid as a Bech32 checksum [#bip-0173]_ MUST be rejected;
+   * when the data is converted to a byte sequence, any incomplete group at the end
+     MUST be 4 bits or fewer and MUST be all zeroes.
+2. Check that the HRP is the TEX HRP for the network that the Consumer is using.
+   A TEX address for any other network MUST be rejected.
+3. If the length of the resulting byte sequence is not 20 bytes, return an error.
    Otherwise, the **validating key hash** is this byte sequence.
+
+A 20-byte validating key hash encodes to exactly 32 characters before the checksum,
+so a valid TEX address has exactly the length given in the table above. The
+90-character limit of [#bip-0173]_ therefore never applies to a valid TEX address.
+
+An output that pays to a TEX address MUST use the P2PKH script for its validating
+key hash, i.e. the same script as an output to the corresponding P2PKH address.
 
 Design considerations for Senders
 ---------------------------------
@@ -186,21 +214,33 @@ Javascript::
    import bs58check from 'bs58check'
    import {bech32m} from 'bech32'
    
-   // From t1 to tex
+   // From t1 to tex (Mainnet). bs58check.decode throws on an invalid checksum.
    var b58decoded = bs58check.decode('t1VmmGiyjVNeCjxDZzg7vZmd99WyzVby9yC')
-   console.assert(b58decoded.length == 22, 'Invalid length');
-   console.assert(b58decoded[0] == 0x1C && b58decoded[1] == 0xB8, 'Invalid address prefix');
+   if (b58decoded.length != 22) throw new Error('Invalid length')
+   if (b58decoded[0] != 0x1C || b58decoded[1] != 0xB8) throw new Error('Invalid address prefix')
    var pkh = b58decoded.slice(2)
    var tex = bech32m.encode('tex', bech32m.toWords(pkh))
    console.log(tex)
    
-   // From tex to t1
+   // From tex to t1 (Mainnet). bech32m.decode throws on an invalid Bech32m checksum or mixed
+   // case, and bech32m.fromWords throws on invalid padding.
    var bech32decoded = bech32m.decode('tex1s2rt77ggv6q989lr49rkgzmh5slsksa9khdgte')
-   console.assert(bech32decoded.prefix == 'tex', 'Invalid address prefix')
+   if (bech32decoded.prefix != 'tex') throw new Error('Invalid address prefix')
    var pkh2 = Uint8Array.from(bech32m.fromWords(bech32decoded.words))
-   console.assert(pkh2.length == 20, 'Invalid length');
+   if (pkh2.length != 20) throw new Error('Invalid length')
    var t1 = bs58check.encode(Buffer.concat([Uint8Array.from([0x1C, 0xB8]), pkh2]))
    console.log(t1)
+
+``console.assert`` must not be used for these checks: it only logs a message, so
+the conversion would continue with an invalid input. For example, it would convert
+a P2SH address to a TEX address whose P2PKH script cannot be spent.
+
+Test Vectors
+============
+
+Test vectors for valid TEX addresses are in [#zip-0320-test-vectors]_. Test vectors
+for strings that a Consumer must reject, with the reason for each, are in
+[#zip-0320-invalid-test-vectors]_.
 
 Rationale
 =========
@@ -246,6 +286,8 @@ References
 .. [#hanh-profile] `Zcash Community Forum user @hanh <https://forum.zcashcommunity.com/u/hanh/summary>`_
 .. [#hanh-suggestion] `Ywallet developer @hanh's proposal <https://forum.zcashcommunity.com/t/important-potential-binance-delisting/45954/112>`_
 .. [#zip-0032] `ZIP 32: Shielded Hierarchical Deterministic Wallets <zip-0032.rst>`_
+.. [#zip-0173-decoding] `ZIP 173: Bech32 Format — Decoding <zip-0173.rst#decoding>`_
+.. [#zip-0173-uppercase-lowercase] `ZIP 173: Bech32 Format — Uppercase/lowercase <zip-0173.rst#uppercase-lowercase>`_
 .. [#zip-0316] `ZIP 316: Unified Addresses and Unified Viewing Keys <zip-0316.rst>`_
 .. [#zip-0316-terminology] `ZIP 316: Unified Addresses and Unified Viewing Keys — Terminology <zip-0316.rst#terminology>`_
 .. [#zip-0316-revision-1] `ZIP 316: Unified Addresses and Unified Viewing Keys — Revision 1 <zip-0316.rst#revision-1>`_
@@ -255,4 +297,7 @@ References
 .. [#binance-address-expiry] `Zcash Community Forum post describing motivations for address expiry <https://forum.zcashcommunity.com/t/unified-address-expiration/46564/6>`_
 .. [#Base58Check] `Base58Check encoding — Bitcoin Wiki <https://en.bitcoin.it/wiki/Base58Check_encoding>`_
 .. [#bip-0044] `BIP 44: Multi-Account Hierarchy for Deterministic Wallets <https://github.com/bitcoin/bips/blob/master/bip-0044.mediawiki>`_
+.. [#bip-0173] `BIP 173: Base32 address format for native v0-16 witness outputs <https://github.com/bitcoin/bips/blob/master/bip-0173.mediawiki>`_
 .. [#bip-0350] `BIP 350: Bech32m format for v1+ witness addresses <https://github.com/bitcoin/bips/blob/master/bip-0350.mediawiki>`_
+.. [#zip-0320-test-vectors] `Zcash test vectors for ZIP 320 <https://github.com/zcash/zcash-test-vectors/blob/master/test-vectors/json/zip_0320.json>`_
+.. [#zip-0320-invalid-test-vectors] `Zcash test vectors for invalid ZIP 320 addresses <https://github.com/zcash/zcash-test-vectors/blob/master/test-vectors/json/zip_0320_invalid.json>`_
