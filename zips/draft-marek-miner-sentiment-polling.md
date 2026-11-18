@@ -73,11 +73,6 @@ Voting Period
     Definition are counted, from the Voting Start Height to the Voting End
     Height.
 
-Participation Threshold
-:   The minimum share of the blocks in a Voting Period that rate at least one
-    option of a question, for the result of that question to be considered
-    representative of miners.
-
 
 # Abstract
 
@@ -170,7 +165,6 @@ and is a single JSON object with the following members:
 | `url` | string | The URL of a public announcement of the Miner Poll. |
 | `votingStartHeight` | integer | The Voting Start Height, from 1 to 499999999. |
 | `votingEndHeight` | integer | The Voting End Height, from `votingStartHeight` to 499999999. |
-| `participationThresholdBasisPoints` | integer | The Participation Threshold, in hundredths of a percent, from 0 to 10000. |
 | `questions` | array | One or more questions, each a JSON object as below. |
 
 Each question is a JSON object with the following members:
@@ -216,15 +210,13 @@ Option Codes are distinct, or that numbers have no fraction or exponent part.
   "type": "object",
   "additionalProperties": false,
   "required": ["version", "title", "url",
-               "votingStartHeight", "votingEndHeight",
-               "participationThresholdBasisPoints", "questions"],
+               "votingStartHeight", "votingEndHeight", "questions"],
   "properties": {
     "version": { "const": 1 },
     "title": { "type": "string", "minLength": 1 },
     "url": { "type": "string", "format": "uri" },
     "votingStartHeight": { "type": "integer", "minimum": 1, "maximum": 499999999 },
     "votingEndHeight": { "type": "integer", "minimum": 1, "maximum": 499999999 },
-    "participationThresholdBasisPoints": { "type": "integer", "minimum": 0, "maximum": 10000 },
     "questions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/question" } }
   },
   "$defs": {
@@ -287,8 +279,8 @@ in decimal without leading zeros, and strings are escaped as by ECMAScript's
 
 Any change to a Poll Definition other than its formatting, member order, or
 Unicode normalization changes its Poll Digest. A Miner Ballot therefore commits
-to the questions, options, Voting Period, Participation Threshold, and method of
-interpretation of the Poll Definition to which it responds.
+to the questions, options, Voting Period, and method of interpretation of the
+Poll Definition to which it responds.
 
 ## Miner Ballots
 
@@ -407,9 +399,6 @@ tied round is resolved or interpreted, and that may differ from one Miner Poll
 to another. A Poll Coordinator MAY state, in the announcement at `url`, how it
 intends a tied round to be interpreted.
 
-The result of $q$ is representative of miners if and only if
-$10000 \cdot A_q / N$ is at least `participationThresholdBasisPoints`.
-
 A published result of a Miner Poll SHOULD include:
 
 * the Poll Digest;
@@ -418,10 +407,9 @@ A published result of a Miner Poll SHOULD include:
 * $N$, and the number of blocks in $V$ that have a Miner Ballot;
 * for each option $o$, and each Level of Support $\ell$ from 1 to 255, the
   number of blocks $B$ in $V$ with $L_{B,o} = \ell$, where nonzero;
-* for each question $q$: $A_q$ and the percentage $100 \cdot A_q / N$; whether
-  the result is representative; and, for each round, the score totals, the
-  possible finalist pairs, their runoff counts, and the winner, or that the
-  round is tied.
+* for each question $q$: $A_q$ and the percentage $100 \cdot A_q / N$; and, for
+  each round, the score totals, the possible finalist pairs, their runoff
+  counts, and the winner, or that the round is tied.
 
 The counts of blocks by option and Level of Support determine everything else in
 the result, and are authoritative. Any percentage in a summary of the result
@@ -489,7 +477,6 @@ Consider the following hypothetical Poll Definition:
   "url": "https://forum.zcashcommunity.com/t/nu7-sentiment-polls-results/57590",
   "votingStartHeight": 3700000,
   "votingEndHeight": 3740319,
-  "participationThresholdBasisPoints": 2500,
   "questions": [
     {
       "title": "NSM issuance curve",
@@ -545,13 +532,13 @@ Consider the following hypothetical Poll Definition:
 }
 ```
 
-Its Canonical Encoding is the following 1616 bytes (shown here on one line):
+Its Canonical Encoding is the following 1575 bytes (shown here on one line):
 
 ```
-{"participationThresholdBasisPoints":2500,"questions":[{"description":"How should the block subsidy be issued after NU7?","options":[{"code":1,"label":"Smooth issuance curve"},{"code":2,"label":"Preserve halvings"},{"code":3,"label":"Do not include issuance smoothing in NU7"}],"tally":{"method":"star","winners":1},"title":"NSM issuance curve"},{"description":"When should burned funds start to be reissued?","options":[{"code":4,"label":"As soon as possible"},{"code":5,"label":"February 2027"},{"code":6,"label":"February 2031"}],"tally":{"method":"star","winners":1},"title":"NSM reissuance"},{"description":"When should v4 transactions stop being accepted?","options":[{"code":7,"label":"Immediately at NU7 activation"},{"code":8,"label":"One year after this poll"},{"code":9,"label":"Do not set a date"}],"tally":{"method":"star","winners":1},"title":"v4 transaction disablement"},{"description":"Should NU7 reduce the block target spacing to 25 seconds?","options":[{"code":10,"label":"Yes"},{"code":11,"label":"No"}],"tally":{"method":"star","winners":1},"title":"25-second block target spacing"},{"description":"Which two of these features should be prioritized for NU8?","options":[{"code":12,"label":"Zcash Shielded Assets"},{"code":13,"label":"Memo bundles"},{"code":14,"label":"Quantum recoverability"},{"code":15,"label":"Transparent pool deprecation"}],"tally":{"method":"star","winners":2},"title":"NU8 priorities"}],"title":"NU7 Miner Sentiment (example)","url":"https://forum.zcashcommunity.com/t/nu7-sentiment-polls-results/57590","version":1,"votingEndHeight":3740319,"votingStartHeight":3700000}
+{"questions":[{"description":"How should the block subsidy be issued after NU7?","options":[{"code":1,"label":"Smooth issuance curve"},{"code":2,"label":"Preserve halvings"},{"code":3,"label":"Do not include issuance smoothing in NU7"}],"tally":{"method":"star","winners":1},"title":"NSM issuance curve"},{"description":"When should burned funds start to be reissued?","options":[{"code":4,"label":"As soon as possible"},{"code":5,"label":"February 2027"},{"code":6,"label":"February 2031"}],"tally":{"method":"star","winners":1},"title":"NSM reissuance"},{"description":"When should v4 transactions stop being accepted?","options":[{"code":7,"label":"Immediately at NU7 activation"},{"code":8,"label":"One year after this poll"},{"code":9,"label":"Do not set a date"}],"tally":{"method":"star","winners":1},"title":"v4 transaction disablement"},{"description":"Should NU7 reduce the block target spacing to 25 seconds?","options":[{"code":10,"label":"Yes"},{"code":11,"label":"No"}],"tally":{"method":"star","winners":1},"title":"25-second block target spacing"},{"description":"Which two of these features should be prioritized for NU8?","options":[{"code":12,"label":"Zcash Shielded Assets"},{"code":13,"label":"Memo bundles"},{"code":14,"label":"Quantum recoverability"},{"code":15,"label":"Transparent pool deprecation"}],"tally":{"method":"star","winners":2},"title":"NU8 priorities"}],"title":"NU7 Miner Sentiment (example)","url":"https://forum.zcashcommunity.com/t/nu7-sentiment-polls-results/57590","version":1,"votingEndHeight":3740319,"votingStartHeight":3700000}
 ```
 
-and its Poll Digest is `34c404a6964621edcaacf0800dc079b5`.
+and its Poll Digest is `d814078cd24a1ffd8f7e5833249a8ca5`.
 
 Suppose that a miner, Miner A, rates option 1 at 255, option 2 at 128, option 3
 at 1, option 5 at 200, option 10 at 255, option 11 at 1, option 12 at 255,
@@ -559,7 +546,7 @@ option 13 at 200, and option 14 at 50, and does not rate options 4, 6, 7, 8, 9,
 or 15. The miner signalling fields of its coinbase bundles are then the 35 bytes
 
 ```
-09 01ff 0280 0301 05c8 0aff 0b01 0cff 0dc8 0e32 34c404a6964621edcaacf0800dc079b5
+09 01ff 0280 0301 05c8 0aff 0b01 0cff 0dc8 0e32 d814078cd24a1ffd8f7e5833249a8ca5
 ```
 
 that is, `nMinerSignals` = 9, nine (`signalCode`, `levelOfSupport`) pairs, and
@@ -574,8 +561,7 @@ Miner Ballot. Then:
 * Question 1: the score totals are $S_1 = 20000 \cdot 255 + 10000 \cdot 1 =
   5110000$, $S_2 = 2560000$, and $S_3 = 2570000$, so the finalists are options 1
   and 3. In the runoff, 20000 blocks rate option 1 above option 3 and 10000 rate
-  option 3 above option 1, so option 1 wins. $A_1 = 30000$ (74.40%), which is at
-  least the Participation Threshold of 25%.
+  option 3 above option 1, so option 1 wins. $A_1 = 30000$ (74.40%).
 * Question 2: $S_5 = 4000000$ and $S_4 = S_6 = 0$, so the possible finalist
   pairs are $\{5, 4\}$ and $\{5, 6\}$. Option 5 wins both runoffs, 20000 to 0,
   so option 5 wins although options 4 and 6 are tied. $A_2 = 20000$ (49.60%).
@@ -595,12 +581,12 @@ are interpreted for this Poll Definition:
 
 | Miner signalling fields | Result |
 |-------------------------|--------|
-| `09 01ff 0280 … 0e32 34c4…79b5` | Miner Ballot, as above. |
+| `09 01ff 0280 … 0e32 d814…8ca5` | Miner Ballot, as above. |
 | `00` | No Miner Ballot: no signals. |
-| `01 10ff 34c4…79b5` | No Miner Ballot: 16 is not an Option Code of this Poll Definition. |
-| `01 0100 34c4…79b5` | No Miner Ballot: no nonzero Level of Support. |
+| `01 10ff d814…8ca5` | No Miner Ballot: 16 is not an Option Code of this Poll Definition. |
+| `01 0100 d814…8ca5` | No Miner Ballot: no nonzero Level of Support. |
 | `01 01ff` followed by any other Poll Digest | No Miner Ballot for this Poll Definition. |
-| `02 0aff 01ff 34c4…79b5` | Cannot occur: signal codes are not in ascending order, so ZIP 248 makes the block invalid. |
+| `02 0aff 01ff d814…8ca5` | Cannot occur: signal codes are not in ascending order, so ZIP 248 makes the block invalid. |
 
 
 # Rationale
@@ -666,15 +652,23 @@ it does not make the round tied. With tens of thousands of blocks in a Voting
 Period, ties that do affect the winner are unlikely except among options that
 few blocks rate.
 
-## Rationale for the Participation Threshold
+## Rationale for reporting participation
 
 The winners of a question depend only on the blocks that rate its options, so a
-single miner could decide a question that few others answer. The Participation
-Threshold flags such results as unrepresentative. It applies to each question,
-since a Miner Ballot can leave a question unanswered, and it is given in basis
-points so that the Poll Definition contains only integers. The tally does not
-group blocks by miner, because coinbase outputs and pool tags are chosen by
-miners and do not reliably identify them.
+single miner could decide a question that few others answer. A published result
+therefore gives $A_q$, the number of blocks that rate an option of the
+question, alongside $N$. Participation is reported for each question, since a
+Miner Ballot can leave a question unanswered, and overall participation would
+overstate it for such a question.
+
+This ZIP sets no minimum participation for a result to count. A threshold would
+only turn the published participation into a yes or a no, and nothing
+determines what its value should be, so fixing one in the Poll Definition would
+invite disputes over the number instead of the result. Readers judge
+participation from the published counts.
+
+The tally does not group blocks by miner, because coinbase outputs and pool
+tags are chosen by miners and do not reliably identify them.
 
 ## Rationale for coinbase bundle fields
 
@@ -703,14 +697,14 @@ the network upgrade that deploys ZIP 248.
 ## Rationale for the Poll Digest
 
 The Poll Digest binds a Miner Ballot to the exact text of the questions and
-options that the miner rated, and to the Voting Period, Participation Threshold,
-and methods of interpretation under which they will be tallied. Option Codes
-therefore need to be unique only within a Poll Definition, and a miner still
-configured for a superseded or earlier Poll Definition never contributes to a
-later one. Sixteen bytes make an accidental collision negligible; a deliberate
-collision gains nothing, since the Poll Coordinator publishes the Poll
-Definition and the Poll Digest together. The personalization string separates
-Poll Digests from other BLAKE2b hashes used in Zcash.
+options that the miner rated, and to the Voting Period and methods of
+interpretation under which they will be tallied. Option Codes therefore need to
+be unique only within a Poll Definition, and a miner still configured for a
+superseded or earlier Poll Definition never contributes to a later one. Sixteen
+bytes make an accidental collision negligible; a deliberate collision gains
+nothing, since the Poll Coordinator publishes the Poll Definition and the Poll
+Digest together. The personalization string separates Poll Digests from other
+BLAKE2b hashes used in Zcash.
 
 A Poll Definition has no identifier of its own, because the Poll Digest already
 identifies its contents; the `title` serves for display. It does not name a
