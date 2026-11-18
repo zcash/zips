@@ -50,26 +50,36 @@ The service flag `NODE_NETWORK_LIMITED` is defined as bit 10
 
 A node that sets `NODE_NETWORK_LIMITED` MUST be able to serve every block of
 its best chain at a height greater than its best tip height minus 2,304, in
-response to `getdata` requests with `MSG_BLOCK`.
+response to `getdata` requests with `MSG_BLOCK`. A node that does not hold all
+of these blocks, for example because it retains fewer than 2,304 blocks or
+started from a recent state snapshot, MUST NOT set it until it does.
 
-A node that cannot serve the complete block chain SHOULD set
-`NODE_NETWORK_LIMITED` if it meets this requirement. A node that sets
-`NODE_NETWORK` MAY also set it.
+A node that cannot serve the complete block chain MUST NOT set `NODE_NETWORK`,
+and SHOULD set `NODE_NETWORK_LIMITED` if it meets the requirement above. A
+node that sets `NODE_NETWORK` MAY also set it.
 
 ## Serving
 
 A limited peer SHOULD NOT serve blocks more than 2,304 blocks below its best
-tip. It MAY disconnect a peer that requests a block more than 2,306 blocks
-below its best tip; the 2-block margin allows for the best tip advancing while
-a request is in flight.
+tip, and SHOULD answer requests for them with `notfound`. It MAY disconnect a
+peer that requests a block more than 2,306 blocks below its best tip; the
+2-block margin allows for the best tip advancing while a request is in
+flight.
 
 ## Requesting
 
-A node MUST NOT request a block from a limited peer if that block is more than
-2,304 blocks below the node's own best tip. A node SHOULD rely on limited
-peers for blocks only while its best tip is within 1,152 blocks of the
-network's best tip, leaving half of the window for chain reorganizations and
-for differences between the two nodes' best tips.
+A node MUST NOT request a block from a limited peer unless it knows the
+block's height from its own validated chain, and that height is within 2,304
+blocks of its own best tip. A block whose parent is in the node's best chain
+has a known height. A block known only by its hash, for example from an `inv`
+message, does not, and the node MUST request it from another peer or learn its
+height first.
+
+A node SHOULD rely on limited peers for blocks only while its best tip is
+within 1,152 blocks of the network's best tip, leaving half of the window for
+chain reorganizations and for differences between the two nodes' best tips.
+It SHOULD send `getblocks` to a limited peer only when the first hash in the
+request's block locator is its own best tip.
 
 ## Address Relay
 
@@ -98,6 +108,12 @@ The 1,152-block margin for requesters, and the rule against serving older
 blocks, follow BIP 159's 144-block reorganization buffer and its
 fingerprinting countermeasure. BIP 159 does not specify disconnection; the
 2-block margin follows Bitcoin Core's implementation [^bitcoin-core-limited].
+
+A peer can announce the hash of any block, including one far below the window,
+so a requester checks the window against a height it has validated itself. An
+announcement that carries the block header, such as a compact block, names the
+parent, so a block a limited peer has just mined can still be requested from
+that peer.
 
 
 # Security and Privacy Considerations
