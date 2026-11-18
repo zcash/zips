@@ -166,9 +166,7 @@ and is a single JSON object with the following members:
 | Member | Type | Meaning |
 |--------|------|---------|
 | `version` | integer | The version of this format. MUST be 1. |
-| `id` | string | A short identifier for the Miner Poll: 1 to 16 characters, each a lowercase ASCII letter `a` to `z`, an ASCII digit `0` to `9`, or a hyphen `-`. |
 | `title` | string | A non-empty, human-readable title for the Miner Poll. |
-| `network` | string | `"mainnet"` or `"testnet"`. |
 | `url` | string | The URL of a public announcement of the Miner Poll. |
 | `votingStartHeight` | integer | The Voting Start Height, from 1 to 499999999. |
 | `votingEndHeight` | integer | The Voting End Height, from `votingStartHeight` to 499999999. |
@@ -217,14 +215,12 @@ Option Codes are distinct, or that numbers have no fraction or exponent part.
   "title": "Miner Sentiment Poll Definition, version 1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "id", "title", "network", "url",
+  "required": ["version", "title", "url",
                "votingStartHeight", "votingEndHeight",
                "participationThresholdBasisPoints", "questions"],
   "properties": {
     "version": { "const": 1 },
-    "id": { "type": "string", "pattern": "^[a-z0-9-]{1,16}$" },
     "title": { "type": "string", "minLength": 1 },
-    "network": { "enum": ["mainnet", "testnet"] },
     "url": { "type": "string", "format": "uri" },
     "votingStartHeight": { "type": "integer", "minimum": 1, "maximum": 499999999 },
     "votingEndHeight": { "type": "integer", "minimum": 1, "maximum": 499999999 },
@@ -323,14 +319,12 @@ Software that prepares Miner Ballots SHOULD:
    Definition;
 2. compute and display its Poll Digest, so that the miner can compare it with
    the Poll Digest published by the Poll Coordinator;
-3. display the `network`, the Voting Period, and each question with its
-   `description`, its options, and its method of interpretation, including its
-   number of winners;
+3. display the Voting Period, and each question with its `description`, its
+   options, and its method of interpretation, including its number of winners;
 4. for each option, let the miner choose a Level of Support from 0 to 255,
    with 0 as the default;
 5. include the resulting Miner Ballot only in the coinbase transactions of
-   blocks on the network of the Poll Definition, at heights within its Voting
-   Period.
+   blocks at heights within the Voting Period.
 
 This ZIP does not specify how such software stores a miner's ratings, or how it
 configures the software that constructs coinbase transactions.
@@ -351,15 +345,16 @@ for option $o$, is the `levelOfSupport` of the entry whose `signalCode` is the
 Option Code of $o$, or 0 if there is no such entry. If $B$ has no Miner Ballot
 for $P$, then $L_{B,o} = 0$ for every option $o$.
 
-Blocks before the activation of ZIP 248 on the network of $P$ have no coinbase
-bundle, and so have no Miner Ballot.
+Blocks before the activation of ZIP 248 have no coinbase bundle, and so have no
+Miner Ballot.
 
 ## Interpretation of Results
 
-The result of a Miner Poll is defined over the best valid block chain of the
-network of its Poll Definition, once that chain contains the block at the Voting
-End Height. Parties that compute the result SHOULD wait until the block at the
-Voting End Height has at least 100 confirmations.
+A Poll Definition does not name a network. The result of a Miner Poll is
+defined for a Poll Definition and a network, over the best valid block chain of
+that network, once that chain contains the block at the Voting End Height.
+Parties that compute the result SHOULD wait until the block at the Voting End
+Height has at least 100 confirmations.
 
 Let $N$ be the number of blocks in the Voting Period, i.e. Voting End Height −
 Voting Start Height + 1, and let $V$ be the set of blocks in the Voting Period.
@@ -458,12 +453,10 @@ it, as follows:
   Definition, which has a different Poll Digest, before the block at the Voting
   Start Height of the original is mined, and state that it supersedes the
   original.
-* The Voting Periods of two Poll Definitions on the same network SHOULD NOT
+* The Voting Periods of two Miner Polls held on the same network SHOULD NOT
   overlap, since a block carries at most one Poll Digest. Questions that would
   be asked in concurrent Miner Polls SHOULD be combined into a single Poll
   Definition.
-* The `id` of a Poll Definition SHOULD differ from the `id` of every earlier
-  Poll Definition on the same network.
 * The Poll Coordinator SHOULD publish the result of the Miner Poll alongside
   the result of the Ecosystem Poll.
 
@@ -472,25 +465,27 @@ relative to the result of an Ecosystem Poll, or how the two are combined.
 
 ## Testnet-specific considerations
 
-It is RECOMMENDED that a Miner Poll on Mainnet be rehearsed on Testnet. A Poll
-Definition on Testnet has `"network": "testnet"` and Testnet block heights, so
-its Poll Digest differs from that of any Poll Definition on Mainnet. A Poll
-Definition on Testnet that rehearses a Miner Poll on Mainnet SHOULD use the
-questions, options, and methods of interpretation of that Mainnet Poll
+It is RECOMMENDED that a Miner Poll on Mainnet be rehearsed on Testnet. Block
+heights on Testnet differ from those on Mainnet, so the rehearsal normally
+needs its own Poll Definition, whose Voting Period is given in Testnet block
+heights and whose Poll Digest therefore differs. That Poll Definition SHOULD
+use the questions, options, and methods of interpretation of the Mainnet Poll
 Definition, so that miners rehearse the same ratings with the same tools.
+
+Miner Ballots for the same Poll Definition can be cast on more than one
+network. The result on each network is computed from the block chain of that
+network alone.
 
 ## Example
 
 This subsection is non-normative.
 
-Consider the following hypothetical Poll Definition on Testnet:
+Consider the following hypothetical Poll Definition:
 
 ```json
 {
   "version": 1,
-  "id": "nu7-example",
   "title": "NU7 Miner Sentiment (example)",
-  "network": "testnet",
   "url": "https://forum.zcashcommunity.com/t/nu7-sentiment-polls-results/57590",
   "votingStartHeight": 3700000,
   "votingEndHeight": 3740319,
@@ -550,13 +545,13 @@ Consider the following hypothetical Poll Definition on Testnet:
 }
 ```
 
-Its Canonical Encoding is the following 1655 bytes (shown here on one line):
+Its Canonical Encoding is the following 1616 bytes (shown here on one line):
 
 ```
-{"id":"nu7-example","network":"testnet","participationThresholdBasisPoints":2500,"questions":[{"description":"How should the block subsidy be issued after NU7?","options":[{"code":1,"label":"Smooth issuance curve"},{"code":2,"label":"Preserve halvings"},{"code":3,"label":"Do not include issuance smoothing in NU7"}],"tally":{"method":"star","winners":1},"title":"NSM issuance curve"},{"description":"When should burned funds start to be reissued?","options":[{"code":4,"label":"As soon as possible"},{"code":5,"label":"February 2027"},{"code":6,"label":"February 2031"}],"tally":{"method":"star","winners":1},"title":"NSM reissuance"},{"description":"When should v4 transactions stop being accepted?","options":[{"code":7,"label":"Immediately at NU7 activation"},{"code":8,"label":"One year after this poll"},{"code":9,"label":"Do not set a date"}],"tally":{"method":"star","winners":1},"title":"v4 transaction disablement"},{"description":"Should NU7 reduce the block target spacing to 25 seconds?","options":[{"code":10,"label":"Yes"},{"code":11,"label":"No"}],"tally":{"method":"star","winners":1},"title":"25-second block target spacing"},{"description":"Which two of these features should be prioritized for NU8?","options":[{"code":12,"label":"Zcash Shielded Assets"},{"code":13,"label":"Memo bundles"},{"code":14,"label":"Quantum recoverability"},{"code":15,"label":"Transparent pool deprecation"}],"tally":{"method":"star","winners":2},"title":"NU8 priorities"}],"title":"NU7 Miner Sentiment (example)","url":"https://forum.zcashcommunity.com/t/nu7-sentiment-polls-results/57590","version":1,"votingEndHeight":3740319,"votingStartHeight":3700000}
+{"participationThresholdBasisPoints":2500,"questions":[{"description":"How should the block subsidy be issued after NU7?","options":[{"code":1,"label":"Smooth issuance curve"},{"code":2,"label":"Preserve halvings"},{"code":3,"label":"Do not include issuance smoothing in NU7"}],"tally":{"method":"star","winners":1},"title":"NSM issuance curve"},{"description":"When should burned funds start to be reissued?","options":[{"code":4,"label":"As soon as possible"},{"code":5,"label":"February 2027"},{"code":6,"label":"February 2031"}],"tally":{"method":"star","winners":1},"title":"NSM reissuance"},{"description":"When should v4 transactions stop being accepted?","options":[{"code":7,"label":"Immediately at NU7 activation"},{"code":8,"label":"One year after this poll"},{"code":9,"label":"Do not set a date"}],"tally":{"method":"star","winners":1},"title":"v4 transaction disablement"},{"description":"Should NU7 reduce the block target spacing to 25 seconds?","options":[{"code":10,"label":"Yes"},{"code":11,"label":"No"}],"tally":{"method":"star","winners":1},"title":"25-second block target spacing"},{"description":"Which two of these features should be prioritized for NU8?","options":[{"code":12,"label":"Zcash Shielded Assets"},{"code":13,"label":"Memo bundles"},{"code":14,"label":"Quantum recoverability"},{"code":15,"label":"Transparent pool deprecation"}],"tally":{"method":"star","winners":2},"title":"NU8 priorities"}],"title":"NU7 Miner Sentiment (example)","url":"https://forum.zcashcommunity.com/t/nu7-sentiment-polls-results/57590","version":1,"votingEndHeight":3740319,"votingStartHeight":3700000}
 ```
 
-and its Poll Digest is `b52532f6354e1958ff040873d49b9db2`.
+and its Poll Digest is `34c404a6964621edcaacf0800dc079b5`.
 
 Suppose that a miner, Miner A, rates option 1 at 255, option 2 at 128, option 3
 at 1, option 5 at 200, option 10 at 255, option 11 at 1, option 12 at 255,
@@ -564,7 +559,7 @@ option 13 at 200, and option 14 at 50, and does not rate options 4, 6, 7, 8, 9,
 or 15. The miner signalling fields of its coinbase bundles are then the 35 bytes
 
 ```
-09 01ff 0280 0301 05c8 0aff 0b01 0cff 0dc8 0e32 b52532f6354e1958ff040873d49b9db2
+09 01ff 0280 0301 05c8 0aff 0b01 0cff 0dc8 0e32 34c404a6964621edcaacf0800dc079b5
 ```
 
 that is, `nMinerSignals` = 9, nine (`signalCode`, `levelOfSupport`) pairs, and
@@ -600,12 +595,12 @@ are interpreted for this Poll Definition:
 
 | Miner signalling fields | Result |
 |-------------------------|--------|
-| `09 01ff 0280 … 0e32 b525…9db2` | Miner Ballot, as above. |
+| `09 01ff 0280 … 0e32 34c4…79b5` | Miner Ballot, as above. |
 | `00` | No Miner Ballot: no signals. |
-| `01 10ff b525…9db2` | No Miner Ballot: 16 is not an Option Code of this Poll Definition. |
-| `01 0100 b525…9db2` | No Miner Ballot: no nonzero Level of Support. |
+| `01 10ff 34c4…79b5` | No Miner Ballot: 16 is not an Option Code of this Poll Definition. |
+| `01 0100 34c4…79b5` | No Miner Ballot: no nonzero Level of Support. |
 | `01 01ff` followed by any other Poll Digest | No Miner Ballot for this Poll Definition. |
-| `02 0aff 01ff b525…9db2` | Cannot occur: signal codes are not in ascending order, so ZIP 248 makes the block invalid. |
+| `02 0aff 01ff 34c4…79b5` | Cannot occur: signal codes are not in ascending order, so ZIP 248 makes the block invalid. |
 
 
 # Rationale
@@ -710,13 +705,19 @@ the network upgrade that deploys ZIP 248.
 The Poll Digest binds a Miner Ballot to the exact text of the questions and
 options that the miner rated, and to the Voting Period, Participation Threshold,
 and methods of interpretation under which they will be tallied. Option Codes
-therefore need to be unique only within a Poll Definition, a miner still
+therefore need to be unique only within a Poll Definition, and a miner still
 configured for a superseded or earlier Poll Definition never contributes to a
-later one, and a Poll Definition on Testnet never counts on Mainnet. Sixteen
-bytes make an accidental collision negligible; a deliberate collision gains
-nothing, since the Poll Coordinator publishes the Poll Definition and the Poll
-Digest together. The personalization string separates Poll Digests from other
-BLAKE2b hashes used in Zcash.
+later one. Sixteen bytes make an accidental collision negligible; a deliberate
+collision gains nothing, since the Poll Coordinator publishes the Poll
+Definition and the Poll Digest together. The personalization string separates
+Poll Digests from other BLAKE2b hashes used in Zcash.
+
+A Poll Definition has no identifier of its own, because the Poll Digest already
+identifies its contents; the `title` serves for display. It does not name a
+network either. The tally for a network reads only the block chain of that
+network, so a Miner Ballot cast on Testnet never counts on Mainnet, and a
+rehearsal on Testnet normally has different block heights and therefore a
+different Poll Digest.
 
 The Canonical Encoding makes the Poll Digest independent of how the Poll
 Definition was formatted, so that tools written in different languages compute
