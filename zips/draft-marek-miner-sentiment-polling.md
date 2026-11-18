@@ -368,9 +368,11 @@ coinbase outputs. A block rates option $o$ if $L_{B,o} > 0$; a block without a
 Miner Ballot rates no option.
 
 A Miner Ballot gives each option a score, which is sufficient information to
-interpret the responses to a question by several voting methods. STAR voting
-is RECOMMENDED, and version 1 of the Poll Definition format supports only that
-method.
+interpret the responses to a question by several voting methods. Score voting
+is supported directly: the score totals $S_o$ computed in the first step below
+are its result, and a published result includes them. STAR voting adds a runoff
+between the two options with the greatest score totals. STAR voting is
+RECOMMENDED, and the winners of a question are defined by it.
 
 For a question $q$, let $A_q$ be the number of blocks in $V$ that rate at least
 one option of $q$. If $A_q = 0$, $q$ has no result. Otherwise, for a question
