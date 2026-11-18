@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ZIP 223: Reduce Block Target Spacing from 25 to 20 Seconds</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/katex.min.css" integrity="sha384-fgYS3VC1089n2J3rVcEbXDHlnDLQ9B2Y1hvpQ720q1NvxCduQqT4JoGc4u2QCnzE" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/katex.min.js" integrity="sha384-YPHNAPyrxGS8BNnA7Q4ommqra8WQPEjooVSLzFgwgs8OXJBvadbyvx4QpfiFurGr" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/contrib/auto-render.min.js" integrity="sha384-JKXHIJf8PKPyDFptuKZoUyMRQJAmQKj4B4xyOca62ebJhciMYGiDdq/9twUUWyZH" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<pre><code>ZIP: 223
+Title: Reduce Block Target Spacing from 25 to 20 Seconds
+Owners: Dev Ojha &lt;dev@valargroup.dev&gt;
+        Evan Forbes &lt;evan@valargroup.dev&gt;
+Status: Draft
+Category: Consensus
+Created: 2026-11-04
+License: MIT
+Discussions-To: &lt;<a href="https://forum.zcashcommunity.com/t/proposal-lower-zcash-block-target-spacing-from-25s-to-20s/59035">https://forum.zcashcommunity.com/t/proposal-lower-zcash-block-target-spacing-from-25s-to-20s/59035</a>&gt;
+</code></pre>
+
+<h1 id="terminology"><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>The key words &#8220;MUST&#8221;, &#8220;MUST NOT&#8221;, and &#8220;SHOULD&#8221; in this document are to be
+interpreted as described in BCP 14 <a href="#fn:1" id="fnref:1" title="see footnote" class="footnote"><sup>1</sup></a> when, and only when, they appear
+in all capitals.</p>
+
+<p>The terms &#8220;block chain&#8221;, &#8220;consensus branch&#8221;, and &#8220;network upgrade&#8221; follow
+ZIP 200. <a href="#fn:2" id="fnref:2" title="see footnote" class="footnote"><sup>2</sup></a> The character § refers to sections of the Zcash Protocol
+Specification. <a href="#fn:3" id="fnref:3" title="see footnote" class="footnote"><sup>3</sup></a></p>
+
+<p>&#8220;Block target spacing&#8221; means the interval between blocks targeted by the
+difficulty adjustment algorithm. Actual block intervals vary.</p>
+
+<p>The &#8220;25-second baseline&#8221; means the rules after NU7, including ZIP 218&#8217;s
+25-second target spacing and ZIP 237&#8217;s subsidy definitions. <a href="#fn:4" id="fnref:4" title="see footnote" class="footnote"><sup>4</sup></a>
+<a href="#fn:5" id="fnref:5" title="see footnote" class="footnote"><sup>5</sup></a></p>
+
+<p>An &#8220;orphan block&#8221; is a valid mined block that does not remain on the selected
+chain. The &#8220;orphan rate&#8221; is the fraction of all mined blocks that become
+orphan blocks.</p>
+
+<p>&#8220;Reach 90%&#8221; means the mean time from a block&#8217;s solution until 90% of the
+nodes have verified it.</p>
+
+<p>MB means 1,000,000 bytes.</p>
+
+<h1 id="abstract"><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>This proposal reduces block target spacing from 25 to 20 seconds in a
+network upgrade after NU7. It builds on ZIP 218 and lowers its per-block
+shielded action limits and global shielded budget by 20%, from 330 to 264
+Orchard-protocol actions and from 300 to 240 Sapling inputs and outputs.
+<a href="#fn:4" title="see footnote" class="footnote"><sup>4</sup></a> <a href="#fn:6" id="fnref:6" title="see footnote" class="footnote"><sup>6</sup></a> The block size limit is unchanged.</p>
+
+<p>The change reduces the expected wait for a first confirmation by 20%.
+Shielded throughput, worst-case light wallet bandwidth, and trial decryptions
+per day are unchanged, apart from 25% more block headers. It adjusts the
+difficulty averaging window, issuance parameters, and duration-based node
+defaults to the new spacing. Shorter inclusion intervals can expose finer
+transaction timing information.</p>
+
+<h1 id="motivation"><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>A 20-second target reduces the expected wait for a first confirmation by
+five seconds. ZIP 218 chose its shielded action limits to bound worst-case
+light wallet sync bandwidth and trial decryptions per day. <a href="#fn:4" title="see footnote" class="footnote"><sup>4</sup></a>
+Scaling those limits with the target spacing keeps these bounds, so mobile
+and other light wallets pay only for the additional block headers.
+This proposal evaluates that incremental trade-off from ZIP 218&#8217;s baseline.</p>
+
+<h1 id="privacyimplications"><span class="section-heading">Privacy Implications</span><span class="section-anchor"> <a rel="bookmark" href="#privacyimplications"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>ZIP 218 identifies timing and anchor-depth privacy effects. <a href="#fn:4" title="see footnote" class="footnote"><sup>4</sup></a>
+Shorter blocks give observers finer timing information without changing what
+individual shielded transactions reveal.</p>
+
+<p>A three-block anchor depth spans an expected 60 seconds instead of 75.
+A rollback past the anchor invalidates the transaction. A replacement spending
+the same notes exposes the same nullifiers, linking the two transactions.
+Ordinary orphan-block measurements do not bound rollback depth.</p>
+
+<p>The smaller per-block action limits do not change the maximum shielded
+throughput per unit time. Under sustained demand for a pool, ZIP 218&#8217;s
+observation that the limits can delay transactions and make their timing more
+distinguishable continues to apply. <a href="#fn:4" title="see footnote" class="footnote"><sup>4</sup></a></p>
+
+<h1 id="requirements"><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<ul>
+<li>Reduce target spacing from 25 to 20 seconds after NU7.</li>
+<li>Preserve approximately the difficulty averaging duration and issuance schedule,
+including partial halving intervals, subject to integer rounding.</li>
+<li>Preserve ZIP 218&#8217;s worst-case shielded throughput, compact sync bandwidth for
+shielded data, and trial decryptions per day.</li>
+<li>Preserve historical consensus rules and integrate the transition with ZIP 237
+and active funding-stream schedules.</li>
+</ul>
+
+<h1 id="specification"><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>This section applies to the post-NU7 rules of ZIPs 218 and 237.
+<a href="#fn:4" title="see footnote" class="footnote"><sup>4</sup></a> <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a> Implementations MUST retain all pre-activation rules
+at heights below the new activation height.</p>
+
+<h2 id="activationandtargetspacing"><span class="section-heading">Activation and target spacing</span><span class="section-anchor"> <a rel="bookmark" href="#activationandtargetspacing"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Define the following constants:</p>
+
+<p><span class="math">\[\mathsf{TwentySecondActivationHeight} : \mathbb{N}\]</span>
+<span class="math">\[\mathsf{TwentySecondPoWTargetSpacing} : \mathbb{N} := 20 \text{ seconds}\]</span>
+<span class="math">\[\mathsf{TwentySecondSpacingRatio} : \mathbb{Q}_{&gt;0} := 25/20 = 5/4\]</span></p>
+
+<p>A separate deployment ZIP will assign <span class="math">\(\mathsf{TwentySecondActivationHeight}\)</span>
+for each network. It MUST be strictly greater than that network&#8217;s
+<span class="math">\(\mathsf{NU7ActivationHeight}\kern-0.05em\textsf{.}\)</span> No NU7 activation constant changes.</p>
+
+<p>For a height <span class="math">\(h \in \mathbb{N}\)</span> at or above this activation height, define:</p>
+
+<p><span class="math">\[\mathsf{PoWTargetSpacing}(h) := \mathsf{TwentySecondPoWTargetSpacing}.\]</span></p>
+
+<p>For <span class="math">\(h &lt; \mathsf{TwentySecondActivationHeight}\kern-0.05em\textsf{,}\)</span> retain ZIP 218&#8217;s
+definition of <span class="math">\(\mathsf{PoWTargetSpacing}\kern-0.05em\textsf{.}\)</span>
+In particular, <span class="math">\(\mathsf{PostNU7PoWTargetSpacing}\)</span> remains 25 seconds.</p>
+
+<h2 id="difficultyaveragingwindow"><span class="section-heading">Difficulty averaging window</span><span class="section-anchor"> <a rel="bookmark" href="#difficultyaveragingwindow"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The difficulty adjustment algorithm (DAA) averages over 128 blocks after
+activation, replacing ZIP 218&#8217;s 102-block window. The larger block count
+preserves approximately the same expected averaging duration at the shorter
+target spacing.</p>
+
+<p>Define:</p>
+
+<p><span class="math">\[\mathsf{TwentySecondPoWAveragingWindow} : \mathbb{N} := 128.\]</span></p>
+
+<p>For <span class="math">\(h \geq \mathsf{TwentySecondActivationHeight}\kern-0.05em\textsf{,}\)</span> define:</p>
+
+<p><span class="math">\[\mathsf{PoWAveragingWindow}(h) := \mathsf{TwentySecondPoWAveragingWindow}.\]</span></p>
+
+<p>For <span class="math">\(h &lt; \mathsf{TwentySecondActivationHeight}\kern-0.05em\textsf{,}\)</span> retain ZIP 218&#8217;s
+averaging window, including 102 blocks after NU7 activation. All uses of this
+function in the difficulty algorithm use the height of the block under
+consideration.</p>
+
+<p>The averaging window includes pre-activation blocks when its lookback crosses
+the activation height. Implementations MUST NOT reset it at activation.
+ZIP 218&#8217;s difficulty formulae therefore use:</p>
+
+<ul>
+<li>a 128-block lookback for <span class="math">\(\mathsf{MeanTarget}(h)\kern-0.05em\textsf{;}\)</span></li>
+<li><span class="math">\(\mathsf{ActualTimespan}(h) = \mathsf{MedianTime}(h) - \mathsf{MedianTime}(h-128)\kern-0.05em\textsf{;}\)</span></li>
+<li><span class="math">\(\mathsf{AveragingWindowTimespan}(h) = 128\times20 = 2{,}560\)</span> seconds.</li>
+</ul>
+
+<p>The median-time span, damping factor, adjustment bounds, and proof-of-work
+limit remain unchanged. Implementations MUST apply the existing difficulty
+algorithm with these height-dependent inputs from the activation block;
+there is no separate difficulty reset.</p>
+
+<h2 id="halvingintervalandscheduledsubsidy"><span class="section-heading">Halving interval and scheduled subsidy</span><span class="section-anchor"> <a rel="bookmark" href="#halvingintervalandscheduledsubsidy"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Define:</p>
+
+<p><span class="math">\[\mathsf{TwentySecondHalvingInterval} : \mathbb{N} := \mathsf{PostNU7HalvingInterval}\cdot 5/4 = 6{,}300{,}000.\]</span></p>
+
+<p>For the following formula, let <span class="math">\(A_{20} = \mathsf{TwentySecondActivationHeight}\kern-0.05em\textsf{,}\)</span>
+<span class="math">\(A_7 = \mathsf{NU7ActivationHeight}\kern-0.05em\textsf{,}\)</span> and
+<span class="math">\(A_B = \mathsf{BlossomActivationHeight}\kern-0.05em\textsf{.}\)</span> These are nonnegative integer heights.
+For <span class="math">\(h \geq A_{20}\kern-0.05em\textsf{,}\)</span> define:</p>
+
+<p><span class="math">\[\mathsf{Halving}(h) := \left\lfloor \frac{A_B-\mathsf{SlowStartShift}}{840{,}000} +\frac{A_7-A_B}{1{,}680{,}000} +\frac{A_{20}-A_7}{5{,}040{,}000} +\frac{h-A_{20}}{6{,}300{,}000} \right\rfloor.\]</span></p>
+
+<p>The denominators are the pre-Blossom, post-Blossom, post-NU7, and 20-second
+halving intervals, respectively. For <span class="math">\(h &lt; A_{20}\kern-0.05em\textsf{,}\)</span> retain ZIP 218&#8217;s halving
+function, including its slow-start cases. Implementations MUST preserve the fractional progress through the
+halving interval at activation. They MUST NOT restart an interval at <span class="math">\(A_{20}\kern-0.05em\textsf{.}\)</span></p>
+
+<p>For <span class="math">\(h \geq A_{20}\kern-0.05em\textsf{,}\)</span> replace ZIP 237&#8217;s scheduled subsidy with:</p>
+
+<p><span class="math">\[\mathsf{ScheduledBlockSubsidy}(h) := \left\lfloor \frac{\mathsf{MaxBlockSubsidy}}{2\cdot3\cdot(5/4)\cdot 2^{\mathsf{Halving}(h)}} \right\rfloor.\]</span></p>
+
+<p>The factors 2, 3, and <span class="math">\(5/4\)</span> are the Blossom, NU7, and 20-second spacing
+ratios, respectively. The result is a nonnegative integer number of zatoshi.
+Implementations MUST use the exact rational ratio <span class="math">\(5/4\)</span> and apply the floor only to the complete
+expression. Multiplying an already-rounded 25-second subsidy by <span class="math">\(4/5\)</span> can
+produce a different answer.</p>
+
+<p>For example, at halving index 3 the scheduled subsidy changes from
+26,041,666 zatoshi to 20,833,333 zatoshi. Flooring
+<span class="math">\(26{,}041{,}666\times4/5\)</span> would incorrectly produce 20,833,332 zatoshi.</p>
+
+<h2 id="integrationwithzip237"><span class="section-heading">Integration with ZIP 237</span><span class="section-anchor"> <a rel="bookmark" href="#integrationwithzip237"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>For <span class="math">\(h \geq A_{20}\kern-0.05em\textsf{,}\)</span> redefine ZIP 237&#8217;s <span class="math">\(\mathsf{HalvingInterval}(h)\)</span> to return
+<span class="math">\(\mathsf{TwentySecondHalvingInterval}\kern-0.05em\textsf{.}\)</span> Retain its earlier cases for <span class="math">\(h&lt;A_{20}\kern-0.05em\textsf{.}\)</span>
+Its existing fraction formula then gives:</p>
+
+<p><span class="math">\[\mathsf{BLOCK\_SUBSIDY\_FRACTION}(h) = \frac{\lfloor 6{,}931{,}680{,}000 / 6{,}300{,}000\rfloor}{10^{10}} = \frac{1100}{10^{10}}.\]</span></p>
+
+<p>Retain ZIP 237&#8217;s definition:</p>
+
+<p><span class="math">\[\mathsf{BlockSubsidy}(h) := \mathsf{ScheduledBlockSubsidy}(h) + \mathsf{AdditionalBlockSubsidy}(h).\]</span></p>
+
+<p>Implementations MUST carry the existing NSM Value Balance through activation.
+They MUST NOT reseed it or recompute historical balances under the new spacing.
+ZIP 237&#8217;s additional-subsidy ceiling and balance-update rules continue to apply.</p>
+
+<p><strong>Open specification item:</strong> define the NSM reissuance trigger for an
+activation before reissuance starts. ZIP 259&#8217;s fixed trigger heights use the
+25-second issuance curve. The amended trigger must use the 20-second curve
+and reissuance fraction. Its reference reserve must use cumulative scheduled
+issuance through <span class="math">\(h-1\kern-0.05em\textsf{,}\)</span> retaining each historical era&#8217;s integer rounding.
+If reissuance starts before this upgrade, retain that activated state.</p>
+
+<h2 id="shieldedpoolactionlimits"><span class="section-heading">Shielded pool action limits</span><span class="section-anchor"> <a rel="bookmark" href="#shieldedpoolactionlimits"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Define the following constants:</p>
+
+<p><span class="math">\[\mathsf{TwentySecondGlobalShieldedBudget} : \mathbb{N} := 264\]</span>
+<span class="math">\[\mathsf{TwentySecondOrchardProtocolBlockActionLimit} : \mathbb{N} := 264\]</span>
+<span class="math">\[\mathsf{TwentySecondSaplingBlockIOLimit} : \mathbb{N} := 240\]</span></p>
+
+<p>Each value is the corresponding ZIP 218 constant multiplied by <span class="math">\(4/5\kern-0.05em\textsf{,}\)</span> which is
+exact for all three. <a href="#fn:4" title="see footnote" class="footnote"><sup>4</sup></a></p>
+
+<p>For each block at height <span class="math">\(h \geq A_{20}\kern-0.05em\textsf{,}\)</span> ZIP 218&#8217;s per-pool limits and
+global shielded budget MUST be enforced with these constants in place of
+<span class="math">\(\mathsf{GlobalShieldedBudget}\kern-0.05em\textsf{,}\)</span> <span class="math">\(\mathsf{OrchardProtocolBlockActionLimit}\kern-0.05em\textsf{,}\)</span>
+and <span class="math">\(\mathsf{SaplingBlockIOLimit}\kern-0.05em\textsf{,}\)</span> respectively. That is:</p>
+
+<ul>
+<li><span class="math">\(\sum_{\mathit{tx} \in \mathit{block}} \mathit{nActionsOrchard}(\mathit{tx}) \leq 264\kern-0.05em\textsf{;}\)</span></li>
+<li><span class="math">\(\sum_{\mathit{tx} \in \mathit{block}} \mathit{nActionsIronwood}(\mathit{tx}) \leq 264\kern-0.05em\textsf{;}\)</span></li>
+<li><span class="math">\(\sum_{\mathit{tx} \in \mathit{block}} (\mathit{nSpendsSapling}(\mathit{tx}) + \mathit{nOutputsSapling}(\mathit{tx})) \leq 240\kern-0.05em\textsf{;}\)</span></li>
+<li>the shielded cost of the block, as defined by ZIP 218, is at most 264.</li>
+</ul>
+
+<p>The definition of shielded cost, the per-pool structure of the limits, and the
+2 MB block size limit are unchanged. For blocks at heights <span class="math">\(h &lt; A_{20}\kern-0.05em\textsf{,}\)</span>
+ZIP 218&#8217;s limits of 330, 330, and 300 continue to apply.</p>
+
+<h3 id="transactionsexceedingablocklimitatactivation"><span class="section-heading">Transactions exceeding a block limit at activation</span><span class="section-anchor"> <a rel="bookmark" href="#transactionsexceedingablocklimitatactivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>A transaction that by itself would violate any of these limits cannot be
+included in any block at a height <span class="math">\(h \geq A_{20}\kern-0.05em\textsf{.}\)</span> This includes transactions
+that satisfy ZIP 218&#8217;s limits, such as one with 300 Orchard actions.</p>
+
+<p>Nodes SHOULD NOT admit such a transaction to their mempool, or relay it, if
+the candidate next block&#8217;s height is at or above <span class="math">\(A_{20}\kern-0.05em\textsf{.}\)</span> Nodes SHOULD evict
+such transactions from their mempool when the candidate next block&#8217;s height
+reaches <span class="math">\(A_{20}\kern-0.05em\textsf{.}\)</span> Wallets SHOULD NOT create such a transaction for a target
+height at or above <span class="math">\(A_{20}\kern-0.05em\textsf{.}\)</span></p>
+
+<h2 id="minimumdifficultyblocksontestnet"><span class="section-heading">Minimum difficulty blocks on Testnet</span><span class="section-anchor"> <a rel="bookmark" href="#minimumdifficultyblocksontestnet"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Retain ZIP 218&#8217;s threshold of <span class="math">\(18 \cdot \mathsf{PoWTargetSpacing}(h)\)</span> seconds,
+evaluated with the new spacing. At and after <span class="math">\(A_{20}\kern-0.05em\textsf{,}\)</span> the threshold is
+therefore <span class="math">\(18 \times 20 = 360\)</span> seconds, rather than ZIP 218&#8217;s 450 seconds.
+A block qualifies only if its timestamp is strictly more than this threshold
+after the preceding block&#8217;s timestamp. Thus a gap of 360 seconds does not
+qualify, while a gap of 361 seconds does. In that case the block&#8217;s <code>nBits</code>
+MUST equal <span class="math">\(\mathsf{ToCompact}(\mathsf{PoWLimit})\kern-0.05em\textsf{,}\)</span> following ZIP 218.
+This rule does not affect Mainnet.</p>
+
+<p>Existing timestamp-validity bounds and local-clock tolerances remain unchanged.
+The Testnet minimum-difficulty exception remains subject to those rules.</p>
+
+<h2 id="non-consensusnodebehaviour"><span class="section-heading">Non-consensus node behaviour</span><span class="section-anchor"> <a rel="bookmark" href="#non-consensusnodebehaviour"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>When converting a height range to expected elapsed time, implementations
+SHOULD use the target spacing applicable to each block. The expected time
+from an accepted tip at height <span class="math">\(a\)</span> to height <span class="math">\(b&gt;a\)</span> is
+<span class="math">\(\sum_{h=a+1}^{b} \mathsf{PoWTargetSpacing}(h)\kern-0.05em\textsf{,}\)</span> including the new spacing
+for the activation block. Policies defined as elapsed durations SHOULD
+retain those durations across activation.</p>
+
+<h3 id="transactionexpiry"><span class="section-heading">Transaction expiry</span><span class="section-anchor"> <a rel="bookmark" href="#transactionexpiry"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Wallets SHOULD increase the default expiry delta from 120 to 150 blocks.
+Choose the default using the transaction&#8217;s target height, which is the next
+block height after the chain tip. Use 150 when that height is at or above
+<span class="math">\(A_{20}\kern-0.05em\textsf{;}\)</span> otherwise retain the prior default. Compute expiry relative to the
+target height as specified by ZIP 218. Wallets SHOULD preserve an explicit
+user-configured delta across activation.</p>
+
+<h3 id="block-count-baseddefaults"><span class="section-heading">Block-count-based defaults</span><span class="section-anchor"> <a rel="bookmark" href="#block-count-baseddefaults"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Implementations SHOULD use the following post-activation defaults where
+they expose the corresponding settings. The table scales duration-based
+values by <span class="math">\(5/4\)</span> relative to ZIP 218. Larger rollback windows conform.</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Constant </th>
+	<th> 25&#8211;second baseline </th>
+	<th> 20&#8211;second recommendation </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> <code>MAX_REORG_LENGTH</code> </td>
+	<td> At least 600 </td>
+	<td> At least 750 </td>
+</tr>
+<tr>
+	<td> <code>MAX_BLOCKS_IN_TRANSIT_PER_PEER</code> </td>
+	<td> 48 </td>
+	<td> 60 </td>
+</tr>
+<tr>
+	<td> <code>BLOCK_DOWNLOAD_WINDOW</code> </td>
+	<td> 3072 </td>
+	<td> 3840 </td>
+</tr>
+<tr>
+	<td> <code>MIN_BLOCKS_TO_KEEP</code> </td>
+	<td> 864 </td>
+	<td> 1080 </td>
+</tr>
+</tbody>
+</table>
+
+<p>The consensus coinbase maturity remains 100 blocks. This proposal leaves
+<code>TX_EXPIRING_SOON_THRESHOLD</code> at 3 and
+<code>NETWORK_UPGRADE_PEER_PREFERENCE_BLOCK_PERIOD</code> at 1728, following ZIP 218.</p>
+
+<h3 id="anchorselectiondepth"><span class="section-heading">Anchor selection depth</span><span class="section-anchor"> <a rel="bookmark" href="#anchorselectiondepth"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>Wallets SHOULD retain ZIP 315&#8217;s recommended anchor depth of 3 blocks.
+<a href="#fn:7" id="fnref:7" title="see footnote" class="footnote"><sup>7</sup></a> Its expected duration changes from 75 to 60 seconds.</p>
+
+<h1 id="rationale"><span class="section-heading">Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#rationale"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<h2 id="capacityandresourcecosts"><span class="section-heading">Capacity and resource costs</span><span class="section-anchor"> <a rel="bookmark" href="#capacityandresourcecosts"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>ZIP 218 chose its shielded action limits so that worst-case light wallet sync
+bandwidth does not increase relative to the pre-NU7 protocol. <a href="#fn:4" title="see footnote" class="footnote"><sup>4</sup></a>
+Retaining those per-block limits at 20 seconds would raise the maximum number
+of shielded actions per day, and with it worst-case compact sync bandwidth and
+trial decryptions, by 25%. This proposal instead scales the limits by <span class="math">\(4/5\kern-0.05em\textsf{,}\)</span>
+so the daily maxima are unchanged. All three ZIP 218 values are multiples of
+5, so no rounding is needed.</p>
+
+<p>Using ZIP 218&#8217;s compact-field model, which excludes serialization and
+transport overhead, with <span class="math">\(86{,}400/20 = 4{,}320\)</span> blocks per day:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Metric </th>
+	<th> 25&#8211;second baseline </th>
+	<th> 20&#8211;second proposal </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> Blocks per day </td>
+	<td> 3,456 </td>
+	<td> 4,320 </td>
+</tr>
+<tr>
+	<td> Max Orchard + Ironwood actions/block </td>
+	<td> 330 </td>
+	<td> 264 </td>
+</tr>
+<tr>
+	<td> Max Sapling IOs/block </td>
+	<td> 300 </td>
+	<td> 240 </td>
+</tr>
+<tr>
+	<td> Max Orchard + Ironwood actions/day </td>
+	<td> 1,140,480 </td>
+	<td> 1,140,480 </td>
+</tr>
+<tr>
+	<td> Orchard or Ironwood compact BW/day </td>
+	<td> 168.79 MB </td>
+	<td> 168.79 MB </td>
+</tr>
+<tr>
+	<td> Sapling compact BW/day </td>
+	<td> 120.27 MB </td>
+	<td> 120.27 MB </td>
+</tr>
+<tr>
+	<td> Compact block headers/day </td>
+	<td> 0.31 MB </td>
+	<td> 0.39 MB </td>
+</tr>
+<tr>
+	<td> <strong>Worst-case total BW/day</strong> </td>
+	<td> <strong>169.10 MB</strong> </td>
+	<td> <strong>169.18 MB</strong> </td>
+</tr>
+<tr>
+	<td> Worst-case trial decrypts/day </td>
+	<td> ~2.3M </td>
+	<td> ~2.3M </td>
+</tr>
+</tbody>
+</table>
+
+<p>The binding constraint remains a block filled with Orchard or Ironwood
+actions: <span class="math">\(264 \times 148 \times 4{,}320 + 90 \times 4{,}320 = 169.18\textsf{ MB/day}\kern-0.05em\textsf{.}\)</span>
+The only increase is the 25% more compact block headers, approximately
+78 kB per day. The trial decryption count, counting both internal and external
+incoming viewing keys as in ZIP 218, is <span class="math">\(2 \times 264 \times 4{,}320 = 2{,}280{,}960\)</span>
+per account per day, identical to ZIP 218.</p>
+
+<p>These figures describe worst-case compact sync bandwidth when blocks fill the
+shielded action budget. They do not establish a daily download requirement
+for every wallet.</p>
+
+<p>Maximum shielded throughput is also unchanged. Two-action Orchard or Ironwood
+transactions remain limited to <span class="math">\(\lfloor 264/2 \rfloor / 20 = 6.6\)</span> transactions
+per second, and four-IO Sapling transactions to <span class="math">\(\lfloor 240/4 \rfloor / 20 = 3.0\)</span>
+transactions per second, as in ZIP 218. The benefit of this proposal is lower
+latency, not more shielded capacity.</p>
+
+<p>The worst-case shielded verification work per block falls by 20%, while
+the worst-case shielded verification work per unit time is approximately
+unchanged. Batch verification amortizes some cost across a block, so slightly
+smaller blocks may verify somewhat less efficiently per action. Fixed per-block
+costs, such as header validation, chain state updates, and propagation
+round trips, increase by 25% per unit time. Syncing blocks produced during a
+given time offline requires processing 25% more headers.</p>
+
+<p>The 2 MB block size limit is unchanged, so the maximum transparent data per
+unit time increases by 25%. This affects full node bandwidth and storage, but
+not light wallets that download only compact blocks.</p>
+
+<h2 id="orphanblocksandeffectivepropagationtime"><span class="section-heading">Orphan blocks and effective propagation time</span><span class="section-anchor"> <a rel="bookmark" href="#orphanblocksandeffectivepropagationtime"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>ZIP 218 measured orphan rates on a distributed test network with full 2 MB
+blocks. <a href="#fn:4" title="see footnote" class="footnote"><sup>4</sup></a> <a href="#fn:8" id="fnref:8" title="see footnote" class="footnote"><sup>8</sup></a> We repeat that methodology with 80
+miners of equal hash rate in 12 regions: New York, San Francisco, Toronto,
+London, Amsterdam, Frankfurt, Bangalore, Singapore, and Sydney. Blocks hold
+two-action Ironwood transactions up to ZIP 218&#8217;s action limit, then
+transparent transactions up to 2 MB.</p>
+
+<p>With every node running Zakura, full blocks had these orphan rates:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Spacing </th>
+	<th> Orphan / mined blocks </th>
+	<th> Orphan rate (95% interval) </th>
+	<th> Reach 90% </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> 25 s </td>
+	<td> 7 / 356 </td>
+	<td> 1.97% (0.96–4.00%) </td>
+	<td> 0.81 s </td>
+</tr>
+<tr>
+	<td> 20 s </td>
+	<td> 11 / 389 </td>
+	<td> 2.83% (1.59–4.99%) </td>
+	<td> 0.69 s </td>
+</tr>
+</tbody>
+</table>
+
+<p>ZIP 218&#8217;s devnet measured 4.86% at 25 seconds. The 20-second blocks averaged
+245 Ironwood actions, against the proposed limit of 264. Zakura announced each
+block to 32 peers immediately and to the rest after 500 ms.</p>
+
+<p>To check the test network against Mainnet, we also ran a mixed network at
+25 seconds: 56 Zakura nodes with Zakura 1.8.5&#8217;s block announcement settings
+and 24 Zebra 7.0.0 nodes. We chose the current release of each
+implementation and a Zebra share above Mainnet&#8217;s, where Zebra nodes mined
+about 17% of recent blocks. ZIP 218 models the orphan rate as
+<span class="math">\(0.55 \times\)</span> reach 90% <span class="math">\(/ T\kern-0.05em\textsf{.}\)</span> With small blocks, the test network, the
+model, and Mainnet agree:</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Network </th>
+	<th> Mean block size </th>
+	<th> Orphan rate </th>
+	<th> ZIP 218 model </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> Mixed test network </td>
+	<td> 66 kB </td>
+	<td> 0.66% (2 / 303) </td>
+	<td> 0.87% </td>
+</tr>
+<tr>
+	<td> Mainnet, since the NU7 activation day </td>
+	<td> 18 kB </td>
+	<td> 0.60–0.86% </td>
+	<td> </td>
+</tr>
+<tr>
+	<td> Mixed test network </td>
+	<td> 2 MB </td>
+	<td> 3.78% (13 / 344) </td>
+	<td> 3.7% </td>
+</tr>
+</tbody>
+</table>
+
+<p>The Mainnet rates come from two observers and are lower bounds.
+<a href="#fn:9" id="fnref:9" title="see footnote" class="footnote"><sup>9</sup></a></p>
+
+<p>With full blocks, the mixed network had nearly twice the orphan rate of the
+Zakura-only network at 25 seconds. Part of that difference comes from Zakura
+1.8.5 announcing each block to every peer at once, which Zakura is changing.
+Our runs with Zebra Andale found two other causes. Zebra relays a verified
+block to a third of its peers. Zebra takes 19 ms to deserialize a 2 MB block,
+and Zakura takes 2.5 ms. Before full blocks are common, other node
+implementations, notably Zebra Andale, need these relay optimizations.</p>
+
+<h2 id="difficultyaveragingduration"><span class="section-heading">Difficulty averaging duration</span><span class="section-anchor"> <a rel="bookmark" href="#difficultyaveragingduration"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>ZIP 218&#8217;s 102-block window at 25 seconds spans an expected 2,550 seconds.
+The equivalent count at 20 seconds is 127.5 blocks. This proposal rounds
+up to 128, giving 2,560 seconds, about 0.39% longer.</p>
+
+<p>This proposal preserves the averaging duration because mining hash rate can
+vary. Reducing that duration would change the DAA&#8217;s response to hash rate
+changes as well as changing block target spacing.</p>
+
+<h2 id="issuanceandschedulecontinuity"><span class="section-heading">Issuance and schedule continuity</span><span class="section-anchor"> <a rel="bookmark" href="#issuanceandschedulecontinuity"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The interval change preserves its expected duration:</p>
+
+<p><span class="math">\[6{,}300{,}000\times20=5{,}040{,}000\times25\text{ seconds}.\]</span></p>
+
+<p>The halving formula retains progress through the 25-second era. Scaling the
+unrounded scheduled subsidy by <span class="math">\(4/5\)</span> preserves the expected issuance rate
+before rounding. Integer rounding changes the realized schedule.</p>
+
+<p>The NSM fraction changes from <span class="math">\(1375/10^{10}\)</span> to <span class="math">\(1100/10^{10}\kern-0.05em\textsf{,}\)</span> also a factor
+of <span class="math">\(4/5\kern-0.05em\textsf{.}\)</span> ZIP 237&#8217;s ceiling and evolving balance mean this does not establish
+exact equality of reissuance per unit of wall-clock time.</p>
+
+<p><strong>Open specification item:</strong> amend the funding-stream end heights and address
+period calculations in ZIPs 207 and 214 for a second spacing transition.
+<a href="#fn:10" id="fnref:10" title="see footnote" class="footnote"><sup>10</sup></a> <a href="#fn:11" id="fnref:11" title="see footnote" class="footnote"><sup>11</sup></a> Preserve fractional progress through the active address
+period and define integer-boundary rounding. Keep ended streams ended and
+ensure recipient lists cover every extended period. The deployment height
+and schedule amendments must be settled together; changing NU7 constants
+retroactively is invalid.</p>
+
+<h1 id="deployment"><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>Deploy this proposal in a separate network upgrade after NU7. ZIP 259 defines
+NU7&#8217;s deployment; this proposal does not replace that deployment. <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a>
+A separate deployment ZIP will assign this upgrade&#8217;s activation heights and
+consensus branch IDs.</p>
+
+<p>Before this ZIP advances to Proposed status, resolve the funding-stream and
+NSM reissuance-height specification items. Complete the activation and
+rounding analysis against the selected deployment parameters.</p>
+
+<h1 id="references"><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<div class="footnotes">
+<hr />
+<ol>
+
+<li id="fn:1">
+<p><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14</a> <a href="#fnref:1" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:2">
+<p><a href="zip-0200">ZIP 200: Network Upgrade Mechanism</a> <a href="#fnref:2" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:3">
+<p><a href="protocol/protocol.pdf">Zcash Protocol Specification</a> <a href="#fnref:3" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:4">
+<p><a href="https://zips.z.cash/zip-0218">ZIP 218: 25-second Block Target Spacing</a> <a href="#fnref:4" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:5">
+<p><a href="https://zips.z.cash/zip-0237">ZIP 237: Network Sustainability Mechanism: Halving-Preserving Issuance</a> <a href="#fnref:5" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:6">
+<p><a href="https://zips.z.cash/zip-0259">ZIP 259: Deployment of the NU7 Network Upgrade</a> <a href="#fnref:6" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:7">
+<p><a href="zip-0315">ZIP 315: Best Practices for Wallet Implementations</a> <a href="#fnref:7" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:8">
+<p><a href="https://forum.zcashcommunity.com/t/zcash-block-time-reduction-appears-safe-for-nu7-w-zebra-only-devnet/55586">Zcash Block Time Reduction Appears Safe for NU7 w/ Zebra Only Devnet</a> <a href="#fnref:8" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:9">
+<p><a href="https://pool.zecminingpool.com/api/network/orphans">ZecMiner network orphan watcher</a> <a href="#fnref:9" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:10">
+<p><a href="https://zips.z.cash/zip-0207">ZIP 207: Funding Streams</a> <a href="#fnref:10" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:11">
+<p><a href="https://zips.z.cash/zip-0214">ZIP 214: Consensus rules for a Zcash Development Fund</a> <a href="#fnref:11" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+</ol>
+</div>
+</body>
+</html>
