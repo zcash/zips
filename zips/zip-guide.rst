@@ -179,7 +179,7 @@ Notes and warnings
     in Markdown (a following blank line is required for Markdown), can be used
     for warnings.
 
-    Warnings should be used very sparingly — for example to signal that a
+    Warnings should be used very sparingly — for example to signal that an
     entire specification, or part of it, may be inapplicable or could cause
     significant interoperability or security problems. In most cases, a "MUST"
     or "SHOULD" conformance requirement is more appropriate.
