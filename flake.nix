@@ -63,40 +63,67 @@
           # Tests require additional fixtures not included in the PyPI tarball
           doCheck = false;
         };
+
+        buildInputs = [
+          # Core dependencies for render.sh
+          rst2html5 # rst2html5 2.0.1 (PyPI)
+          pkgs.python3Packages.pygments # syntax highlighting for code blocks
+          pkgs.pandoc # pandoc markdown renderer
+          mmd # multimarkdown renderer (zcash fork)
+          pkgs.perl # perl for text processing
+
+          # Build system dependencies
+          pkgs.gnumake # make command for building
+          pkgs.git # required by Makefile for safe.directory
+
+          # LaTeX dependencies for protocol PDF generation
+          (pkgs.texlive.combine { inherit (pkgs.texlive) scheme-full; })
+
+          # Python dependencies for links_and_dests.py
+          pkgs.python3
+          pkgs.python3Packages.beautifulsoup4
+          pkgs.python3Packages.html5lib
+          pkgs.python3Packages.certifi
+
+          # Standard utilities (usually available, but ensuring they're present)
+          pkgs.coreutils
+          pkgs.bash
+          pkgs.gnused
+          pkgs.gnugrep
+          pkgs.diffutils
+          pkgs.findutils
+        ];
+
+        all = pkgs.stdenv.mkDerivation {
+          pname = "zcash-zips-rendered-all";
+          version = "0.0.1";
+          src = ./.;
+
+          inherit buildInputs;
+
+          buildPhase = ''
+            # Subprocess for bash set flags scope, especially -x so that we
+            # don't see very verbose nix cleanup traces on errors:
+            (
+              set -efuxo pipefail
+              # Ewww... looks like `kpathsea` mutates the user's home.
+              # Create a fake home dir inside the buildir:
+              fake_home='./messy-fake-home'
+              mkdir "$fake_home"
+              HOME="$fake_home" make all
+            )
+          '';
+        };
       in
       {
+        packages = {
+          inherit all;
+
+          default = all;
+        };
+
         devShells.default = pkgs.mkShell {
-          buildInputs = [
-            # Core dependencies for render.sh
-            rst2html5 # rst2html5 2.0.1 (PyPI)
-            pkgs.python3Packages.pygments # syntax highlighting for code blocks
-            pkgs.pandoc # pandoc markdown renderer
-            mmd # multimarkdown renderer (zcash fork)
-            pkgs.perl # perl for text processing
-
-            # Build system dependencies
-            pkgs.gnumake # make command for building
-            pkgs.git # required by Makefile for safe.directory
-
-            # LaTeX dependencies for protocol PDF generation
-            (pkgs.texlive.combine {
-              inherit (pkgs.texlive) scheme-full;
-            })
-
-            # Python dependencies for links_and_dests.py
-            pkgs.python3
-            pkgs.python3Packages.beautifulsoup4
-            pkgs.python3Packages.html5lib
-            pkgs.python3Packages.certifi
-
-            # Standard utilities (usually available, but ensuring they're present)
-            pkgs.coreutils
-            pkgs.bash
-            pkgs.gnused
-            pkgs.gnugrep
-            pkgs.diffutils
-            pkgs.findutils
-          ];
+          inherit buildInputs;
 
           shellHook = ''
             echo "ZIP documentation rendering environment"
