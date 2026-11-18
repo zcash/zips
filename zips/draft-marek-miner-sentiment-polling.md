@@ -456,9 +456,12 @@ it, as follows:
   Ecosystem Poll, which SHOULD be left out of the Poll Definition: a miner
   abstains on a question by rating none of its options, and a published result
   gives the number of blocks that do so.
-* A question for which the Ecosystem Poll allows a single selection SHOULD have
-  `"winners": 1`. A question for which it allows up to $k$ selections, such as
-  the election of $k$ members of a committee, SHOULD have `"winners": k`.
+* The `winners` of a question SHOULD be the number of options that the
+  corresponding question of the Ecosystem Poll is to choose: 1 for a question
+  that chooses a single option, and $k$ for a question that chooses $k$
+  options, such as the election of $k$ members of a committee. This is the
+  number of options chosen, which can be less than the number of options that
+  a voter in the Ecosystem Poll is allowed to mark.
 * The Voting Period SHOULD coincide with the voting window of the Ecosystem
   Poll. To convert times to block heights, the Poll Coordinator SHOULD use the
   block target spacing in effect, accounting for any network upgrade scheduled
