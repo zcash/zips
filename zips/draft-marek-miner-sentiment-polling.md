@@ -79,7 +79,7 @@ Voting Period
 This proposal specifies a mechanism for polling miners. A Poll Definition is a
 JSON document that gives a set of questions, an Option Code for each option, a
 Voting Period fixed in block heights, and the method by which the responses to
-each question are to be interpreted. A normalization procedure maps the Poll
+each question are to be interpreted. A canonicalization procedure maps the Poll
 Definition to a Canonical Encoding, whose BLAKE2b-128 hash is its Poll Digest.
 
 A miner votes by putting the Poll Digest and a Level of Support for each option
@@ -126,8 +126,10 @@ hashers are not identified, and their preferences are not recorded.
 
 * A Miner Ballot identifies, unambiguously and compactly, the exact Poll
   Definition to which it responds.
-* Two Poll Definitions that differ only in JSON formatting, member order, or
-  Unicode normalization form have the same Poll Digest.
+* Two Poll Definitions that differ only in JSON formatting or member order
+  have the same Poll Digest.
+* Tools that implement different versions of the Unicode Standard compute the
+  same Poll Digest for the same Poll Definition.
 * The Poll Definition commits to how the responses to each question are
   interpreted.
 * Miners can express graded support for each option, including no support, and
@@ -262,11 +264,14 @@ The Canonical Encoding of a Poll Definition is computed as follows:
 1. Parse the Poll Definition as I-JSON. If it is not valid UTF-8, is not valid
    JSON, has an object with two members of the same name, or has a string that
    contains an unpaired surrogate, it is not a valid Poll Definition.
-2. Replace each string value by its Normalization Form C (NFC). [^UAX15]
-3. Check the result against the requirements of [Poll Definitions]. If it does
+2. Check the result against the requirements of [Poll Definitions]. If it does
    not meet them, it is not a valid Poll Definition.
-4. Serialize the result with the JSON Canonicalization Scheme (JCS)
+3. Serialize the result with the JSON Canonicalization Scheme (JCS)
    [^RFC8785], and encode it as UTF-8.
+
+Each string is serialized with the sequence of Unicode code points that it has
+in the Poll Definition. As JCS requires, no Unicode normalization is applied to
+it.
 
 The Poll Digest of a Poll Definition is the 16-byte BLAKE2b-128 hash
 [^RFC7693] of its Canonical Encoding, with the 16-byte personalization string
@@ -279,10 +284,11 @@ sorted by name, no whitespace is emitted outside strings, integers are written
 in decimal without leading zeros, and strings are escaped as by ECMAScript's
 `JSON.stringify`.
 
-Any change to a Poll Definition other than its formatting, member order, or
-Unicode normalization changes its Poll Digest. A Miner Ballot therefore commits
-to the questions, options, Voting Period, and method of interpretation of the
-Poll Definition to which it responds.
+Any change to a Poll Definition other than its whitespace, the order of the
+members of its objects, or the way its strings are escaped changes its Poll
+Digest. A Miner Ballot therefore commits to the questions, options, Voting
+Period, and method of interpretation of the Poll Definition to which it
+responds.
 
 ## Miner Ballots
 
@@ -756,12 +762,20 @@ Definition was formatted, so that tools written in different languages compute
 the same Poll Digest from the same document. JCS is a published standard with
 implementations in many languages. Restricting the document to integers and
 ASCII member names avoids the parts of JCS that are hardest to implement:
-floating-point serialization and sorting by UTF-16 code units. NFC
-normalization makes strings that are canonically equivalent in Unicode, and
-therefore display identically, produce the same Poll Digest. Rejecting unknown
-members makes every byte of the Canonical Encoding meaningful to the tools that
-display the Poll Definition, so a miner can see everything its Miner Ballot
-commits to.
+floating-point serialization and sorting by UTF-16 code units. Rejecting
+unknown members makes every byte of the Canonical Encoding meaningful to the
+tools that display the Poll Definition, so a miner can see everything its Miner
+Ballot commits to.
+
+Strings are hashed as written, as JCS requires. Normalizing them first, for
+example to Normalization Form C [^UAX15], would make strings that are
+canonically equivalent in Unicode produce the same Poll Digest. However, the
+result of normalization depends on the version of the Unicode Standard that a
+tool implements. A code point that is unassigned in one version can become a
+combining mark in a later one, and normalization then reorders the marks
+around it, so two tools could compute different Poll Digests for the same
+document. Normalization is also unnecessary: the Poll Coordinator publishes the
+Poll Definition as a file, and miners load that file instead of retyping it.
 
 ## Rationale for leaving tooling unspecified
 
