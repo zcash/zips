@@ -428,17 +428,21 @@ A published result of a Miner Poll SHOULD include:
 * the height and hash of the last block of the Voting Period in the block
   chain that was tallied;
 * $N$, and the number of blocks in $V$ that have a Miner Ballot;
-* for each option $o$, and each Level of Support $\ell$ from 0 to 255, the
-  number of blocks in $V$ that rate $o$ with a Level of Support of $\ell$,
-  where nonzero;
+* for each distinct list of (Option Code, Level of Support) pairs that the
+  Miner Ballot of a block in $V$ carries, that list and the number of blocks in
+  $V$ whose Miner Ballot carries it;
 * for each question $q$: $A_q$ and the percentage $100 \cdot A_q / N$; the
   number of blocks in $V$ that abstain on $q$; and, for each round, the score
   totals, the possible finalist pairs, their runoff counts, and the winner, or
   that the round is tied.
 
-The counts of blocks by option and Level of Support determine everything else in
-the result, and are authoritative. Any percentage in a summary of the result
-SHOULD be relative to $N$.
+Together with $N$, the counts of blocks by Miner Ballot determine every other
+count in the result and the outcome of every round, and are authoritative. A
+result MAY also give, for each option, the number of blocks that rate it at
+each Level of Support. Those counts are a summary: they do not determine the
+runoff counts or $A_q$, which depend on how a Miner Ballot rates several
+options together. Any percentage in a summary of the result SHOULD be relative
+to $N$.
 
 ## Recommendations for Poll Coordinators
 
@@ -715,6 +719,22 @@ participation from the published counts.
 
 The tally does not group blocks by miner, because coinbase outputs and pool
 tags are chosen by miners and do not reliably identify them.
+
+## Rationale for publishing counts by Miner Ballot
+
+The runoff of STAR voting compares two options on each ballot, so its outcome
+depends on which ratings occur together on a ballot. Counts of blocks by option
+and Level of Support are the marginal distributions of the ratings, and the
+runoff depends on their joint distribution. For two options $a$ and $b$, three
+ballots that rate $(a, b)$ at $(1, 2)$, $(2, 3)$, and $(3, 1)$ and three that
+rate them at $(1, 3)$, $(2, 1)$, and $(3, 2)$ give both options the same counts
+and the same score totals. Yet $b$ wins the runoff 2 to 1 in the first case,
+and $a$ wins it 2 to 1 in the second. The number of blocks that rate at least
+one option of a question likewise cannot be recovered from per-option counts.
+
+Counts of blocks by whole Miner Ballot keep everything that the tally uses.
+They are also short, since a mining pool normally carries the same Miner Ballot
+in every block it mines.
 
 ## Rationale for coinbase bundle fields
 
