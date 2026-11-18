@@ -177,6 +177,7 @@ written.
     <tr> <td><span class="reserved">217</span></td> <td class="left"><a class="reserved" href="zips/zip-0217.rst">Aggregate Signatures</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1137">zips#1137</a></td>
     <tr> <td><span class="reserved">219</span></td> <td class="left"><a class="reserved" href="zips/zip-0219.rst">Disabling Addition of New Value to the Sapling Chain Value Pool</a></td> <td>Reserved</td> <td class="left"><a href="https://github.com/zcash/zips/issues/428">zips#428</a></td>
     <tr> <td>222</td> <td class="left"><a href="zips/zip-0222.rst">Transparent Zcash Extensions</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/1231">zips#1231</a></td>
+    <tr> <td>223</td> <td class="left"><a href="zips/zip-0223.md">Reduce Block Target Spacing from 25 to 20 Seconds</a></td> <td>Draft</td> <td class="left"><a href="https://forum.zcashcommunity.com/t/proposal-lower-zcash-block-target-spacing-from-25s-to-20s/59035">https://forum.zcashcommunity.com/t/proposal-lower-zcash-block-target-spacing-from-25s-to-20s/59035</a></td>
     <tr> <td>226</td> <td class="left"><a href="zips/zip-0226.rst">Transfer and Burn of Zcash Shielded Assets</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/618">zips#618</a></td>
     <tr> <td>227</td> <td class="left"><a href="zips/zip-0227.rst">Issuance of Zcash Shielded Assets</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/618">zips#618</a></td>
     <tr> <td>228</td> <td class="left"><a href="zips/zip-0228.rst">Asset Swaps for Zcash Shielded Assets</a></td> <td>Draft</td> <td class="left"><a href="https://github.com/zcash/zips/issues/776">zips#776</a></td>
@@ -319,6 +320,7 @@ Index of ZIPs
     <tr> <td><strike>220</strike></td> <td class="left"><strike><a href="zips/zip-0220.rst">Zcash Shielded Assets</a></strike></td> <td>Withdrawn</td>
     <tr> <td>221</td> <td class="left"><a href="zips/zip-0221.rst">FlyClient - Consensus-Layer Changes</a></td> <td>Final</td>
     <tr> <td>222</td> <td class="left"><a href="zips/zip-0222.rst">Transparent Zcash Extensions</a></td> <td>Draft</td>
+    <tr> <td>223</td> <td class="left"><a href="zips/zip-0223.md">Reduce Block Target Spacing from 25 to 20 Seconds</a></td> <td>Draft</td>
     <tr> <td>224</td> <td class="left"><a href="zips/zip-0224.rst">Orchard Shielded Protocol</a></td> <td>Final</td>
     <tr> <td>225</td> <td class="left"><a href="zips/zip-0225.rst">Version 5 Transaction Format</a></td> <td>Final</td>
     <tr> <td>226</td> <td class="left"><a href="zips/zip-0226.rst">Transfer and Burn of Zcash Shielded Assets</a></td> <td>Draft</td>
