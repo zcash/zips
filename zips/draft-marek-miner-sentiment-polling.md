@@ -69,9 +69,9 @@ Miner Ballot
     carried by the coinbase bundle of a block; see [Miner Ballots].
 
 Voting Period
-:   The inclusive range of block heights in which Miner Ballots for a Poll
-    Definition are counted, from the Voting Start Height to the Voting End
-    Height.
+:   The range of block heights in which Miner Ballots for a Poll Definition
+    are counted: from the Voting Start Height, inclusive, to the Voting End
+    Height, exclusive.
 
 
 # Abstract
@@ -163,8 +163,8 @@ and is a single JSON object with the following members:
 | `version` | integer | The version of this format. MUST be 1. |
 | `title` | string | A non-empty, human-readable title for the Miner Poll. |
 | `url` | string | The URL of a public announcement of the Miner Poll. |
-| `votingStartHeight` | integer | The Voting Start Height, from 1 to 499999999. |
-| `votingEndHeight` | integer | The Voting End Height, from `votingStartHeight` to 499999999. |
+| `votingStartHeight` | integer | The Voting Start Height, which is the height of the first block of the Voting Period, from 1 to 499999999. |
+| `votingEndHeight` | integer | The Voting End Height, which is one more than the height of the last block of the Voting Period. It MUST be greater than `votingStartHeight` and at most 500000000. |
 | `questions` | array | One or more questions, each a JSON object as below. |
 
 Each question is a JSON object with the following members:
@@ -199,9 +199,10 @@ In addition:
   Definition therefore has at most 255 options in total.
 
 The following JSON Schema [^json-schema] expresses the structural requirements
-above. It does not express the requirements that `votingEndHeight` is at least
-`votingStartHeight`, that `winners` is less than the number of options, that
-Option Codes are distinct, or that numbers have no fraction or exponent part.
+above. It does not express the requirements that `votingEndHeight` is greater
+than `votingStartHeight`, that `winners` is less than the number of options,
+that Option Codes are distinct, or that numbers have no fraction or exponent
+part.
 
 ```json
 {
@@ -216,7 +217,7 @@ Option Codes are distinct, or that numbers have no fraction or exponent part.
     "title": { "type": "string", "minLength": 1 },
     "url": { "type": "string", "format": "uri" },
     "votingStartHeight": { "type": "integer", "minimum": 1, "maximum": 499999999 },
-    "votingEndHeight": { "type": "integer", "minimum": 1, "maximum": 499999999 },
+    "votingEndHeight": { "type": "integer", "minimum": 2, "maximum": 500000000 },
     "questions": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/question" } }
   },
   "$defs": {
@@ -344,15 +345,16 @@ Miner Ballot.
 
 A Poll Definition does not name a network. The result of a Miner Poll is
 defined for a Poll Definition and a network, over the best valid block chain of
-that network, once that chain contains the block at the Voting End Height.
-Parties that compute the result SHOULD wait until the block at the Voting End
-Height has at least 100 confirmations.
+that network, once that chain contains the last block of the Voting Period,
+which is the block at height Voting End Height − 1. Parties that compute the
+result SHOULD wait until that block has at least 100 confirmations.
 
 Let $N$ be the number of blocks in the Voting Period, i.e. Voting End Height −
-Voting Start Height + 1, and let $V$ be the set of blocks in the Voting Period.
-Each block in $V$ is one ballot, regardless of who mined it or the value of its
-coinbase outputs. A block rates option $o$ if $L_{B,o} > 0$; a block without a
-Miner Ballot rates no option.
+Voting Start Height, and let $V$ be the set of blocks in the Voting Period.
+$N$ is at least 1, because the Voting End Height is greater than the Voting
+Start Height. Each block in $V$ is one ballot, regardless of who mined it or
+the value of its coinbase outputs. A block rates option $o$ if $L_{B,o} > 0$; a
+block without a Miner Ballot rates no option.
 
 A Miner Ballot gives each option a score, which is sufficient information to
 interpret the responses to a question by several voting methods. Score voting
@@ -402,8 +404,8 @@ intends a tied round to be interpreted.
 A published result of a Miner Poll SHOULD include:
 
 * the Poll Digest;
-* the height and hash of the block at the Voting End Height in the block chain
-  that was tallied;
+* the height and hash of the last block of the Voting Period in the block
+  chain that was tallied;
 * $N$, and the number of blocks in $V$ that have a Miner Ballot;
 * for each option $o$, and each Level of Support $\ell$ from 1 to 255, the
   number of blocks $B$ in $V$ with $L_{B,o} = \ell$, where nonzero;
@@ -476,7 +478,7 @@ Consider the following hypothetical Poll Definition:
   "title": "NU7 Miner Sentiment (example)",
   "url": "https://forum.zcashcommunity.com/t/nu7-sentiment-polls-results/57590",
   "votingStartHeight": 3700000,
-  "votingEndHeight": 3740319,
+  "votingEndHeight": 3740320,
   "questions": [
     {
       "title": "NSM issuance curve",
@@ -535,10 +537,10 @@ Consider the following hypothetical Poll Definition:
 Its Canonical Encoding is the following 1575 bytes (shown here on one line):
 
 ```
-{"questions":[{"description":"How should the block subsidy be issued after NU7?","options":[{"code":1,"label":"Smooth issuance curve"},{"code":2,"label":"Preserve halvings"},{"code":3,"label":"Do not include issuance smoothing in NU7"}],"tally":{"method":"star","winners":1},"title":"NSM issuance curve"},{"description":"When should burned funds start to be reissued?","options":[{"code":4,"label":"As soon as possible"},{"code":5,"label":"February 2027"},{"code":6,"label":"February 2031"}],"tally":{"method":"star","winners":1},"title":"NSM reissuance"},{"description":"When should v4 transactions stop being accepted?","options":[{"code":7,"label":"Immediately at NU7 activation"},{"code":8,"label":"One year after this poll"},{"code":9,"label":"Do not set a date"}],"tally":{"method":"star","winners":1},"title":"v4 transaction disablement"},{"description":"Should NU7 reduce the block target spacing to 25 seconds?","options":[{"code":10,"label":"Yes"},{"code":11,"label":"No"}],"tally":{"method":"star","winners":1},"title":"25-second block target spacing"},{"description":"Which two of these features should be prioritized for NU8?","options":[{"code":12,"label":"Zcash Shielded Assets"},{"code":13,"label":"Memo bundles"},{"code":14,"label":"Quantum recoverability"},{"code":15,"label":"Transparent pool deprecation"}],"tally":{"method":"star","winners":2},"title":"NU8 priorities"}],"title":"NU7 Miner Sentiment (example)","url":"https://forum.zcashcommunity.com/t/nu7-sentiment-polls-results/57590","version":1,"votingEndHeight":3740319,"votingStartHeight":3700000}
+{"questions":[{"description":"How should the block subsidy be issued after NU7?","options":[{"code":1,"label":"Smooth issuance curve"},{"code":2,"label":"Preserve halvings"},{"code":3,"label":"Do not include issuance smoothing in NU7"}],"tally":{"method":"star","winners":1},"title":"NSM issuance curve"},{"description":"When should burned funds start to be reissued?","options":[{"code":4,"label":"As soon as possible"},{"code":5,"label":"February 2027"},{"code":6,"label":"February 2031"}],"tally":{"method":"star","winners":1},"title":"NSM reissuance"},{"description":"When should v4 transactions stop being accepted?","options":[{"code":7,"label":"Immediately at NU7 activation"},{"code":8,"label":"One year after this poll"},{"code":9,"label":"Do not set a date"}],"tally":{"method":"star","winners":1},"title":"v4 transaction disablement"},{"description":"Should NU7 reduce the block target spacing to 25 seconds?","options":[{"code":10,"label":"Yes"},{"code":11,"label":"No"}],"tally":{"method":"star","winners":1},"title":"25-second block target spacing"},{"description":"Which two of these features should be prioritized for NU8?","options":[{"code":12,"label":"Zcash Shielded Assets"},{"code":13,"label":"Memo bundles"},{"code":14,"label":"Quantum recoverability"},{"code":15,"label":"Transparent pool deprecation"}],"tally":{"method":"star","winners":2},"title":"NU8 priorities"}],"title":"NU7 Miner Sentiment (example)","url":"https://forum.zcashcommunity.com/t/nu7-sentiment-polls-results/57590","version":1,"votingEndHeight":3740320,"votingStartHeight":3700000}
 ```
 
-and its Poll Digest is `d814078cd24a1ffd8f7e5833249a8ca5`.
+and its Poll Digest is `f2e5bc060e401bddc741565ebf91d2c9`.
 
 Suppose that a miner, Miner A, rates option 1 at 255, option 2 at 128, option 3
 at 1, option 5 at 200, option 10 at 255, option 11 at 1, option 12 at 255,
@@ -546,7 +548,7 @@ option 13 at 200, and option 14 at 50, and does not rate options 4, 6, 7, 8, 9,
 or 15. The miner signalling fields of its coinbase bundles are then the 35 bytes
 
 ```
-09 01ff 0280 0301 05c8 0aff 0b01 0cff 0dc8 0e32 d814078cd24a1ffd8f7e5833249a8ca5
+09 01ff 0280 0301 05c8 0aff 0b01 0cff 0dc8 0e32 f2e5bc060e401bddc741565ebf91d2c9
 ```
 
 that is, `nMinerSignals` = 9, nine (`signalCode`, `levelOfSupport`) pairs, and
@@ -581,12 +583,12 @@ are interpreted for this Poll Definition:
 
 | Miner signalling fields | Result |
 |-------------------------|--------|
-| `09 01ff 0280 … 0e32 d814…8ca5` | Miner Ballot, as above. |
+| `09 01ff 0280 … 0e32 f2e5…d2c9` | Miner Ballot, as above. |
 | `00` | No Miner Ballot: no signals. |
-| `01 10ff d814…8ca5` | No Miner Ballot: 16 is not an Option Code of this Poll Definition. |
-| `01 0100 d814…8ca5` | No Miner Ballot: no nonzero Level of Support. |
+| `01 10ff f2e5…d2c9` | No Miner Ballot: 16 is not an Option Code of this Poll Definition. |
+| `01 0100 f2e5…d2c9` | No Miner Ballot: no nonzero Level of Support. |
 | `01 01ff` followed by any other Poll Digest | No Miner Ballot for this Poll Definition. |
-| `02 0aff 01ff d814…8ca5` | Cannot occur: signal codes are not in ascending order, so ZIP 248 makes the block invalid. |
+| `02 0aff 01ff f2e5…d2c9` | Cannot occur: signal codes are not in ascending order, so ZIP 248 makes the block invalid. |
 
 
 # Rationale
@@ -737,7 +739,11 @@ format.
 
 Block heights are deterministic, whereas block timestamps are chosen by miners.
 Changes to the block target spacing are accounted for when the Voting Period is
-chosen. The recommended 14-day notice period gives mining pools time to
+chosen. The Voting Period includes its start height and excludes its end
+height, as the height range of a funding stream does in ZIP 207 [^zip-0207].
+The number of blocks is then the difference of the two heights, and one Voting
+Period can end at the height at which another starts without the two
+overlapping. The recommended 14-day notice period gives mining pools time to
 reconfigure.
 
 
@@ -782,6 +788,8 @@ None yet. A reference implementation is needed of:
 [^protocol-blockheader]: [Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 7.6: Block Header Encoding and Consensus](protocol/protocol.pdf#blockheader)
 
 [^zip-0200]: [ZIP 200: Network Upgrade Mechanism](zip-0200.rst)
+
+[^zip-0207]: [ZIP 207: Funding Streams](zip-0207.rst)
 
 [^zip-0218]: [ZIP 218: 25-second Block Target Spacing](zip-0218.md)
 
