@@ -46,29 +46,10 @@ See `here <protocol/README.rst>`__ for the project dependencies.
 Settled Mainnet Network Upgrade
 -------------------------------
 
-The most recent `settled <https://zips.z.cash/protocol/protocol.pdf#blockchain>`__ Network Upgrade on Mainnet is NU6.3,
-which activated at Mainnet block height 3428143.
+The most recent `settled <https://zips.z.cash/protocol/protocol.pdf#blockchain>`__ Network Upgrade on Mainnet is NU7,
+which activated at Mainnet block height 3543405 on November 6, 2026, at 02:34 UTC.
 
-NU6.3 is described in `ZIP 258: Deployment of the NU6.3 Network Upgrade <zips/zip-0258.md>`__.
-
-NU7 ZIPs
---------
-
-The following ZIPs are planned for deployment in NU7:
-
-- `ZIP 218: 25-second Block Target Spacing <zips/zip-0218.md>`__
-- `ZIP 235: Remove 60% of Transaction Fees From Circulation <zips/zip-0235.md>`__
-- `ZIP 237: Network Sustainability Mechanism: Halving-Preserving Issuance <zips/zip-0237.md>`__
-- `ZIP 2003: Disallow version 4 transactions <zips/zip-2003.rst>`__
-- `ZIP 2008: Update to FS_FPF_ZCG_H3 address list <zips/zip-2008.md>`__
-
-The following existing ZIPs have revisions planned for deployment in NU7:
-
-- `ZIP 207: Funding Streams <zips/zip-0207.rst>`__ (Revision 2)
-- `ZIP 214: Consensus rules for a Zcash Development Fund <zips/zip-0214.rst>`__ (Revision 3)
-
-`ZIP 259: Deployment of the NU7 Network Upgrade <zips/zip-0259.md>`__
-defines which ZIPs are included in NU7.
+NU7 is described in `ZIP 259: Deployment of the NU7 Network Upgrade <zips/zip-0259.md>`__.
 
 The following non-consensus ZIP is Proposed, but is not part of NU7:
 
