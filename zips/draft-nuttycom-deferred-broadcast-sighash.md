@@ -199,12 +199,8 @@ at the network layer.
   their sighash algorithms.
 * This ZIP does not protect a variant 1 signature against replay on another
   consensus branch by a party that knows the value commitment randomness of
-  its shielded bundles. The party that constructed the transaction knows it.
-  When a hardware wallet signs, that party is the companion wallet that holds
-  the full viewing key. Any party to which the constructor disclosed the
-  randomness also knows it. In a FROST signing session, those parties are the
-  participants. See [Replay on another consensus branch] and
-  [Threshold signing with FROST].
+  its shielded bundles. [Cross-chain replay] states which parties can replay
+  a transaction, and under which conditions.
 * This ZIP does not protect a transaction that has no shielded bundle and
   whose transparent inputs all use variant 1. Any party can change its
   transaction identifier or replay it on another consensus branch.
@@ -620,6 +616,96 @@ After it, add:
 All of these changes apply identically to Mainnet and Testnet.
 
 
+# Security Considerations
+
+## Cross-chain replay
+
+A replay applies the effects of a signed transaction on a second block chain,
+without a new signature from the signer. This section considers a second chain
+that shares history with the first and has a different consensus branch ID,
+such as the other side of a chain split at a network upgrade.
+
+Variant 0 prevents such a replay, because every signature commits to the
+consensus branch ID. [^zip-0200] Variant 1 removes that protection from the
+signatures that use it. Two other cases are the same for both variants. Chains
+with the same consensus branch ID have no replay protection. Chains that share
+no history, such as Mainnet and Testnet, have no inputs in common.
+
+A replay cannot change the effects of a transaction. It spends the same inputs
+and creates the same outputs, with the same values and recipients. A
+transaction can be replayed on the second chain only if all of the following
+hold:
+
+1. The second chain accepts the transaction version, the bundle types and
+   variants, and sighash variant 1, and the transaction meets the other
+   consensus rules of that chain.
+2. Every input exists and is unspent on the second chain. For a transparent
+   input, the output that it refers to exists there with the same transaction
+   identifier and index. For a shielded spend, the note commitment is in the
+   note commitment tree there, and the nullifier in the transaction has not
+   been revealed there.
+3. Every variant 0 signature in the transaction is made again. The transaction
+   identifier differs on the second chain, so no variant 0 signature remains
+   valid.
+4. The proofs of each shielded bundle are valid for an anchor of the second
+   chain.
+
+An input created before the chains diverged satisfies condition 2 until it is
+spent on the second chain. Inputs created later are restricted:
+
+* A transparent output created later by a transaction of version 5 or above
+  never satisfies it, because the identifier of that transaction commits to
+  the consensus branch ID.
+* An Orchard or Ironwood note created later satisfies it only if the
+  transaction that created the note was itself replayed.
+* A Sapling note created later also needs the same position in the note
+  commitment tree of both chains, because its nullifier depends on that
+  position.
+
+Conditions 3 and 4 determine which parties can replay a transaction:
+
+* **Any party.** A transaction with no shielded bundle, in which every
+  transparent input uses variant 1, has no variant 0 signature and no proof.
+  Any party that sees it can replay it.
+* **A party that knows the binding signing key of every shielded bundle.**
+  This party can make the binding signatures again. If every other signature
+  uses variant 1, it can replay the transaction with the existing proofs,
+  provided that their anchors are from before the chains diverged. Those
+  anchors are valid on both chains, because an anchor can refer to the final
+  treestate of any earlier block. [^protocol-transactions]
+* **A party that knows the private inputs of every proof.**
+  [^protocol-spendstatement] [^protocol-actionstatement] These inputs include
+  the value commitment randomness, from which the binding signing keys are
+  derived. This party can also create new proofs, so it can replay such a
+  transaction whatever its anchors.
+
+No party can replay a transaction that has a variant 0 spend authorization
+signature or transparent input signature without the key that made that
+signature.
+
+The constructor of a shielded bundle chooses its value commitment randomness
+and the spend authorization randomizer $\alpha$ of each spend. The spend
+authorization signatures commit to the value commitments and to `rk`, so these
+choices are fixed once the transaction is signed. They cannot be recovered
+from the transaction or from a full viewing key. The second and third parties
+above are therefore the constructor, and any party to which it disclosed these
+values:
+
+* When a hardware wallet signs, the constructor is the companion wallet that
+  holds the full viewing key. [^zip-0374]
+* In a FROST signing session, the constructor is the Coordinator. It discloses
+  the openings of the value commitments to each participant, so each
+  participant knows the binding signing keys. See
+  [Threshold signing with FROST].
+
+An observer of the block chain cannot replay a transaction that contains a
+shielded bundle. Neither can the recipient of one of its outputs, or a holder
+of the full viewing key that does not know these values.
+
+A signer prevents the replay of a signed transaction on a chain by spending
+one of its inputs on that chain in another transaction.
+
+
 # Rationale
 
 ## Omitting the consensus branch ID
@@ -641,52 +727,10 @@ A signer accepts two risks by using variant 1:
 
 * If the block chain splits into two lasting consensus branches, a party that
   can complete the transaction can have it mined on both. See
-  [Replay on another consensus branch].
+  [Cross-chain replay].
 * A network upgrade can change consensus rules that are not part of the
   semantics of a bundle, such as how fees are distributed. The transaction is
   then mined under rules that differ from those in force at signing time.
-
-## Replay on another consensus branch
-
-To replay a transaction on a second consensus branch, a party must complete it
-for that branch. For a transaction that contains a shielded bundle, this
-requires:
-
-* the binding signing key of every shielded bundle, because the transaction
-  identifier differs between the branches and each binding signature must be
-  made again; and
-* proofs for an anchor that is valid on the second branch.
-
-Proofs do not depend on the consensus branch ID or the expiry height. Existing
-proofs therefore serve on the second branch if their anchor is from before the
-split, because an anchor can refer to the final treestate of any earlier
-block. [^protocol-transactions] Otherwise the party must create new proofs,
-which requires every private input of each proof. [^protocol-spendstatement]
-[^protocol-actionstatement] Those inputs include the spend authorization
-randomizer $\alpha$ and the value commitment randomness.
-
-The party that constructs a shielded bundle chooses $\alpha$ and the value
-commitment randomness. The spend authorization signature commits to `rk` and
-to the value commitments, so these choices are fixed once the transaction is
-signed, and they cannot be recovered from the transaction. The ability to
-complete a signed transaction therefore belongs to the parties that know this
-randomness: the constructor, and any party to which the constructor disclosed
-it.
-
-* When a hardware wallet signs, a companion wallet holds the full viewing key
-  (and, for Sapling, the proof authorizing key), constructs the transaction,
-  and creates its proofs. [^zip-0374] The companion wallet can replay the
-  transaction on any consensus branch.
-* In a FROST signing session, the Coordinator constructs the transaction and
-  discloses the randomness to the participants. Each of them can replay the
-  transaction once its spend authorization signatures are public. See
-  [Threshold signing with FROST].
-* Another party that holds the same full viewing key, but does not know the
-  randomness, cannot replay the transaction.
-* A party that knows only the binding signing keys can replay the transaction
-  if it has proofs whose anchor is from before the split.
-* An observer of the block chain cannot replay the transaction. Neither can
-  the recipient of one of its outputs.
 
 ## Omitting the expiry height
 
