@@ -43,7 +43,8 @@ Shielded bundle
 
 Signer
 :   A party that makes a spend authorization signature or a transparent input
-    signature for a transaction.
+    signature for a transaction. Each participant in a threshold signing
+    session is a signer.
 
 Signing time
 :   The time at which a signer makes its signature for a transaction.
@@ -84,9 +85,10 @@ variant 1 is itself visible in the transaction.
 
 A variant 1 signature does not expire, and it is valid on every consensus
 branch that accepts the transaction. In a transaction with a shielded bundle,
-only the party that constructed the bundle can make use of this, because the
-binding signatures require a key that only that party holds. This ZIP specifies
-the wallet behaviour that these properties require.
+making use of this requires the binding signing key of the bundle. The party
+that constructed the bundle knows that key, and so does any party to which it
+disclosed the value commitment randomness. This ZIP specifies the wallet
+behaviour that these properties require.
 
 
 # Motivation
@@ -196,10 +198,13 @@ at the network layer.
 * This ZIP does not change the version 5 or version 6 transaction formats or
   their sighash algorithms.
 * This ZIP does not protect a variant 1 signature against replay on another
-  consensus branch by the party that constructed the transaction, or by a
-  party to which the constructor gave the randomness of its shielded bundles.
-  When a hardware wallet signs, the constructor is the companion wallet that
-  holds the full viewing key. See [Replay on another consensus branch].
+  consensus branch by a party that knows the value commitment randomness of
+  its shielded bundles. The party that constructed the transaction knows it.
+  When a hardware wallet signs, that party is the companion wallet that holds
+  the full viewing key. Any party to which the constructor disclosed the
+  randomness also knows it. In a FROST signing session, those parties are the
+  participants. See [Replay on another consensus branch] and
+  [Threshold signing with FROST].
 * This ZIP does not protect a transaction that has no shielded bundle and
   whose transparent inputs all use variant 1. Any party can change its
   transaction identifier or replay it on another consensus branch.
@@ -394,6 +399,9 @@ choose them. In a transaction with no shielded bundle whose transparent inputs
 all use variant 1, no signature commits to these fields. Any party can change
 them, and with them the transaction identifier.
 
+In a threshold signing session, the requirements below apply to each
+participant.
+
 * A wallet that supports deferred broadcast SHOULD use variant 1 for every
   spend authorization signature and transparent input signature of a v7
   transaction that contains a shielded bundle, whether or not it defers the
@@ -466,10 +474,13 @@ transaction has been mined by its usual confirmation policy.
   nullifiers and transparent outputs that it spends, and not by a transaction
   identifier.
 
-* The wallet MUST NOT give a binding signing key, or the value commitment
-  randomness from which it is derived, to a party that it does not intend to
-  be able to complete the transaction. Such a party can complete the
-  transaction at any later time, on any consensus branch that accepts it.
+* The wallet SHOULD give a binding signing key, or the value commitment
+  randomness from which it is derived, only to a party that needs it to check
+  or to complete the transaction. Once the spend authorization signatures and
+  proofs of the transaction are public, every party that knows the binding
+  signing key of every shielded bundle can complete the transaction again. It
+  can do so at any later time, on any consensus branch that accepts the
+  transaction.
 
 ## Changes to ZIP 248
 
@@ -658,14 +669,20 @@ The party that constructs a shielded bundle chooses $\alpha$ and the value
 commitment randomness. The spend authorization signature commits to `rk` and
 to the value commitments, so these choices are fixed once the transaction is
 signed, and they cannot be recovered from the transaction. The ability to
-complete a signed transaction therefore belongs to its constructor:
+complete a signed transaction therefore belongs to the parties that know this
+randomness: the constructor, and any party to which the constructor disclosed
+it.
 
 * When a hardware wallet signs, a companion wallet holds the full viewing key
   (and, for Sapling, the proof authorizing key), constructs the transaction,
   and creates its proofs. [^zip-0374] The companion wallet can replay the
   transaction on any consensus branch.
-* Another party that holds the same full viewing key, but did not construct
-  the transaction, cannot replay it.
+* In a FROST signing session, the Coordinator constructs the transaction and
+  discloses the randomness to the participants. Each of them can replay the
+  transaction once its spend authorization signatures are public. See
+  [Threshold signing with FROST].
+* Another party that holds the same full viewing key, but does not know the
+  randomness, cannot replay the transaction.
 * A party that knows only the binding signing keys can replay the transaction
   if it has proofs whose anchor is from before the split.
 * An observer of the block chain cannot replay the transaction. Neither can
@@ -755,6 +772,43 @@ transaction that uses variant 1 with a shielded bundle has the same form. With
 a recommendation, two forms would appear on the block chain, and the form
 would reveal something about the wallet that produced the transaction.
 
+## Threshold signing with FROST
+
+This section describes ZIP 312 [^zip-0312] as revised by two open proposals.
+[^zip-0312-pr895] [^zip-0312-pr1459]
+
+Variant 1 needs no change to the signing protocol. The randomizer is derived
+from the signing commitments and not from the message. The variant 1 digest
+commits to every randomized validating key, as the variant 0 digest does, so
+the Coordinator still completes the first round of every session before it
+derives a randomizer.
+
+Variant 1 removes one cause of failed sessions. With variant 0, a session that
+does not finish before the expiry height, or before a network upgrade
+activates, starts again with new nonces. New signing commitments give a new
+randomizer and a new randomized validating key, so the transaction and its
+proofs are built again. With variant 1, a session can finish at any time.
+
+Variant 1 also changes what an approval by a threshold of participants means:
+
+* The approval has no time limit. The Coordinator can keep the aggregated
+  signatures and broadcast the transaction at any later time. Only another
+  signing session, which spends one of the inputs, cancels the approval.
+* Each participant in the session can complete the transaction. The
+  Coordinator sends each participant the openings of the value commitments, so
+  that the participant can check the values that it authorizes. From them the
+  participant can compute every binding signing key. Once the transaction has
+  been broadcast, its spend authorization signatures and proofs are public.
+  Any one participant can then complete it again after it expires, or on
+  another consensus branch on which its anchor is valid. Each participant also
+  holds the full viewing key and knows the randomizers, so it can create new
+  proofs where the anchor is not valid.
+
+A threshold of participants is therefore still required to authorize the
+effects of a transaction. It is not required to choose when, or on which
+consensus branch, an authorized transaction is mined. [Open issues] lists the
+changes that ZIP 312 needs.
+
 ## Rationale for permitting transparent-only transactions
 
 A transaction with no shielded bundle has no binding signature. If all of its
@@ -817,6 +871,17 @@ None yet.
 * **Partially created transactions.** ZIP 374 [^zip-0374] needs fields that
   record the sighash variant of each signature, and needs to say which role
   sets the consensus branch ID and the expiry height.
+* **Threshold signing.** ZIP 312 defines the message of a signing session as
+  the SIGHASH transaction hash. [^zip-0312] For a v7 transaction it needs to
+  say that the message is the digest for the sighash variant of the signature,
+  and that each participant checks which variant it is asked to sign. Its
+  proposed revision says that the sessions of one transaction sign the same
+  message. [^zip-0312-pr1459] That does not hold for a v7 transaction, because
+  ZIP 248 puts the index of the spend in each digest. Its threat model needs
+  to say that an approval made with variant 1 has no time limit, and which
+  parties can complete the transaction. It is open whether a participant could
+  check the values that it authorizes without the openings of the value
+  commitments, so that only the Coordinator could complete the transaction.
 * **Test vectors.** Test vectors for the variant 1 signature digest are
   needed. They should show that the digest is unchanged when
   `nConsensusBranchId` or `nExpiryHeight` changes, that it changes when any
@@ -859,6 +924,10 @@ None yet.
 [^zip-0248]: [ZIP 248: Extensible Transaction Format](zip-0248.rst)
 
 [^zip-0312]: [ZIP 312: FROST for Spend Authorization Multisignatures](zip-0312.rst)
+
+[^zip-0312-pr895]: [ZIP 312: Specify key generation, change randomizer handling (zcash/zips pull request 895)](https://github.com/zcash/zips/pull/895)
+
+[^zip-0312-pr1459]: [ZIP 312: Key generation: DKG base point, recovery data, several spends, clarifications (zcash/zips pull request 1459)](https://github.com/zcash/zips/pull/1459)
 
 [^zip-0318]: [ZIP 318: Orchard to Ironwood Migration](zip-0318.md)
 
