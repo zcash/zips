@@ -442,69 +442,92 @@ ZIP applies to whatever remains in that Programme's Spendable Treasury.
 
 ## Illustration
 
-ZCG's dashboard, as summarised in the current discussion [^julian-figures],
-shows on 12 November 2026: 94,349.71 ZEC, USD 8.75 million in cash, and USD 2.25
-million of approved but unpaid grant milestones. ZCG's spending over the first
-three quarters of 2026 annualises to about USD 8.7 million, so its USD 25
-million minimum applies.
+FPF has published ZCG's figures as of 18 November 2026 (block 3,586,555)
+[^fpf-figures]: 95,170.30 ZEC, USD 8,448,418 in cash, and USD 1,922,171 of
+approved but unpaid grant milestones, approved in USD and paid in ZEC. ZCG spent
+USD 12,845,314 over the 24 full months to October 2026, so its Annual Spend is
+about USD 6.42 million, and its USD 25 million minimum applies. Its Justified
+Reserve is about USD 26.9 million.
+
+All prices in this section are based on the dashboard price FPF used for its
+snapshot, USD 946.61. Earlier drafts used a round USD 800 with figures from 12
+November. They were updated so that every figure can be checked against one
+published, dated source.
 
 On those figures, the first quarterly transfer for ZCG would be:
 
 | ZEC price | ZCG Excess | Sent to the NSM | Future Dev and Legal Defense Fund ZIP |
 |---|---:|---:|---|
-| USD 903.80 | about 73,900 ZEC | 50,000 ZEC (capped) | 50,000 ZEC, and the 8% stream |
-| USD 451.90 | about 53,400 ZEC | 50,000 ZEC (capped) | 50,000 ZEC, and the 8% stream |
-| USD 225.95 | about 12,500 ZEC | about 12,500 ZEC | 50,000 ZEC, and the 8% stream |
+| USD 946.61 | about 75,700 ZEC | 50,000 ZEC (capped) | 50,000 ZEC, and the 8% stream |
+| USD 473.31 | about 56,100 ZEC | 50,000 ZEC (capped) | 50,000 ZEC, and the 8% stream |
+| USD 236.65 | about 17,100 ZEC | about 17,100 ZEC | 50,000 ZEC, and the 8% stream |
 
 Under this ZIP, ZCG keeps its 8% stream and its Justified Reserve at every
 price.
 
-For the coinholder-directed programme, published figures for spendable holdings,
-cash and commitments are needed. A rough estimate from the figures posted in the
-current discussion [^zooko-figures] puts its spendable treasury at about 70,000
-ZEC. Other public trackers have shown a larger coinholder pool. If more of it is
-spendable, the programme would send more. Its fourth-quarter 2026 round received
-55 applications requesting USD 5.87 million in total, which this ZIP treats as
-committed until the vote closes. On those figures, the programme would send
-about 22,000 ZEC to the NSM at USD 903.80, and nothing at the lower prices. Its
-USD 37.5 million minimum applies, because its spending over the past year
-appears to be below USD 18.75 million.
+ZCG already meets the rule on holdings in USD. It holds USD 8.45 million,
+against USD 6.42 million needed for its Committed Obligations and 12 months of
+expected new spending at its 24-month average, or USD 8.44 million at its rate
+over the last 12 months.
+
+For the coinholder-directed programme, FPF reports 147,998.25 ZEC and no cash
+[^fpf-figures]. That figure appears to include funds still in the Deferred Dev
+Fund Lockbox: ZIP 271 released 78,750 ZEC, and the programme has paid out
+7,887.13 ZEC, which suggests a Spendable Treasury of about 70,900 ZEC. Its
+fourth-quarter 2026 round requested USD 5.87 million, which this ZIP treats as
+committed until the vote closes. Its spending since launch annualises to about
+USD 8.1 million, so its USD 37.5 million minimum applies. On those figures, the
+programme would send about 25,000 ZEC to the NSM at USD 946.61, and nothing at
+the lower prices. If more of its holdings are spendable, it would send more.
 
 These figures are illustrative only, and MUST be recalculated from published
-figures on the first Measurement Date. The dashboard figures are a starting
-snapshot, with other obligations still to be confirmed. They are not a verified
+figures on the first Measurement Date. They are a dated snapshot, not a verified
 surplus [^julian-reply].
 
 ### Over time
 
 A quarterly cap is not directly comparable with a one-off transfer. The table
-below compares the two proposals for ZCG over eight quarters, from the first
-quarter in which transfers are possible. It assumes ZCG's 8% stream adds about
-13,140 ZEC a quarter, spending stays at USD 8.7 million a year, cash stays at
-USD 8.75 million, and Committed Obligations stay at USD 2.25 million. The
-Reference Price is taken as the price in each quarter. Under the Future Dev and
-Legal Defense Fund ZIP, the 50,000 ZEC transfer is made in the first quarter and
-the 8% stream goes to its new lockbox from then on.
+below compares the two proposals for ZCG over eight quarters, from FPF's
+snapshot to the November 2028 halving, when the funding streams end. It assumes
+ZCG's 8% stream adds about 13,150 ZEC a quarter; spending of USD 8.44 million a
+year, the last 12 months' rate, including one-off security bounties;
+Committed Obligations paid on FPF's expected dates and counted once; and ZEC
+sold each quarter to keep Committed Obligations and 12 months of spending in
+USD. The Reference Price is approximated by the lower of the previous six
+months' average and the current price. Under the Future Dev and Legal Defense
+Fund ZIP, the 50,000 ZEC transfer is made in the first quarter and the 8% stream
+goes to its new lockbox from then on. Transfers to the NSM are treated as no
+longer available to ZCG.
 
-| | This ZIP, price flat at USD 800 | Future Dev and Legal Defense Fund ZIP, price flat at USD 800 | This ZIP, price falls to USD 200 | Future Dev and Legal Defense Fund ZIP, price falls to USD 200 |
+| | This ZIP, price flat at USD 946.61 | Future Dev and Legal Defense Fund ZIP, price flat at USD 946.61 | This ZIP, price falls to USD 200 | Future Dev and Legal Defense Fund ZIP, price falls to USD 200 |
 |---|---:|---:|---:|---:|
-| Sent to the NSM | about 154,600 ZEC | 50,000 ZEC | about 90,000 ZEC | 50,000 ZEC |
-| Stream diverted from ZCG | none | about 105,100 ZEC | none | about 105,100 ZEC |
-| ZCG's Measured Value after eight quarters | about USD 27.2 million | about USD 26.8 million | about USD 21.0 million | about USD 8 million |
-| Remaining runway at current spending | about 2.9 years | about 2.8 years | about 2.2 years | under 1 year |
+| Sent to the NSM | about 165,000 ZEC | 50,000 ZEC | about 80,200 ZEC | 50,000 ZEC |
+| Stream diverted from ZCG | none | about 105,200 ZEC | none | about 105,200 ZEC |
+| ZCG's value in November 2028 | about USD 25.0 million | about USD 34.3 million | about USD 19.1 million | about USD 4.1 million |
+| Remaining runway at USD 8.44 million a year | about 3.0 years | about 4.1 years | about 2.3 years | about 0.5 years |
 
-In the falling scenario, the price falls by the same proportion each quarter,
-from USD 800 to USD 200.
+In the falling scenario, the price falls to USD 750, 500, 300 and then 200 over
+the first four quarters, and stays at USD 200.
 
-At a steady price the two proposals take a similar amount out of ZCG over two
-years. The difference is in a fall. This ZIP stops transfers as the price drops,
-so ZCG keeps about two years of runway. A fixed transfer, with the stream
-redirected, cannot adjust, and ZCG would run down to less than a year of
+At a steady price, this ZIP takes more out of ZCG than a fixed transfer, because
+it removes everything above the Justified Reserve, and ZCG ends with that
+reserve. The difference is in a fall. This ZIP stops transfers as the price
+drops, and ZCG keeps more than two years of runway. A fixed transfer, with the
+stream redirected, cannot adjust: ZCG runs out of ZEC in the sixth quarter, and
+ends with about half the USD it needs for its commitments and next year's
 spending.
 
+The hardest case for this ZIP is a strong market followed by a sharp fall. If
+the price rises to USD 1,900 over two quarters and then falls to USD 300, this
+ZIP sends about 100,000 ZEC in the first two quarters. ZCG then falls to about
+USD 18 to 19 million, below its USD 25 million minimum, for about a year, until
+its stream rebuilds it. Its commitments are still met, and its runway does not
+fall below two years, but transfers already made cannot be undone
+[^julian-reply]. Open question 9 considers a fix.
+
 The coinholder-directed programme is not shown, because its 12% stream accrues
-to the Deferred Dev Fund Lockbox rather than its Spendable Treasury, and
-published figures for its spending are needed first.
+to the Deferred Dev Fund Lockbox rather than its Spendable Treasury, and its
+spendable holdings need to be confirmed first.
 
 
 # Privacy and security considerations
@@ -581,7 +604,16 @@ published but no transfer is made, and no catch-up transfers accumulate.
    until a later decision?
 8. Is 24 months the right period for averaging spending? The coinholder-directed
    programme has a shorter history, so its average will rest on less data at
-   first.
+   first. Its spending is also lumpy: FPF reports that 98% of its payments to
+   date went out on a single day, after the third-quarter 2026 round. While a
+   Programme's minimum applies, its average does not change the result.
+9. Should the test value ZEC at half the Reference Price when deciding whether
+   there is an Excess? In a strong market followed by a sharp fall, transfers
+   made at the high price can leave a Programme below its minimum after the
+   fall. Testing at half price would still send most of the Excess when prices
+   are high, but in the illustration it raises ZCG's low point after a crash
+   from about USD 18 million to about USD 21 million, and after a fall to USD
+   200 from about USD 17 million to about USD 23 million.
 
 
 # Acknowledgements
@@ -590,7 +622,13 @@ Thanks to Julian for his analysis of ZCG's dashboard and quarterly figures
 [^julian-figures], and for his review of this draft [^julian-reply]. His
 comments led to the two-year averaging of spending, the removal of
 double-counted commitments from the Justified Reserve, the comparison over time,
-and basing USD holdings on when payments fall due and in which currency.
+and basing USD holdings on when payments fall due and in which currency. His
+downside case, a transfer after a strong market followed by a sharp fall, led
+to open question 9.
+
+Thanks to FPF for publishing ZCG's and the coinholder-directed programme's
+holdings, obligations and spending, with the source of each figure
+[^fpf-figures].
 
 
 # References
@@ -622,6 +660,8 @@ and basing USD holdings on when payments fall due and in which currency.
 [^zip-1428]: [Future Dev and Legal Defense Fund ZIP, PR #1428](https://github.com/zcash/zips/pull/1428)
 
 [^julian-figures]: [Julian, Zcash Community Forum, post 122 in "ZCG and the Dev Fund: Timeline for Proposals and Polling", 14 November 2026](https://forum.zcashcommunity.com/t/zcg-and-the-dev-fund-timeline-for-proposals-and-polling/58906/122)
+
+[^fpf-figures]: [FPF, Zcash Community Forum, "ZCG and Coinholder Grants: holdings, obligations and spending as of 19 November 2026", in "One ZIP for Both Taps: Fixing the Colossal Treasury Problem", 19 November 2026](https://forum.zcashcommunity.com/t/one-zip-for-both-taps-fixing-the-colossal-treasury-problem/59325)
 
 [^julian-reply]: [Julian, Zcash Community Forum, reply in "One ZIP for Both Taps: Fixing the Colossal Treasury Problem", 16 November 2026](https://forum.zcashcommunity.com/t/one-zip-for-both-taps-fixing-the-colossal-treasury-problem/59325)
 
