@@ -497,23 +497,32 @@ USD. The Reference Price is approximated by the lower of the previous six
 months' average and the current price. Under the Future Dev and Legal Defense
 Fund ZIP, the 50,000 ZEC transfer is made in the first quarter and the 8% stream
 goes to its new lockbox from then on. Transfers to the NSM are treated as no
-longer available to ZCG.
+longer available to ZCG. The model behind these figures is published, so anyone
+can check or rerun it [^model].
 
-| | This ZIP, price flat at USD 946.61 | Future Dev and Legal Defense Fund ZIP, price flat at USD 946.61 | This ZIP, price falls to USD 200 | Future Dev and Legal Defense Fund ZIP, price falls to USD 200 |
-|---|---:|---:|---:|---:|
-| Sent to the NSM | about 165,000 ZEC | 50,000 ZEC | about 80,200 ZEC | 50,000 ZEC |
-| Stream diverted from ZCG | none | about 105,200 ZEC | none | about 105,200 ZEC |
-| ZCG's value in November 2028 | about USD 25.0 million | about USD 34.3 million | about USD 19.1 million | about USD 4.1 million |
-| Remaining runway at USD 8.44 million a year | about 3.0 years | about 4.1 years | about 2.3 years | about 0.5 years |
+| Price path | Proposal | Sent to the NSM | ZCG's value in November 2028 | Remaining runway at USD 8.44 million a year |
+|---|---|---:|---:|---:|
+| Flat at USD 946.61 | This ZIP | about 165,000 ZEC | about USD 25.0 million | about 3.0 years |
+| | Future Dev and Legal Defense Fund ZIP | 50,000 ZEC | about USD 34.3 million | about 4.1 years |
+| Slide to USD 500 | This ZIP | about 136,300 ZEC | about USD 25.0 million | about 3.0 years |
+| | Future Dev and Legal Defense Fund ZIP | 50,000 ZEC | about USD 15.6 million | about 1.8 years |
+| Slide to USD 200 | This ZIP | about 80,200 ZEC | about USD 19.1 million | about 2.3 years |
+| | Future Dev and Legal Defense Fund ZIP | 50,000 ZEC | about USD 4.1 million | about 0.5 years |
 
-In the falling scenario, the price falls to USD 750, 500, 300 and then 200 over
-the first four quarters, and stays at USD 200.
+Under the Future Dev and Legal Defense Fund ZIP, about 105,200 ZEC of ZCG's
+stream is also diverted to its new lockbox in every case. In the slide to USD
+500, the price falls to USD 730, 650 and 575 over the first three quarters, then
+stays at USD 500. In the slide to USD 200, it falls to USD 750, 500, 300 and
+then 200 over the first four quarters, and stays at USD 200.
 
 At a steady price, this ZIP takes more out of ZCG than a fixed transfer, because
 it removes everything above the Justified Reserve, and ZCG ends with that
-reserve. The difference is in a fall. This ZIP stops transfers as the price
-drops, and ZCG keeps more than two years of runway. A fixed transfer, with the
-stream redirected, cannot adjust: ZCG runs out of ZEC in the sixth quarter, and
+reserve. The difference is in a fall. This ZIP sizes each transfer to the price
+at the time. In a slide to USD 500, ZCG never falls below its USD 25 million
+minimum. In a slide to USD 200, transfers stop as the price drops, and ZCG keeps
+more than two years of runway. A fixed transfer, with the stream redirected,
+cannot adjust. In a slide to USD 500 it leaves ZCG with less than two years of
+runway. In a slide to USD 200, ZCG runs out of ZEC in the sixth quarter, and
 ends with about half the USD it needs for its commitments and next year's
 spending.
 
@@ -650,6 +659,8 @@ holdings, obligations and spending, with the source of each figure
 [^zip-1014]: [ZIP 1014: Establishing a Dev Fund for ECC, ZF, and Major Grants](https://zips.z.cash/zip-1014)
 
 [^zip-1015]: [ZIP 1015: Block Subsidy Allocation for Non-Direct Development Funding](https://zips.z.cash/zip-1015)
+
+[^model]: [ZCG eight-quarter treasury model, Python script and README](https://gist.github.com/vaspholdings/de30a0ea297fc2e9e9e7cc776b43a487)
 
 [^zip-1016]: [ZIP 1016: Community and Coinholder Funding Model](https://zips.z.cash/zip-1016)
 
