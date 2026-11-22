@@ -215,8 +215,9 @@ SHALL:
    enough detail for anyone to check it, listing its Committed Obligations
    individually where they are already public and otherwise in aggregate; and
 2. if there is any Excess, and transfers are possible under the Deployment
-   section, send the amount due under the Excess section to the NSM in one or
-   more transactions, and publish their transaction IDs.
+   section, send the amount due under the Excess and Recheck before transfer
+   sections to the NSM in one or more transactions, and publish their
+   transaction IDs.
 
 For ZCG, the administrators are the organisation administering its treasury.
 For the CCF, they are the Key-Holder Organizations.
@@ -228,6 +229,25 @@ separately and excluded from its Measured Value.
 The calculation MAY be published as part of a Programme's regular quarterly
 report. If there is no Excess, publishing the calculation is all that is
 required.
+
+## Recheck before transfer
+
+Immediately before each transaction sending funds to the NSM, the
+administrators SHALL recalculate the Excess as at that date, using the
+Spendable Treasury, holdings and Committed Obligations on that date, and a
+Reference Price calculated as above with that date in place of the Measurement
+Date.
+
+The amount sent SHALL NOT exceed the lowest of:
+
+1. the Excess calculated on the Measurement Date, less any amount already sent
+   against it;
+2. the Excess recalculated on the date of the transaction; and
+3. the Transfer Cap, less any amount already sent against that Measurement
+   Date.
+
+If no Excess remains on recalculation, no transfer SHALL be made for that
+Measurement Date. Each recalculation SHALL be published with the calculation.
 
 ## Holdings in USD
 
@@ -419,6 +439,17 @@ wrong.
 If transfers are delayed, a Programme does not keep its excess. The test
 measures the treasury balance, so any excess still held when transfers become
 possible is measured and sent in the usual way, subject to the Transfer Cap.
+
+## Why recheck before transfer
+
+Up to 60 days can pass between a Measurement Date and a transfer. In that time
+the price can fall, payments go out and new commitments arise, so an Excess
+measured on the Measurement Date may no longer exist. Rechecking immediately
+before each transaction, and sending no more than the lower of the two Excess
+figures, means a Programme never transfers against a surplus that has already
+gone. It complements the test at half the Reference Price in open question 9:
+that test leaves a buffer against a later fall, and the recheck stops a
+transfer once the fall has happened.
 
 ## ZIP 233 and NU7.1
 
@@ -633,7 +664,8 @@ comments led to the two-year averaging of spending, the removal of
 double-counted commitments from the Justified Reserve, the comparison over time,
 and basing USD holdings on when payments fall due and in which currency. His
 downside case, a transfer after a strong market followed by a sharp fall, led
-to open question 9.
+to open question 9, and his suggestion of a recheck at the time of transfer led
+to the Recheck before transfer section [^julian-recheck].
 
 Thanks to FPF for publishing ZCG's and the coinholder-directed programme's
 holdings, obligations and spending, with the source of each figure
@@ -673,6 +705,8 @@ holdings, obligations and spending, with the source of each figure
 [^julian-figures]: [Julian, Zcash Community Forum, post 122 in "ZCG and the Dev Fund: Timeline for Proposals and Polling", 14 November 2026](https://forum.zcashcommunity.com/t/zcg-and-the-dev-fund-timeline-for-proposals-and-polling/58906/122)
 
 [^fpf-figures]: [FPF, Zcash Community Forum, "ZCG and Coinholder Grants: holdings, obligations and spending as of 19 November 2026", in "One ZIP for Both Taps: Fixing the Colossal Treasury Problem", 19 November 2026](https://forum.zcashcommunity.com/t/one-zip-for-both-taps-fixing-the-colossal-treasury-problem/59325)
+
+[^julian-recheck]: [Julian, Zcash Community Forum, post 37 in "One ZIP for Both Taps: Fixing the Colossal Treasury Problem", 21 November 2026](https://forum.zcashcommunity.com/t/one-zip-for-both-taps-fixing-the-colossal-treasury-problem/59325/37)
 
 [^julian-reply]: [Julian, Zcash Community Forum, reply in "One ZIP for Both Taps: Fixing the Colossal Treasury Problem", 16 November 2026](https://forum.zcashcommunity.com/t/one-zip-for-both-taps-fixing-the-colossal-treasury-problem/59325)
 
