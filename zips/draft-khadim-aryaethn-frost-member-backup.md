@@ -238,9 +238,11 @@ $\mathsf{rivk}$. Ironwood uses the same Orchard-protocol keys.
 1. Decode the string as above.
 2. Reject the string if $\mathsf{sk}$ is not a valid Orchard spending key,
    that is if $\mathsf{H^{ask}}(\mathsf{sk}) = 0$, or if the signing share is
-   not the canonical encoding of a Pallas scalar. (A group's $\mathsf{ask}$ is
-   not derived from $\mathsf{sk}$; the first check only keeps decoders in
-   agreement with the validity rule for Orchard spending keys.)
+   not the canonical encoding of a Pallas scalar, or is zero. (A group's
+   $\mathsf{ask}$ is not derived from $\mathsf{sk}$; the first check only keeps
+   decoders in agreement with the validity rule for Orchard spending keys. The
+   verifying share of a zero share is the identity, which ZIP 312 does not
+   allow [^zip-0312].)
 3. Take $\mathsf{ak}$ from the viewing key. Compute $\mathsf{nk}$ and
    $\mathsf{rivk}$ under each derivation of [Derivations].
 4. If the ZIP 2005 derivation gives the viewing key's $\mathsf{nk}$ and
@@ -414,9 +416,10 @@ ZIP 2005 viewing key built from the same $\mathsf{sk}$ and $\mathsf{ak}$ (whose
 strings restore under either key, with a different derivation), and a 3-of-5
 ZIP 2005 group; an uppercase string; seventeen strings that decoders must
 reject, two of them for the padding rule and one with a threshold of 1; and
-three cases that decode but that the restore must reject: a valid string
+four cases that decode but that the restore must reject: a valid string
 paired with another group's viewing key, a string whose signing share is not
-canonical, and a viewing key with no Orchard component.
+canonical, one whose signing share is zero, and a viewing key with no Orchard
+component.
 
 Every valid string decodes to the same fields and matches the stated
 derivation with Zkool's code, and every $t$-subset of members restored from
@@ -429,8 +432,8 @@ the valid string they come from; it also accepts a threshold of 1. Zkool
 A third decoder, by the other owner of this ZIP, with the derivations written
 directly from BIP 350, ZIP 316 and ZIP 2005 and no Zcash library, gives the
 expected result for every string, both viewing keys of each group, and every
-rejected case. With frost-client's version of `reddsa`, every $t$-subset also
-rebuilds $\mathsf{ak}$ and signs.
+rejected case but the share of zero, added since. With frost-client's version
+of `reddsa`, every $t$-subset also rebuilds $\mathsf{ak}$ and signs.
 
 One member of the 2-of-3 ZIP 2005 group (byte strings in hex):
 
@@ -487,10 +490,10 @@ One member of the 2-of-3 ZIP 2005 group (byte strings in hex):
   identifier (see [Rationale] on Bech32m).
 - **Birthday height in version 2.** A raw Orchard full viewing key does not
   carry the birthday height that ZIP 316 allows in the unified encoding
-  [^zip-0316-birthday], so a string that restores on its own would need a birthday
-  field of its own, as Konclave noted in zcash/zips#1413. A height only means
-  something on one network, so the field would either name the network or
-  apply to the network the wallet restores on.
+  [^zip-0316-birthday], so a string that restores on its own would need a
+  birthday field of its own, as Konclave noted in zcash/zips#1413. A height
+  only means something on one network, so the field would either name the
+  network or apply to the network the wallet restores on.
 - **Passphrase profile.** An optional version encrypting the payload with a
   memory-hard KDF and an AEAD, as Zafe does for its backups.
 - **Human-readable part.** `zkfrost` is kept for compatibility with existing
