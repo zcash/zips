@@ -1485,13 +1485,62 @@ A.1.0b: scriptSig              (field encoding bytes, with compactSize length pr
                                     <td><code>byte[coinbaseDataLen]</code></td>
                                     <td>Data chosen by the miner. Consensus assigns no meaning to its contents.</td>
                                 </tr>
+                                <tr>
+                                    <td><code>varies</code></td>
+                                    <td><code>nMinerSignals</code></td>
+                                    <td><code>compactSize</code></td>
+                                    <td>The number of entries in <code>vMinerSignals</code>.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>2 * nMinerSignals</code></td>
+                                    <td><code>vMinerSignals</code></td>
+                                    <td><code>MinerSignal[nMinerSignals]</code></td>
+                                    <td>Signals chosen by the miner, in strictly ascending order of <code>signalCode</code>.</td>
+                                </tr>
+                                <tr>
+                                    <td><code>16</code></td>
+                                    <td><code>pollDigest</code></td>
+                                    <td><code>byte[16]</code></td>
+                                    <td>A digest that identifies the poll to which <code>vMinerSignals</code> responds.</td>
+                                </tr>
                             </tbody>
                         </table>
                         <ul>
                             <li><code>blockHeight</code> MUST be in the range {1 .. 499999999}.</li>
                             <li><code>lockboxValue</code> MUST be in the range {0 .. <code>blockSubsidy</code>}.</li>
                             <li><code>coinbaseDataLen</code> MUST be at most 94.</li>
+                            <li>The field <code>pollDigest</code> is present if and only if
+                                <span class="math">\(\mathtt{nMinerSignals} &gt; 0\kern-0.03em\textsf{.}\)</span>
+                            </li>
+                            <li>The <code>signalCode</code> fields of the entries of <code>vMinerSignals</code> MUST be in strictly ascending order. Thus <code>nMinerSignals</code> is at most 256.</li>
                         </ul>
+                        <p>Consensus assigns no meaning to <code>vMinerSignals</code> or <code>pollDigest</code> beyond the rules above. Their use to poll miners is specified in the Miner Sentiment Polling draft ZIP <a id="footnote-reference-38" class="footnote_reference" href="#draft-marek-miner-sentiment-polling">28</a>.</p>
+                        <section id="minersignal"><h6><span class="section-heading">MinerSignal</span><span class="section-anchor"> <a rel="bookmark" href="#minersignal"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h6>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Bytes</th>
+                                        <th>Name</th>
+                                        <th>Data Type</th>
+                                        <th>Description</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><code>1</code></td>
+                                        <td><code>signalCode</code></td>
+                                        <td><code>uint8</code></td>
+                                        <td>A code that identifies the subject of the signal.</td>
+                                    </tr>
+                                    <tr>
+                                        <td><code>1</code></td>
+                                        <td><code>levelOfSupport</code></td>
+                                        <td><code>uint8</code></td>
+                                        <td>The miner's level of support for that subject.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </section>
                     </section>
                     <section id="coinbase-digests"><h5><span class="section-heading">Coinbase Digests</span><span class="section-anchor"> <a rel="bookmark" href="#coinbase-digests"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
                         <section id="t-3-1-coinbase-effects-digest"><h6><span class="section-heading">T.3.1: coinbase_effects_digest</span><span class="section-anchor"> <a rel="bookmark" href="#t-3-1-coinbase-effects-digest"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h6>
@@ -1499,7 +1548,9 @@ A.1.0b: scriptSig              (field encoding bytes, with compactSize length pr
                             <pre>T.3.1a: blockHeight   (4-byte little-endian block height)
 T.3.1b: blockSubsidy  (8-byte unsigned little-endian)
 T.3.1c: lockboxValue  (8-byte unsigned little-endian)
-T.3.1d: coinbaseData  (byte array with leading ``compactSize`` length)</pre>
+T.3.1d: coinbaseData  (byte array with leading ``compactSize`` length)
+T.3.1e: vMinerSignals (2 bytes per signal, with leading ``compactSize`` count)
+T.3.1f: pollDigest    (16 bytes, present iff nMinerSignals &gt; 0)</pre>
                             <p>The personalization field of this hash is set to:</p>
                             <pre>"ZTxIdCoinbasHash"</pre>
                             <p>This digest is present only for coinbase transactions; a transaction that has no coinbase bundle contributes no entry for it to <code>effects_bundles_digest</code>.</p>
@@ -1509,7 +1560,7 @@ T.3.1d: coinbaseData  (byte array with leading ``compactSize`` length)</pre>
                 <section id="sapling-bundle"><h4><span class="section-heading">Sapling Bundle</span><span class="section-anchor"> <a rel="bookmark" href="#sapling-bundle"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h4>
                     <p>An entry for this bundle in <code>mEffectBundles</code> MUST contain at least one Sapling Spend or Output description. If both <code>nSpendsSapling</code> and <code>nOutputsSapling</code> would be zero, the bundle MUST be omitted instead.</p>
                     <section id="sapling-effecting-data"><h5><span class="section-heading">Sapling Effecting Data</span><span class="section-anchor"> <a rel="bookmark" href="#sapling-effecting-data"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
-                        <p>The effecting data for the Sapling bundle describes the Sapling spends and outputs. Unlike the v5 transaction format defined in ZIP 225 <a id="footnote-reference-38" class="footnote_reference" href="#zip-0225">18</a>, the value balance is not included here; it appears in <code>mValuePoolDeltas</code> instead.</p>
+                        <p>The effecting data for the Sapling bundle describes the Sapling spends and outputs. Unlike the v5 transaction format defined in ZIP 225 <a id="footnote-reference-39" class="footnote_reference" href="#zip-0225">18</a>, the value balance is not included here; it appears in <code>mValuePoolDeltas</code> instead.</p>
                         <table>
                             <thead>
                                 <tr>
@@ -1580,7 +1631,7 @@ T.3.1d: coinbaseData  (byte array with leading ``compactSize`` length)</pre>
                             </table>
                         </section>
                         <section id="saplingoutput"><h6><span class="section-heading">SaplingOutput</span><span class="section-anchor"> <a rel="bookmark" href="#saplingoutput"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h6>
-                            <p>This is identical to <code>OutputDescriptionV5</code> as defined in ZIP 225 <a id="footnote-reference-39" class="footnote_reference" href="#zip-0225">18</a>.</p>
+                            <p>This is identical to <code>OutputDescriptionV5</code> as defined in ZIP 225 <a id="footnote-reference-40" class="footnote_reference" href="#zip-0225">18</a>.</p>
                             <table>
                                 <thead>
                                     <tr>
@@ -1762,7 +1813,7 @@ T.3.2b.iii: sapling_outputs_noncompact_digest (32-byte hash)</pre>
                                 <pre>BLAKE2b-256("ZTxIdSOutputHash", [])</pre>
                             </section>
                             <section id="t-3-2b-i-sapling-outputs-compact-digest"><h7><span class="section-heading">T.3.2b.i: sapling_outputs_compact_digest</span><span class="section-anchor"> <a rel="bookmark" href="#t-3-2b-i-sapling-outputs-compact-digest"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h7>
-                                <p>A BLAKE2b-256 hash of the subset of Sapling output information included in the ZIP 307 <a id="footnote-reference-40" class="footnote_reference" href="#zip-0307">24</a> <code>CompactBlock</code> format for all Sapling outputs belonging to the transaction. For each output, the following elements are included:</p>
+                                <p>A BLAKE2b-256 hash of the subset of Sapling output information included in the ZIP 307 <a id="footnote-reference-41" class="footnote_reference" href="#zip-0307">24</a> <code>CompactBlock</code> format for all Sapling outputs belonging to the transaction. For each output, the following elements are included:</p>
                                 <pre>T.3.2b.i.1: cmu                  (32 bytes)
 T.3.2b.i.2: ephemeralKey         (32 bytes)
 T.3.2b.i.3: encCiphertext[..52]  (first 52 bytes)</pre>
@@ -1802,9 +1853,9 @@ A.1.2e: bindingSigSapling      (SaplingSignature field encoding)</pre>
                     <p>The Orchard protocol supports two value pools, each with its own note commitment tree, nullifier set, and chain value pool balance. Each is acted upon by its own bundle type: the Orchard bundle, <code>bundleType = 3</code>, acts on the <em>Orchard pool</em>, and the Ironwood bundle, <code>bundleType = 4</code>, acts on the <em>Ironwood pool</em>.</p>
                     <p>An entry for either bundle type in <code>mEffectBundles</code> MUST contain at least one Action description (<code>nActionsOrchard &gt; 0</code> or <code>nActionsIronwood &gt; 0</code>). If there would be no Actions for that bundle type, the bundle MUST be omitted instead.</p>
                     <p>Both bundle types use the encoding defined in this section. Where a field is described below as belonging to the bundle's pool, that pool is the <em>Orchard pool</em> for an Orchard bundle and the <em>Ironwood pool</em> for an Ironwood bundle.</p>
-                    <p>The bits of <code>flagsOrchard</code> have the same meaning for both pools, and so are named without the <code>Orchard</code> suffix they carried in the v5 transaction format, following ZIP 229 <a id="footnote-reference-41" class="footnote_reference" href="#zip-0229">19</a>. Their values are constrained per pool by the <a href="#bundle-local-rules">Bundle-local rules</a>.</p>
+                    <p>The bits of <code>flagsOrchard</code> have the same meaning for both pools, and so are named without the <code>Orchard</code> suffix they carried in the v5 transaction format, following ZIP 229 <a id="footnote-reference-42" class="footnote_reference" href="#zip-0229">19</a>. Their values are constrained per pool by the <a href="#bundle-local-rules">Bundle-local rules</a>.</p>
                     <section id="orchard-protocol-effecting-data"><h5><span class="section-heading">Orchard Protocol Effecting Data</span><span class="section-anchor"> <a rel="bookmark" href="#orchard-protocol-effecting-data"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h5>
-                        <p>The effecting data for an Orchard protocol bundle describes the Orchard actions. Unlike the v5 transaction format defined in ZIP 225 <a id="footnote-reference-42" class="footnote_reference" href="#zip-0225">18</a>, the value balance is not included here; it appears in <code>mValuePoolDeltas</code> instead.</p>
+                        <p>The effecting data for an Orchard protocol bundle describes the Orchard actions. Unlike the v5 transaction format defined in ZIP 225 <a id="footnote-reference-43" class="footnote_reference" href="#zip-0225">18</a>, the value balance is not included here; it appears in <code>mValuePoolDeltas</code> instead.</p>
                         <table>
                             <thead>
                                 <tr>
@@ -1836,7 +1887,7 @@ A.1.2e: bindingSigSapling      (SaplingSignature field encoding)</pre>
                                         <ul>
                                             <li><code>enableSpends</code></li>
                                             <li><code>enableOutputs</code></li>
-                                            <li><code>enableCrossAddress</code> <a id="footnote-reference-43" class="footnote_reference" href="#zip-2006">27</a></li>
+                                            <li><code>enableCrossAddress</code> <a id="footnote-reference-44" class="footnote_reference" href="#zip-2006">27</a></li>
                                             <li>The remaining bits are set to
                                                 <span class="math">\(0\!\)</span>
                                             .</li>
@@ -2099,13 +2150,14 @@ A.1.3d: bindingSigOrchard     (OrchardSignature field encoding)</pre>
             <p>Effecting data bundles and authorizing data bundles are stored separately in the transaction format so that the authorizing data may be pruned by straightforward truncation of the encoded representation of the transaction.</p>
             <p>Representing the coinbase as a bundle makes the value pool delta balance rule universal. Previously the coinbase transaction was the sole exception: its deltas summed to the negation of the block subsidy rather than to zero, because the subsidy entered the transparent transaction value pool implicitly. With the subsidy carried in the coinbase bundle's value pool delta, every transaction balances to zero, and a wallet can enumerate the value flows of a coinbase transaction using the same rule it applies to any other transaction.</p>
             <p>The input and output requirements prevent trivial transactions (with no inputs or outputs). They allow fee-free transfers within a single shielded pool: such a transaction can satisfy both requirements through its spends and outputs even when it has no value pool delta entries. A zero net delta does not imply that no value moves within a pool.</p>
-            <p>Carrying <code>blockSubsidy</code> and <code>lockboxValue</code> in the effecting data states both components of the issuance in the bundle they belong to, and commits them to the transaction identifier along with the rest of that data. The value pool delta combines their difference with the fee contribution removed from circulation under ZIP 235. Without the explicit fields, a client could see the net delta but not how much was issued or how much went to the lockbox. Deriving them instead is not open to every client: the subsidy is not a function of the block height alone once issuance depends on accumulated chain state, so evaluating the issuance schedule would require a client to track that state. The NSM fee contribution is derivable from the gross fee bundle value already present in the coinbase transaction, so it needs neither an additional coinbase effecting field nor a ZIP 233 entry. ZIP 233 separately provides an explicit bundle for voluntary removal from circulation. <a id="footnote-reference-44" class="footnote_reference" href="#zip-0233">20</a></p>
+            <p>Carrying <code>blockSubsidy</code> and <code>lockboxValue</code> in the effecting data states both components of the issuance in the bundle they belong to, and commits them to the transaction identifier along with the rest of that data. The value pool delta combines their difference with the fee contribution removed from circulation under ZIP 235. Without the explicit fields, a client could see the net delta but not how much was issued or how much went to the lockbox. Deriving them instead is not open to every client: the subsidy is not a function of the block height alone once issuance depends on accumulated chain state, so evaluating the issuance schedule would require a client to track that state. The NSM fee contribution is derivable from the gross fee bundle value already present in the coinbase transaction, so it needs neither an additional coinbase effecting field nor a ZIP 233 entry. ZIP 233 separately provides an explicit bundle for voluntary removal from circulation. <a id="footnote-reference-45" class="footnote_reference" href="#zip-0233">20</a></p>
             <p>The Orchard and Ironwood bundles share one encoding because the <em>Orchard pool</em> and the <em>Ironwood pool</em> are two pools of the same shielded protocol. The action encoding, proving system, authorization, and note encryption are common to both; the pools differ in their note commitment trees, nullifier sets, and chain value pool balances.</p>
             <p>Each pool gets its own bundle type rather than a variant of a single type because a variant is required to affect the same value pool(s) as the type it varies, so that a client encountering an unrecognized variant still knows which pools the bundle touches. Two pools therefore cannot share a bundle type, and separate types also keep the two value pool deltas separable, which a client needs in order to report the two chain value pool balances independently.</p>
             <p>The Sapling and Orchard protocol anchors are authorizing data rather than effecting data. An anchor selects the note commitment tree state that the bundle's proofs are verified against, which is a property of how the spends are authorized rather than of what the transaction does. Placing it there lets a bundle be re-anchored to a more recent root without changing the transaction identifier, while the proofs still bind to the anchor actually used.</p>
-            <p>Bundle digests retain the input formats and personalizations of ZIP 229 <a id="footnote-reference-45" class="footnote_reference" href="#zip-0229">19</a> wherever the committed data is unchanged. Effects roots have different personalizations because value balances are committed separately in the value pool delta map. Authorizing digests have different personalizations because signatures include <code>sighashInfo</code> and anchors precede the proofs and signatures. Orchard and Ironwood use distinct personalizations to separate commitments for their respective pools.</p>
+            <p>Bundle digests retain the input formats and personalizations of ZIP 229 <a id="footnote-reference-46" class="footnote_reference" href="#zip-0229">19</a> wherever the committed data is unchanged. Effects roots have different personalizations because value balances are committed separately in the value pool delta map. Authorizing digests have different personalizations because signatures include <code>sighashInfo</code> and anchors precede the proofs and signatures. Orchard and Ironwood use distinct personalizations to separate commitments for their respective pools.</p>
             <p>The coinbase bundle also gives the coinbase metadata a place of its own. In previous transaction versions that metadata was encoded as the <code>scriptSig</code> of a single transparent input whose previous output reference pointed at nothing, so a coinbase transaction had to be recognized by that unspendable reference, and the block height had to be encoded as a script push. The coinbase bundle encodes the height directly, and its presence identifies the transaction. The <code>coinbaseData</code> limit of 94 bytes holds the encoded size of that field to what the previous encoding spent on the same content. A coinbase <code>scriptSig</code> was limited to 100 bytes, of which the leading push of the block height took 5; of the 95 bytes that remained, the <code>compactSize</code> length prefix of <code>coinbaseData</code> now takes one.</p>
             <p>Neither the previous output reference nor the sequence number of the input being replaced is carried over. Both were artifacts of encoding the coinbase metadata as a transparent input: the reference identified no output, and the sequence number had no effect on the validity of a transaction that spends nothing.</p>
+            <p>The miner signalling fields give miners a structured way to express sentiment on proposals, separate from <code>coinbaseData</code>. Free-form text in <code>coinbaseData</code> would compete for its 94 bytes with pool identifiers and other miner data, and would have to be found by searching for a textual pattern. A signal is a pair of bytes, so a response to a poll with many options stays small. The 16-byte <code>pollDigest</code> binds the signals to one poll document, so a signal code needs to be unique only within that poll. The fields are committed to by <code>coinbase_effects_digest</code> like the rest of the coinbase bundle, so they cannot be altered without changing the transaction identifier. Requiring strictly ascending signal codes gives each set of signals a single encoding. When there are no signals, <code>pollDigest</code> is omitted, so a miner that does not signal pays one byte for the <code>nMinerSignals</code> count.</p>
         </section>
         <section id="deployment"><h2><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
         </section>
@@ -2325,6 +2377,14 @@ A.1.3d: bindingSigOrchard     (OrchardSignature field encoding)</pre>
                     <tr>
                         <th>27</th>
                         <td><a href="zip-2006">ZIP 2006: Restricting Transfers into the Orchard Pool</a></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table id="draft-marek-miner-sentiment-polling" class="footnote">
+                <tbody>
+                    <tr>
+                        <th>28</th>
+                        <td><a href="draft-marek-miner-sentiment-polling">Draft ZIP: Miner Sentiment Polling</a></td>
                     </tr>
                 </tbody>
             </table>
