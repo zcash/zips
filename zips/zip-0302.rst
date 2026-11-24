@@ -48,12 +48,15 @@ contents of a memo. It does not define consensus requirements.
 + If the first byte has a value of ``0xF6``, and the remaining 511 bytes are ``0x00``,
   then the user supplied no memo, and the encrypted memo field is to be treated as empty.
 
++ If the first byte has a value of ``0xF7``, then the reader MUST interpret the memo as a
+  structured memo; see the next section for its format.
+
 + If the memo matches any of these patterns, then this memo is from the future, because
   these ranges are reserved for future updates to this specification:
 
      + The first byte has a value of ``0xF6``, and the remaining 511 bytes are not all
        ``0x00``.
-     + The first byte has a value between ``0xF7`` and ``0xFE`` inclusive.
+     + The first byte has a value between ``0xF8`` and ``0xFE`` inclusive.
 
 + If the first byte has a value of ``0xFF`` then the reader should not make any other
   assumption about the memo. In order to put arbitrary data into a memo field (that
@@ -63,6 +66,88 @@ contents of a memo. It does not define consensus requirements.
 + If the first byte has a value of ``0xF5``, then the reader should not make any other
   assumption about the memo. This value was used ambiguously in the past by private
   agreement; applications SHOULD prefer ``0xFF`` which is unambiguously for this purpose.
+
+Structured memos
+----------------
+
+A memo can be used to store structured data by setting its first byte to a value of
+``0xF7``. The remaining bytes contain a set of "memo parts", encoded as concatenated
+Type-Version-Length-Value tuples, followed by fixed padding (if any memo bytes remain
+after the TVLV tuples).
+
+Multiple memo parts with the same type are not permitted in structured memos.
+
+Parsing a structured memo
+`````````````````````````
+
+After the leading ``0xF7`` byte, readers parse the remaining memo bytes as follows:
+
+- While there are remaining unparsed memo bytes:
+
+  - Parse a ``compactSize`` to obtain ``partType``. If there are insufficient bytes to
+    parse a ``compactSize``, return an error.
+  - If ``partType == 0``:
+
+    - This is a marker type indicating that there are no more TVLV tuples. If any of the
+      remaining memo bytes are not ``0x00``, return an error.
+
+  - Else if ``partType`` has already been parsed in an earlier memo part, return an error.
+  - Otherwise:
+
+    - Parse a ``compactSize`` to obtain ``partVersion``. If there are insufficient bytes
+      to parse a ``compactSize``, return an error.
+    - Parse a ``compactSize`` to obtain ``partLength``. If there are insufficient bytes to
+      parse a ``compactSize``, return an error.
+    - Read the next ``partLength`` bytes to obtain ``partValue``. If ``partLength`` would
+      require the reader to read past the end of the memo bytes, return an error.
+    - Store ``(partType, partVersion, partValue)`` and continue parsing.
+
+If an error occurs, readers MUST treat the entire memo as invalid (ignoring any
+``MemoPart`` that was successfully parsed prior to the error).
+
+Defined memo part types
+```````````````````````
+
+The following memo part types (and corresponding versioned value encodings) are defined:
+
++--------------+-----------------+-------------------------------------------------------------------------------------+
+| ``partType`` | ``partVersion`` | ``partValue`` encoding                                                              |
++==============+=================+=====================================================================================+
+| 160          | 0               | A UTF-8 string.                                                                     |
+|              |                 | If decoding fails then return an error; readers MUST NOT replace invalid sequences. |
++--------------+-----------------+-------------------------------------------------------------------------------------+
+| 255          | 0               | Unconstrained data, for private use (like ``0xFF`` outside structured memos).       |
+|              |                 | Readers should not make any assumptions about the encoding or content of this data. |
++--------------+-----------------+-------------------------------------------------------------------------------------+
+| 10000-19999  | Currently unassigned range for "assigned private use".                                                |
++--------------+-----------------+-------------------------------------------------------------------------------------+
+| 65530-65535  | For temporary experimentation.                                                                        |
++--------------+-----------------+-------------------------------------------------------------------------------------+
+
+All other ``partType`` integers (and ``partVersion`` integers for memo part types
+specified in this ZIP) are reserved for future updates to this ZIP.
+
+Adding new types
+~~~~~~~~~~~~~~~~
+
+It is intended that new memo part types SHOULD be introduced by a modification to this
+ZIP, either directly or via a change section of a new ZIP, in accordance with the ZIP
+Process [#zip-0000]_.
+
+``partType`` integers in the range 10000 to 19999 inclusive are assigned by the ZIP
+Editors for "assigned private use". They are intended to support long-term usage of memo
+part types without public ``partValue`` encoding specifications (especially in deployment
+environments where the "unconstrained data" memo part type is unsuitable due to the chance
+of colliding usage). To request one or more memo part types for assigned private use, ask
+the ZIP Editors directly or open an issue on the ZIPs repo. Requestors MUST NOT assign
+specific integers themselves, or assume that a particular subrange is unused.
+
+For experimentation prior to proposing a new memo part type in a ZIP, experimental memo
+parts MAY be added using the reserved ``partTypes`` 65530 to 65535 inclusive. This
+provides for six simultaneous experiments, which can be referred to as experiments A to F.
+This should be sufficient because experiments are expected to be reasonably short-term,
+and should otherwise be either standardized in a ZIP (and allocated a ``partType`` outside
+this reserved range) or discontinued.
 
 Rationale
 =========
@@ -91,6 +176,24 @@ See issue `#1849`_ for further discussion.
 
 .. _`#1849`: https://github.com/zcash/zcash/issues/1849
 
+``partVersion`` at the top level of structured memos
+----------------------------------------------------
+
+It is intentional that only one memo part of each type be present in a memo; any container
+formats should be represented within ``partValue``. However, it is also desirable that the
+``partValue`` encodings can be updated over time as changes are made to the wallet-level
+protocols that use them. Without an explicit version field, the only alternative would be
+to assign a new ``partType`` for the new version, at which point it would be possible for
+a memo to contain two versions of the same semantic data. By having an explicit version
+field, wallets can forward-compatibly distinguish between a new version of a memo part
+type they are currently handling, and a new memo part type they don't know about.
+
+A prior argument against explicit version bytes at the top level was that memo space is
+limited to 511 bytes, and requiring every memo part type to have a version byte would add
+25-50% overhead on top of the TLV header. However, once ZIP 231 Memo Bundles [#zip-0231]_
+are deployed, a single memo can be at most 16384 bytes in a v6 transaction, weakening this
+argument.
+
 Backwards Compatibility
 =======================
 
@@ -103,3 +206,5 @@ References
 .. [#protocol] `Zcash Protocol Specification, Version 2021.1.19 <protocol/protocol.pdf>`_
 .. [#UTF-8] `UTF-8, a transformation format of ISO 10646 <https://www.rfc-editor.org/rfc/rfc3629.html>`_
 .. [#Bitcoin-CompactSize] `Variable length integer. Bitcoin Wiki <https://en.bitcoin.it/wiki/Protocol_documentation#Variable_length_integer>`_
+.. [#zip-0000] `ZIP 0: ZIP Process <zip-0000.rst>`_
+.. [#zip-0231] `ZIP 231: Memo Bundles <zip-0231.md>`_
