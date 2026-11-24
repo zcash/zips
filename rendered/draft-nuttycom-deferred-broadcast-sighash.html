@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Draft nuttycom-deferred-broadcast-sighash: Sighash Variant for Deferred Broadcast</title>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/katex.min.css" integrity="sha384-fgYS3VC1089n2J3rVcEbXDHlnDLQ9B2Y1hvpQ720q1NvxCduQqT4JoGc4u2QCnzE" crossorigin="anonymous">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/katex.min.js" integrity="sha384-YPHNAPyrxGS8BNnA7Q4ommqra8WQPEjooVSLzFgwgs8OXJBvadbyvx4QpfiFurGr" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.33/dist/contrib/auto-render.min.js" integrity="sha384-JKXHIJf8PKPyDFptuKZoUyMRQJAmQKj4B4xyOca62ebJhciMYGiDdq/9twUUWyZH" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<pre><code>ZIP: Unassigned
+Title: Sighash Variant for Deferred Broadcast
+Owners: Kris Nuttycombe &lt;kris@nutty.land&gt;
+Status: Draft
+Category: Consensus / Wallet
+Created: 2026-11-19
+License: MIT
+</code></pre>
+
+<h1 id="terminology"><span class="section-heading">Terminology</span><span class="section-anchor"> <a rel="bookmark" href="#terminology"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>The key words &#8220;MUST&#8221;, &#8220;MUST NOT&#8221;, &#8220;SHOULD&#8221;, and &#8220;MAY&#8221; in this document are to
+be interpreted as described in BCP 14 <a href="#fn:1" id="fnref:1" title="see footnote" class="footnote"><sup>1</sup></a> when, and only when, they appear
+in all capitals.</p>
+
+<p>The character § is used when referring to sections of the Zcash Protocol
+Specification. <a href="#fn:2" id="fnref:2" title="see footnote" class="footnote"><sup>2</sup></a></p>
+
+<p>The terms &#8220;Mainnet&#8221; and &#8220;Testnet&#8221; are to be interpreted as described in § 3.12
+‘Mainnet and Testnet’. <a href="#fn:3" id="fnref:3" title="see footnote" class="footnote"><sup>3</sup></a></p>
+
+<p>The term &#8220;full validator&#8221; in this document is to be interpreted as defined in
+§ 3.3 ‘The Block Chain’. <a href="#fn:4" id="fnref:4" title="see footnote" class="footnote"><sup>4</sup></a></p>
+
+<p>The terms &#8220;consensus branch&#8221;, &#8220;consensus branch ID&#8221;, &#8220;epoch&#8221;, and &#8220;network
+upgrade&#8221; are to be interpreted as described in ZIP 200. <a href="#fn:5" id="fnref:5" title="see footnote" class="footnote"><sup>5</sup></a></p>
+
+<p>The terms &#8220;v7 transaction&#8221;, &#8220;effecting data&#8221;, &#8220;authorizing data&#8221;, &#8220;sighash
+variant&#8221;, and &#8220;transaction identifier&#8221; are to be interpreted as described in
+ZIP 248. <a href="#fn:6" id="fnref:6" title="see footnote" class="footnote"><sup>6</sup></a></p>
+
+<p>The term &#8220;binding signing key&#8221;, written <span class="math">\(\mathsf{bsk}\kern-0.05em\textsf{,}\)</span> is to be interpreted as
+defined in § 4.13 ‘Balance and Binding Signature (Sapling)’ for a Sapling
+bundle <a href="#fn:7" id="fnref:7" title="see footnote" class="footnote"><sup>7</sup></a> and in § 4.14 ‘Balance and Binding Signature
+(Orchard)’ for an Orchard or Ironwood bundle. <a href="#fn:8" id="fnref:8" title="see footnote" class="footnote"><sup>8</sup></a></p>
+
+<p>The terms below are to be interpreted as follows:</p>
+
+<dl>
+<dt>Shielded bundle</dt>
+<dd>A Sapling, Orchard, or Ironwood bundle of a v7 transaction, as defined in
+ZIP 248. <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a></dd>
+
+<dt>Signer</dt>
+<dd>A party that makes a spend authorization signature or a transparent input
+signature for a transaction. Each participant in a threshold signing
+session is a signer.</dd>
+
+<dt>Signing time</dt>
+<dd>The time at which a signer makes its signature for a transaction.</dd>
+
+<dt>Target height</dt>
+<dd>The height of the next block after the chain tip, as seen by a wallet at a
+given time.</dd>
+
+<dt>Completing a transaction</dt>
+<dd>Carrying out the steps that make a signed v7 transaction ready to
+broadcast. The steps are: setting the <code>nConsensusBranchId</code> and
+<code>nExpiryHeight</code> fields; selecting the anchor of each shielded bundle and
+creating its proofs, if they do not already exist; and making the binding
+signature of each shielded bundle.</dd>
+
+<dt>Deferred broadcast</dt>
+<dd>Completing and broadcasting a transaction at a time later than its signing
+time. The device or party that does so might not hold any spending key.</dd>
+</dl>
+
+<h1 id="abstract"><span class="section-heading">Abstract</span><span class="section-anchor"> <a rel="bookmark" href="#abstract"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>ZIP 248 <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a> lets each signature in a v7 transaction select a signature
+hash (&#8220;sighash&#8221;) variant. Its only variant, variant 0, commits to all of the
+effecting data of the transaction, including the consensus branch ID and the
+expiry height.</p>
+
+<p>This ZIP defines sighash variant 1, which commits to the same data except those
+two fields. Variant 1 is available for spend authorization signatures and
+transparent input signatures. Binding signatures continue to use variant 0.</p>
+
+<p>The holder of a spending key can then authorize a transaction at one time, and
+a device without that key can complete and broadcast it later, even after a
+network upgrade. That device sets the consensus branch ID, the expiry height,
+and the anchors as it would for a transaction signed at that moment, so these
+fields do not reveal how long ago the transaction was signed. The use of
+variant 1 is itself visible in the transaction.</p>
+
+<p>A variant 1 signature does not expire, and it is valid on every consensus
+branch that accepts the transaction. In a transaction with a shielded bundle,
+making use of this requires the binding signing key of the bundle. The party
+that constructed the bundle knows that key, and so does any party to which it
+disclosed the value commitment randomness. This ZIP specifies the wallet
+behaviour that these properties require.</p>
+
+<h1 id="motivation"><span class="section-heading">Motivation</span><span class="section-anchor"> <a rel="bookmark" href="#motivation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>Every signature in a version 5 or version 6 transaction commits to the
+<code>nConsensusBranchId</code> and <code>nExpiryHeight</code> fields. <a href="#fn:9" id="fnref:9" title="see footnote" class="footnote"><sup>9</sup></a> <a href="#fn:10" id="fnref:10" title="see footnote" class="footnote"><sup>10</sup></a> So
+does every variant 0 signature in a v7 transaction. <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a> A signer must
+therefore know, at signing time, the consensus branch in which the transaction
+will be mined and the last height at which it can be mined.</p>
+
+<p>A signer knows both when it broadcasts immediately. It does not when signing
+and broadcast are separated, for example:</p>
+
+<ul>
+<li>A hardware wallet or offline device signs, and another device broadcasts
+later.</li>
+<li>Several parties sign with a threshold signature scheme <a href="#fn:11" id="fnref:11" title="see footnote" class="footnote"><sup>11</sup></a>, and
+collecting enough signature shares takes an unpredictable time.</li>
+<li>A wallet signs a schedule of transactions in one session and broadcasts them
+over days or weeks, as in the Orchard to Ironwood migration. <a href="#fn:12" id="fnref:12" title="see footnote" class="footnote"><sup>12</sup></a></li>
+<li>A wallet holds its spending key only while the user is present, and
+broadcasts from a background task.</li>
+</ul>
+
+<p>Signers that defer broadcast today work around each commitment at a cost:</p>
+
+<ul>
+<li><strong>Expiry height.</strong> The default expiry height is about 50 minutes after the
+transaction is created. <a href="#fn:13" id="fnref:13" title="see footnote" class="footnote"><sup>13</sup></a> A signer that defers broadcast for
+longer must sign a later expiry height or disable expiry. Either choice
+differs from what other wallets do, and so marks the transaction. A later
+expiry height can also reveal the signing time. ZIP 318 limits that leak by
+computing the expiry height from 30-day periods, but the result still
+differs from the default. <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a></li>
+<li><strong>Consensus branch ID.</strong> A signature is valid on one consensus branch, so a
+signed transaction becomes invalid when a network upgrade activates. A
+signer can sign one copy for each consensus branch that might apply, as
+ZIP 318 requires. <a href="#fn:12" title="see footnote" class="footnote"><sup>12</sup></a> This multiplies the signing work, and it is
+possible only for network upgrades whose consensus branch IDs are known at
+signing time.</li>
+</ul>
+
+<p>Anchors used to pose the same problem. The version 6 transaction format made
+them authorizing data, so that proofs can be created after signing against an
+anchor chosen at that time <a href="#fn:10" title="see footnote" class="footnote"><sup>10</sup></a>, and the v7 format keeps this property.
+<a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a> The consensus branch ID and the expiry height are the remaining
+fields that a signer must predict. The sighash variants of ZIP 248 allow a
+signature to omit them without another change to the transaction format.</p>
+
+<h1 id="privacyimplications"><span class="section-heading">Privacy Implications</span><span class="section-anchor"> <a rel="bookmark" href="#privacyimplications"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>The sighash variant of each signature is encoded in the authorizing data, so an
+observer of the block chain can see which transactions contain variant 1
+signatures. If only transactions with deferred broadcast used variant 1, its
+presence would reveal the deferral. This ZIP therefore recommends that a wallet
+that supports deferred broadcast use variant 1 for every v7 transaction that
+contains a shielded bundle.</p>
+
+<p>Among transactions that use variant 1, this ZIP aims to hide how long before
+broadcast a transaction was signed. The consensus branch ID, the expiry height,
+and the anchors are chosen at completion by the rules for a transaction signed
+at that time, so they carry no information about the signing time. The
+workarounds described in <a href="#motivation">Motivation</a> do not achieve this.</p>
+
+<p>Some signed data can still reveal information about the signing time:</p>
+
+<ul>
+<li>The fee, if the conventional fee for a transaction of that shape changes
+between signing and broadcast.</li>
+<li>The lock time, if the signer derives it from the block height at signing
+time.</li>
+<li>The transaction version and the bundle variants, which reflect the choices
+available at signing time.</li>
+</ul>
+
+<p>An observer of unmined transactions can also learn that a transaction was
+completed twice. Two completions of one signed transaction have the same
+effecting data apart from the two fields. A wallet that signs again produces
+different effecting data.</p>
+
+<p>A wallet that delegates completion to another party reveals to that party
+whatever it provides. A binding signing key reveals nothing about notes or
+addresses. The private inputs of the proofs reveal the values and addresses of
+the notes concerned.</p>
+
+<p>This ZIP does not affect the timing of broadcasts or other information visible
+at the network layer.</p>
+
+<h1 id="requirements"><span class="section-heading">Requirements</span><span class="section-anchor"> <a rel="bookmark" href="#requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<ul>
+<li>A variant 1 signature remains valid whatever the values of
+<code>nConsensusBranchId</code> and <code>nExpiryHeight</code>.</li>
+<li>A variant 1 signature commits to all other data that a variant 0 signature
+commits to.</li>
+<li>A completed transaction has the consensus branch ID, expiry height, and
+anchors that it would have if it had been signed at the time of completion.</li>
+<li>In a transaction that contains a shielded bundle, only a party that knows
+the binding signing key of every shielded bundle can change the transaction
+identifier, make the transaction valid after it expires, or make it valid on
+another consensus branch.</li>
+<li>The transaction format, the transaction identifier, and the authorizing data
+commitment do not change.</li>
+<li>The consensus rules for the consensus branch ID and the expiry height do not
+become weaker.</li>
+<li>A variant 1 signature digest costs no more hash compressions than a
+variant 0 signature digest.</li>
+</ul>
+
+<h1 id="non-requirements"><span class="section-heading">Non-requirements</span><span class="section-anchor"> <a rel="bookmark" href="#non-requirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<ul>
+<li>This ZIP does not change the version 5 or version 6 transaction formats or
+their sighash algorithms.</li>
+<li>This ZIP does not protect a variant 1 signature against replay on another
+consensus branch by a party that knows the value commitment randomness of
+its shielded bundles. <a href="#cross-chainreplay">Cross-chain replay</a> states which parties can replay
+a transaction, and under which conditions.</li>
+<li>This ZIP does not protect a transaction that has no shielded bundle and
+whose transparent inputs all use variant 1. Any party can change its
+transaction identifier or replay it on another consensus branch.</li>
+<li>This ZIP does not support signing a spend of a transparent output of a
+transaction that has not yet been completed. A transparent input refers to
+that transaction by its transaction identifier, and each completion has a
+different one.</li>
+</ul>
+
+<h1 id="specification"><span class="section-heading">Specification</span><span class="section-anchor"> <a rel="bookmark" href="#specification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<h2 id="sighashvariant1"><span class="section-heading">Sighash variant 1</span><span class="section-anchor"> <a rel="bookmark" href="#sighashvariant1"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>This ZIP defines sighash variant 1 for v7 transactions. <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a> A signature
+that uses variant 1 has <code>sighashVariant = 0x01</code>. The <code>associatedData</code> of
+variant 1 is the empty byte string. The <code>sighashInfo</code> of such a signature is
+therefore the single byte <code>0x01</code>, encoded with <code>sizeSighashInfo = 1</code>.</p>
+
+<p>Variant 1 is defined for bundle variant 0 of the transparent, Sapling, Orchard,
+and Ironwood bundle types. The following table lists the signatures of those
+bundles and the sighash variants that are defined for each of them.</p>
+
+<table>
+<colgroup>
+<col />
+<col />
+<col />
+<col />
+<col />
+</colgroup>
+
+<thead>
+<tr>
+	<th> Bundle  </th>
+	<th> <code>bundleType</code> </th>
+	<th> Signature          </th>
+	<th> Variant 0 </th>
+	<th> Variant 1 </th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+	<td> Transparent </td>
+	<td> 0   </td>
+	<td> Signatures checked by the scripts of one input </td>
+	<td> ✅  </td>
+	<td> ✅  </td>
+</tr>
+<tr>
+	<td> Sapling  </td>
+	<td> 2   </td>
+	<td> <code>vSpendAuthSigsSapling[i]</code>      </td>
+	<td> ✅  </td>
+	<td> ✅  </td>
+</tr>
+<tr>
+	<td> Sapling  </td>
+	<td> 2   </td>
+	<td> <code>bindingSigSapling</code>       </td>
+	<td> ✅  </td>
+	<td> ❌  </td>
+</tr>
+<tr>
+	<td> Orchard  </td>
+	<td> 3   </td>
+	<td> <code>vSpendAuthSigsOrchard[i]</code>      </td>
+	<td> ✅  </td>
+	<td> ✅  </td>
+</tr>
+<tr>
+	<td> Orchard  </td>
+	<td> 3   </td>
+	<td> <code>bindingSigOrchard</code>       </td>
+	<td> ✅  </td>
+	<td> ❌  </td>
+</tr>
+<tr>
+	<td> Ironwood </td>
+	<td> 4   </td>
+	<td> <code>vSpendAuthSigsOrchard[i]</code>      </td>
+	<td> ✅  </td>
+	<td> ✅  </td>
+</tr>
+<tr>
+	<td> Ironwood </td>
+	<td> 4   </td>
+	<td> <code>bindingSigOrchard</code>       </td>
+	<td> ✅  </td>
+	<td> ❌  </td>
+</tr>
+</tbody>
+</table>
+
+<p>The sighash variant of a transparent input is given by the <code>sighashInfo</code> field
+of its <code>TransparentInputAuth</code>. It applies to every signature that is checked
+when the scripts of that input are evaluated.</p>
+
+<p>Each signature selects its sighash variant independently of the other
+signatures in the transaction. A transaction MAY contain both variant 0
+signatures and variant 1 signatures.</p>
+
+<p>This ZIP does not define variant 1 for any other bundle type or bundle variant.
+A ZIP that registers another bundle type or bundle variant specifies whether
+variant 1 is defined for its signatures.</p>
+
+<h2 id="variant1signaturedigest"><span class="section-heading">Variant 1 signature digest</span><span class="section-anchor"> <a rel="bookmark" href="#variant1signaturedigest"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>A signature that uses variant 1 commits to the digest defined in this section.
+The digest has the structure of the variant 0 signature digest of ZIP 248
+<a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a>, with <code>txid_digest</code> replaced by <code>effects_sig_digest</code>:</p>
+
+<pre><code>signature_digest
+├── sighashVariant
+├── effects_sig_digest
+│   ├── header_sig_digest
+│   ├── value_pool_deltas_digest
+│   └── effects_bundles_digest
+├── amounts_sig_digest
+├── scriptpubkeys_sig_digest
+├── bundleType
+├── bundleVariant
+└── signature_context
+</code></pre>
+
+<p>All digests are personalized BLAKE2b-256 hashes. All personalization strings
+are 16 bytes long.</p>
+
+<p>The <code>nConsensusBranchId</code> and <code>nExpiryHeight</code> fields of the transaction are not
+inputs to any part of this digest. The consensus branch ID is also not part of
+any personalization string used in this digest.</p>
+
+<h3 id="v1:signature_digest"><span class="section-heading">V1: signature_digest</span><span class="section-anchor"> <a rel="bookmark" href="#v1:signature_digest"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>A BLAKE2b-256 hash of the following values:</p>
+
+<pre><code>V1.1: sighashVariant            (1 byte, 0x01)
+V1.2: effects_sig_digest        (32-byte hash output)
+V1.3: amounts_sig_digest        (32-byte hash output)
+V1.4: scriptpubkeys_sig_digest  (32-byte hash output)
+V1.5: bundleType                (compactSize encoding)
+V1.6: bundleVariant             (compactSize encoding)
+V1.7: signature_context         (bundle-defined byte string)
+</code></pre>
+
+<p>The personalization field of this hash is set to:</p>
+
+<pre><code>&quot;ZcashSigHash_v7_&quot; (2 underscore characters)
+</code></pre>
+
+<p>This is the personalization of the variant 0 signature digest. The value of
+<code>sighashVariant</code> separates the two digests.</p>
+
+<p><code>amounts_sig_digest</code> and <code>scriptpubkeys_sig_digest</code> are the digests of those
+names defined in ZIP 248. <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a> They commit to the values and to the
+script public keys of the coins spent by all transparent inputs of the
+transaction.</p>
+
+<p><code>bundleType</code> and <code>bundleVariant</code> identify the bundle that contains the
+signature.</p>
+
+<p><code>signature_context</code> is the byte string that ZIP 248 defines for a variant 0
+signature in the same position. It is the final field, with no length prefix.</p>
+
+<ul>
+<li>For a transparent input, it is the concatenation of these fields of the
+input being signed: <code>prevout</code> (36 bytes), <code>value</code> (8-byte signed
+little-endian), <code>scriptPubKey</code> (with <code>compactSize</code> length prefix),
+<code>nSequence</code> (4-byte unsigned little-endian), and <code>input_index</code> (2-byte
+unsigned little-endian).</li>
+<li>For <code>vSpendAuthSigsSapling[i]</code>, it is the 2-byte unsigned little-endian
+encoding of <span class="math">\(i\kern-0.05em\textsf{.}\)</span></li>
+<li>For <code>vSpendAuthSigsOrchard[i]</code> in an Orchard bundle or an Ironwood bundle,
+it is the 2-byte unsigned little-endian encoding of <span class="math">\(i\kern-0.05em\textsf{.}\)</span></li>
+</ul>
+
+<h3 id="v1.2:effects_sig_digest"><span class="section-heading">V1.2: effects_sig_digest</span><span class="section-anchor"> <a rel="bookmark" href="#v1.2:effects_sig_digest"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>A BLAKE2b-256 hash of the following values:</p>
+
+<pre><code>V1.2a: header_sig_digest         (32-byte hash output)
+V1.2b: value_pool_deltas_digest  (32-byte hash output)
+V1.2c: effects_bundles_digest    (32-byte hash output)
+</code></pre>
+
+<p>The personalization field of this hash is set to:</p>
+
+<pre><code>&quot;ZTxSigEffectHash&quot;
+</code></pre>
+
+<p><code>value_pool_deltas_digest</code> and <code>effects_bundles_digest</code> are the values T.2 and
+T.3 of the transaction identifier digest defined in ZIP 248. <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a> They
+commit to the complete value pool delta map and to the effecting data of every
+bundle in the transaction.</p>
+
+<h3 id="v1.2a:header_sig_digest"><span class="section-heading">V1.2a: header_sig_digest</span><span class="section-anchor"> <a rel="bookmark" href="#v1.2a:header_sig_digest"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>A BLAKE2b-256 hash of the following values:</p>
+
+<pre><code>V1.2a.i:   version          (4-byte little-endian version identifier including overwintered flag)
+V1.2a.ii:  nVersionGroupId  (4-byte little-endian version group identifier)
+V1.2a.iii: lock_time        (4-byte little-endian nLockTime value)
+</code></pre>
+
+<p>The personalization field of this hash is set to:</p>
+
+<pre><code>&quot;ZTxSigHeaderHash&quot;
+</code></pre>
+
+<h2 id="consensusrules"><span class="section-heading">Consensus rules</span><span class="section-anchor"> <a rel="bookmark" href="#consensusrules"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The following rules apply to v7 transactions from the activation of this ZIP.
+Full validators MUST enforce them.</p>
+
+<ul>
+<li><p>A signature whose <code>sighashInfo</code> is the single byte <code>0x01</code> MUST be verified
+against the digest defined in <a href="#variant1signaturedigest">Variant 1 signature digest</a>.</p></li>
+<li><p>The <code>sighashInfo</code> of each <code>TransparentInputAuth</code>, of each element of
+<code>vSpendAuthSigsSapling</code>, and of each element of <code>vSpendAuthSigsOrchard</code> in an
+Orchard or Ironwood bundle MUST be an encoding that is defined for that
+signature. ZIP 248 and this ZIP define two such encodings: the single byte
+<code>0x00</code> and the single byte <code>0x01</code>.</p></li>
+<li><p>The <code>sighashInfo</code> of <code>bindingSigSapling</code>, and of <code>bindingSigOrchard</code> in an
+Orchard or Ironwood bundle, MUST be the single byte <code>0x00</code>.</p></li>
+<li><p>For each <code>TransparentInputAuth</code> whose <code>sighashInfo</code> specifies sighash
+variant 1, the <code>hash_type</code> byte of every nonempty signature supplied to
+<code>OP_CHECKSIG</code>, <code>OP_CHECKSIGVERIFY</code>, <code>OP_CHECKMULTISIG</code>, or
+<code>OP_CHECKMULTISIGVERIFY</code> when validating that input MUST be <code>SIGHASH_ALL</code>
+(<code>0x01</code>).</p></li>
+<li><p>The <code>nConsensusBranchId</code> field of a v7 transaction MUST equal the consensus
+branch ID of the epoch of the block that contains the transaction. This rule
+applies whichever sighash variants the signatures of the transaction use.</p></li>
+</ul>
+
+<p>The consensus rules for <code>nExpiryHeight</code> in § 7.1.2 ‘Transaction Consensus
+Rules’ <a href="#fn:14" id="fnref:14" title="see footnote" class="footnote"><sup>14</sup></a> are unchanged. The transaction identifier and
+the authorizing data commitment are computed as specified in ZIP 248
+<a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a>, so the transaction identifier still commits to both fields.</p>
+
+<h2 id="requirementsforsigning"><span class="section-heading">Requirements for signing</span><span class="section-anchor"> <a rel="bookmark" href="#requirementsforsigning"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>A variant 1 signature does not limit the consensus branch or the heights at
+which a transaction can be mined. In a transaction that contains a shielded
+bundle, the binding signatures commit to <code>nConsensusBranchId</code> and
+<code>nExpiryHeight</code>, so only a party that knows every binding signing key can
+choose them. In a transaction with no shielded bundle whose transparent inputs
+all use variant 1, no signature commits to these fields. Any party can change
+them, and with them the transaction identifier.</p>
+
+<p>In a threshold signing session, the requirements below apply to each
+participant.</p>
+
+<ul>
+<li><p>A wallet that supports deferred broadcast SHOULD use variant 1 for every
+spend authorization signature and transparent input signature of a v7
+transaction that contains a shielded bundle, whether or not it defers the
+broadcast of that transaction.</p></li>
+<li><p>A signer SHOULD use variant 0 for a v7 transaction that contains no shielded
+bundle, unless the broadcast of that transaction is deferred.</p></li>
+<li><p>A signer SHOULD use the same sighash variant for every signature that it
+makes for a transaction.</p></li>
+<li><p>A signer that uses variant 1 SHOULD sign only transactions with
+<code>lock_time = 0</code>, unless the purpose of the transaction requires a lock time.</p></li>
+<li><p>A signer that asks a user to confirm the details of a transaction before it
+makes a variant 1 signature SHOULD tell the user that the signature does not
+limit when the transaction can be mined. It MUST NOT present an expiry height
+as a limit on the authorization.</p></li>
+</ul>
+
+<h2 id="requirementsforcompletingatransaction"><span class="section-heading">Requirements for completing a transaction</span><span class="section-anchor"> <a rel="bookmark" href="#requirementsforcompletingatransaction"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>A wallet that completes a v7 transaction containing a variant 1 signature:</p>
+
+<ul>
+<li><p>MUST set <code>nConsensusBranchId</code> to the consensus branch ID of the epoch that
+contains the target height.</p></li>
+<li><p>MUST set <code>nExpiryHeight</code> as it does for a transaction that it signs at the
+time of completion. The signing time MUST NOT affect the value. The value
+SHOULD be the target height plus the default expiry delta in effect at the
+target height. <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a></p></li>
+<li><p>SHOULD select the anchor of each shielded bundle as it does for a
+transaction that it creates at the time of completion, and SHOULD create the
+proofs of the bundle against that anchor.</p></li>
+<li><p>MUST make the binding signature of each shielded bundle after it sets
+<code>nConsensusBranchId</code> and <code>nExpiryHeight</code>.</p></li>
+</ul>
+
+<p>A wallet SHOULD complete a transaction only when it is about to broadcast it.</p>
+
+<p>A completed transaction becomes invalid if it expires, or if a network upgrade
+activates, before it is mined. A wallet MAY then complete it again. Each
+completion has a different transaction identifier. All completions spend the
+same inputs, so at most one can be mined, and nodes handle them as they handle
+any transactions that spend the same input.</p>
+
+<h2 id="requirementsforwalletsthatholdvariant1signatures"><span class="section-heading">Requirements for wallets that hold variant 1 signatures</span><span class="section-anchor"> <a rel="bookmark" href="#requirementsforwalletsthatholdvariant1signatures"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>A variant 1 signature stays valid until the transaction can no longer be
+mined. That happens when one of its inputs is spent, or when consensus stops
+accepting its transaction version or one of its bundle variants. The passing
+of an expiry height and the activation of a network upgrade do not end it.</p>
+
+<p>The following requirements apply to a wallet that has made, or that stores,
+variant 1 signatures for a transaction. In them, the wallet decides that a
+transaction has been mined by its usual confirmation policy.</p>
+
+<ul>
+<li><p>The wallet MUST NOT treat the transaction as cancelled or failed because the
+expiry height of a completion has passed.</p></li>
+<li><p>If the wallet creates another transaction to take its place, for example to
+make the same payment, the new transaction MUST spend at least one input of
+the transaction that it replaces. Then at most one of the two can be mined.</p></li>
+<li><p>To cancel the transaction, the wallet MUST spend at least one of its inputs
+in another transaction. It MUST treat the cancellation as effective only
+when that other transaction has been mined.</p></li>
+<li><p>Until the transaction is mined, the wallet SHOULD identify it by the
+nullifiers and transparent outputs that it spends, and not by a transaction
+identifier.</p></li>
+<li><p>The wallet SHOULD give a binding signing key, or the value commitment
+randomness from which it is derived, only to a party that needs it to check
+or to complete the transaction. Once the spend authorization signatures and
+proofs of the transaction are public, every party that knows the binding
+signing key of every shielded bundle can complete the transaction again. It
+can do so at any later time, on any consensus branch that accepts the
+transaction.</p></li>
+</ul>
+
+<h2 id="changestozip248"><span class="section-heading">Changes to ZIP 248</span><span class="section-anchor"> <a rel="bookmark" href="#changestozip248"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>In the changes below, &#8220;ZIP TBD&#8221; stands for the number that the ZIP Editors
+assign to this ZIP, and <code>[#zip-tbd]_</code> stands for a reference to it.</p>
+
+<p>In ‘Sighash Variants’, after:</p>
+
+<blockquote>
+<pre><code>Variant 0 is the &quot;commit to all effecting data&quot; sighash algorithm.
+</code></pre>
+</blockquote>
+
+<p>add:</p>
+
+<blockquote>
+<pre><code>Variant 1 commits to all effecting data except the consensus branch ID and
+the expiry height. It is defined in ZIP TBD. [#zip-tbd]_
+</code></pre>
+</blockquote>
+
+<p>In ‘Variant 0 Signature Digest’, replace:</p>
+
+<blockquote>
+<pre><code>For sighash variant 0 (the only variant
+currently defined for v7 transactions), the digest algorithm is as specified
+below.
+</code></pre>
+</blockquote>
+
+<p>with:</p>
+
+<blockquote>
+<pre><code>For sighash variant 0, the digest algorithm is as specified below. The digest
+algorithm for sighash variant 1 is specified in ZIP TBD. [#zip-tbd]_
+</code></pre>
+</blockquote>
+
+<p>In ‘Bundle-local rules’, replace:</p>
+
+<blockquote>
+<pre><code>* For each ``TransparentInputAuth`` whose ``sighashInfo`` specifies sighash
+variant 0, the ``hash_type`` byte of every nonempty signature supplied to
+</code></pre>
+</blockquote>
+
+<p>with:</p>
+
+<blockquote>
+<pre><code>* For each ``TransparentInputAuth`` whose ``sighashInfo`` specifies sighash
+variant 0 or sighash variant 1, the ``hash_type`` byte of every nonempty
+signature supplied to
+</code></pre>
+</blockquote>
+
+<p>and add the rule:</p>
+
+<blockquote>
+<pre><code>* The ``sighashInfo`` of ``bindingSigSapling``, and of ``bindingSigOrchard``
+in an Orchard or Ironwood bundle, MUST specify sighash variant 0.
+[#zip-tbd]_
+</code></pre>
+</blockquote>
+
+<p>In ‘Transparent Sighash Algorithms’, replace the whole paragraph with:</p>
+
+<blockquote>
+<pre><code>For the transparent bundle at ``bundleVariant = 0``, sighash variants 0 and 1
+are defined. The ``associatedData`` of each is the empty byte string. A
+signature made with variant 0 commits to the digest defined in `Variant 0
+Signature Digest`_. A signature made with variant 1 commits to the variant 1
+signature digest defined in ZIP TBD. [#zip-tbd]_ In both cases
+``bundleType = 0``, ``bundleVariant = 0``, and ``signature_context`` is as
+defined in `S.7: Transparent Signature Context`_.
+</code></pre>
+</blockquote>
+
+<p>In ‘Sapling Sighash Algorithms’, replace the first paragraph with:</p>
+
+<blockquote>
+<pre><code>For the Sapling bundle at ``bundleVariant = 0``, sighash variants 0 and 1 are
+defined for a ``spendAuthSig``, and only sighash variant 0 is defined for a
+``bindingSig``. The ``associatedData`` of each variant is the empty byte
+string. A signature made with variant 0 commits to the digest defined in
+`Variant 0 Signature Digest`_. A ``spendAuthSig`` made with variant 1 commits
+to the variant 1 signature digest defined in ZIP TBD. [#zip-tbd]_ In both
+cases ``bundleType = 2`` and ``bundleVariant = 0``.
+</code></pre>
+</blockquote>
+
+<p>In ‘Orchard Protocol Sighash Algorithms’, replace the first paragraph with:</p>
+
+<blockquote>
+<pre><code>For the Orchard and Ironwood bundles at ``bundleVariant = 0``, sighash
+variants 0 and 1 are defined for a ``spendAuthSig``, and only sighash variant
+0 is defined for a ``bindingSig``. The ``associatedData`` of each variant is
+the empty byte string. A signature made with variant 0 commits to the digest
+defined in `Variant 0 Signature Digest`_. A ``spendAuthSig`` made with
+variant 1 commits to the variant 1 signature digest defined in ZIP TBD.
+[#zip-tbd]_ In both cases ``bundleType = 3`` for Orchard or
+``bundleType = 4`` for Ironwood, and ``bundleVariant = 0``.
+</code></pre>
+</blockquote>
+
+<p>In ‘References’, add:</p>
+
+<blockquote>
+<pre><code>.. [#zip-tbd] `ZIP TBD: Sighash Variant for Deferred Broadcast &lt;draft-nuttycom-deferred-broadcast-sighash.md&gt;`_
+</code></pre>
+</blockquote>
+
+<h2 id="changestotheprotocolspecification"><span class="section-heading">Changes to the Protocol Specification</span><span class="section-anchor"> <a rel="bookmark" href="#changestotheprotocolspecification"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>These changes are written relative to the protocol specification as modified
+by ZIP 248. <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a> Each change applies from the activation of this ZIP.</p>
+
+<h3 id="§4.10‘sighashtransactionhashing’"><span class="section-heading">§ 4.10 ‘SIGHASH Transaction Hashing’</span><span class="section-anchor"> <a rel="bookmark" href="#§4.10‘sighashtransactionhashing’"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>ZIP 248 adds the following sentence to this section. <a href="#fn:15" id="fnref:15" title="see footnote" class="footnote"><sup>15</sup></a></p>
+
+<blockquote>
+<p>The SIGHASH algorithms used for v7 transactions are defined in ZIP 248.</p>
+</blockquote>
+
+<p>After it, add:</p>
+
+<blockquote>
+<p>A signature in a v7 transaction that uses sighash variant 1, as defined in
+ZIP TBD, does not commit to a consensus branch ID or to the <code>nExpiryHeight</code>
+field. The consensus branch ID of such a transaction is constrained by the
+rule on its <code>nConsensusBranchId</code> field in § 7.1.2 ‘Transaction Consensus
+Rules’.</p>
+</blockquote>
+
+<h3 id="§7.1.2‘transactionconsensusrules’"><span class="section-heading">§ 7.1.2 ‘Transaction Consensus Rules’</span><span class="section-anchor"> <a rel="bookmark" href="#§7.1.2‘transactionconsensusrules’"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h3>
+
+<p>This section contains the following rule. <a href="#fn:14" title="see footnote" class="footnote"><sup>14</sup></a></p>
+
+<blockquote>
+<p>[NU5 onward] If <span class="math">\(\mathsf{effectiveVersion} \geq 5\kern-0.05em\textsf{,}\)</span> the <code>nConsensusBranchId</code>
+field MUST match the consensus branch ID used for SIGHASH transaction hashes,
+as specified in [ZIP-244].</p>
+</blockquote>
+
+<p>After it, add:</p>
+
+<blockquote>
+<p>If <span class="math">\(\mathsf{effectiveVersion} \geq 7\kern-0.05em\textsf{,}\)</span> the <code>nConsensusBranchId</code> field MUST
+equal the consensus branch ID of the epoch of the block that contains the
+transaction, whichever sighash variants the signatures of the transaction
+use.</p>
+</blockquote>
+
+<h2 id="applicability"><span class="section-heading">Applicability</span><span class="section-anchor"> <a rel="bookmark" href="#applicability"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>All of these changes apply identically to Mainnet and Testnet.</p>
+
+<h1 id="securityconsiderations"><span class="section-heading">Security Considerations</span><span class="section-anchor"> <a rel="bookmark" href="#securityconsiderations"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<h2 id="cross-chainreplay"><span class="section-heading">Cross-chain replay</span><span class="section-anchor"> <a rel="bookmark" href="#cross-chainreplay"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>A replay applies the effects of a signed transaction on a second block chain,
+without a new signature from the signer. This section considers a second chain
+that shares history with the first and has a different consensus branch ID,
+such as the other side of a chain split at a network upgrade.</p>
+
+<p>Variant 0 prevents such a replay, because every signature commits to the
+consensus branch ID. <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a> Variant 1 removes that protection from the
+signatures that use it. Two other cases are the same for both variants. Chains
+with the same consensus branch ID have no replay protection. Chains that share
+no history, such as Mainnet and Testnet, have no inputs in common.</p>
+
+<p>A replay cannot change the effects of a transaction. It spends the same inputs
+and creates the same outputs, with the same values and recipients. A
+transaction can be replayed on the second chain only if all of the following
+hold:</p>
+
+<ol>
+<li>The second chain accepts the transaction version, the bundle types and
+variants, and sighash variant 1, and the transaction meets the other
+consensus rules of that chain.</li>
+<li>Every input exists and is unspent on the second chain. For a transparent
+input, the output that it refers to exists there with the same transaction
+identifier and index. For a shielded spend, the note commitment is in the
+note commitment tree there, and the nullifier in the transaction has not
+been revealed there.</li>
+<li>Every variant 0 signature in the transaction is made again. The transaction
+identifier differs on the second chain, so no variant 0 signature remains
+valid.</li>
+<li>The proofs of each shielded bundle are valid for an anchor of the second
+chain.</li>
+</ol>
+
+<p>An input created before the chains diverged satisfies condition 2 until it is
+spent on the second chain. Inputs created later are restricted:</p>
+
+<ul>
+<li>A transparent output created later by a transaction of version 5 or above
+never satisfies it, because the identifier of that transaction commits to
+the consensus branch ID.</li>
+<li>An Orchard or Ironwood note created later satisfies it only if the
+transaction that created the note was itself replayed.</li>
+<li>A Sapling note created later also needs the same position in the note
+commitment tree of both chains, because its nullifier depends on that
+position.</li>
+</ul>
+
+<p>Conditions 3 and 4 determine which parties can replay a transaction:</p>
+
+<ul>
+<li><strong>Any party.</strong> A transaction with no shielded bundle, in which every
+transparent input uses variant 1, has no variant 0 signature and no proof.
+Any party that sees it can replay it.</li>
+<li><strong>A party that knows the binding signing key of every shielded bundle.</strong>
+This party can make the binding signatures again. If every other signature
+uses variant 1, it can replay the transaction with the existing proofs,
+provided that their anchors are from before the chains diverged. Those
+anchors are valid on both chains, because an anchor can refer to the final
+treestate of any earlier block. <a href="#fn:16" id="fnref:16" title="see footnote" class="footnote"><sup>16</sup></a></li>
+<li><strong>A party that knows the private inputs of every proof.</strong>
+<a href="#fn:17" id="fnref:17" title="see footnote" class="footnote"><sup>17</sup></a> <a href="#fn:18" id="fnref:18" title="see footnote" class="footnote"><sup>18</sup></a> These inputs include
+the value commitment randomness, from which the binding signing keys are
+derived. This party can also create new proofs, so it can replay such a
+transaction whatever its anchors.</li>
+</ul>
+
+<p>No party can replay a transaction that has a variant 0 spend authorization
+signature or transparent input signature without the key that made that
+signature.</p>
+
+<p>The constructor of a shielded bundle chooses its value commitment randomness
+and the spend authorization randomizer <span class="math">\(\alpha\)</span> of each spend. The spend
+authorization signatures commit to the value commitments and to <code>rk</code>, so these
+choices are fixed once the transaction is signed. They cannot be recovered
+from the transaction or from a full viewing key. The second and third parties
+above are therefore the constructor, and any party to which it disclosed these
+values:</p>
+
+<ul>
+<li>When a hardware wallet signs, the constructor is the companion wallet that
+holds the full viewing key. <a href="#fn:19" id="fnref:19" title="see footnote" class="footnote"><sup>19</sup></a></li>
+<li>In a FROST signing session, the constructor is the Coordinator. It discloses
+the openings of the value commitments to each participant, so each
+participant knows the binding signing keys. See
+<a href="#thresholdsigningwithfrost">Threshold signing with FROST</a>.</li>
+</ul>
+
+<p>An observer of the block chain cannot replay a transaction that contains a
+shielded bundle. Neither can the recipient of one of its outputs, or a holder
+of the full viewing key that does not know these values.</p>
+
+<p>A signer prevents the replay of a signed transaction on a chain by spending
+one of its inputs on that chain in another transaction.</p>
+
+<h1 id="rationale"><span class="section-heading">Rationale</span><span class="section-anchor"> <a rel="bookmark" href="#rationale"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<h2 id="omittingtheconsensusbranchid"><span class="section-heading">Omitting the consensus branch ID</span><span class="section-anchor"> <a rel="bookmark" href="#omittingtheconsensusbranchid"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Variant 0 commits to the consensus branch ID to provide two-way replay
+protection: a signature made for one consensus branch is invalid on every
+other. <a href="#fn:5" title="see footnote" class="footnote"><sup>5</sup></a> That protection is what prevents deferred broadcast across
+a network upgrade.</p>
+
+<p>A variant 1 signature still commits to the transaction version, the version
+group ID, and the type and variant of every bundle. ZIP 248 fixes the
+semantics of each bundle type and variant for the lifetime of a transaction
+version. <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a> A network upgrade therefore cannot change the meaning of
+the data that the signer authorized. It can stop accepting a transaction
+version or a bundle variant, in which case the transaction can no longer be
+mined and the signer loses nothing.</p>
+
+<p>A signer accepts two risks by using variant 1:</p>
+
+<ul>
+<li>If the block chain splits into two lasting consensus branches, a party that
+can complete the transaction can have it mined on both. See
+<a href="#cross-chainreplay">Cross-chain replay</a>.</li>
+<li>A network upgrade can change consensus rules that are not part of the
+semantics of a bundle, such as how fees are distributed. The transaction is
+then mined under rules that differ from those in force at signing time.</li>
+</ul>
+
+<h2 id="omittingtheexpiryheight"><span class="section-heading">Omitting the expiry height</span><span class="section-anchor"> <a rel="bookmark" href="#omittingtheexpiryheight"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>Variant 0 commits to the expiry height so that the signer limits the time
+during which the transaction can be mined. <a href="#fn:13" title="see footnote" class="footnote"><sup>13</sup></a> A signer that defers
+broadcast cannot know the target height at broadcast. If the expiry height
+stays under the signature, the signer must disable expiry or sign a distant
+expiry height, with the costs described in <a href="#motivation">Motivation</a>.</p>
+
+<p>A variant whose <code>associatedData</code> carried an upper bound on the expiry height
+was considered. It would let the signer keep a limit on the validity of its
+signature. It was rejected because the bound would be visible in the
+transaction and would reveal the signing time, as a distant expiry height
+does.</p>
+
+<p>The cost of omitting the expiry height is that a signature stays valid until
+an input of the transaction is spent. Without the requirements in
+<a href="#requirementsforwalletsthatholdvariant1signatures">Requirements for wallets that hold variant 1 signatures</a>, a wallet could
+regard an expired payment as cancelled, make the payment again from different
+notes, and then see both payments mined.</p>
+
+<h2 id="fieldsthatvariant1stillcommitsto"><span class="section-heading">Fields that variant 1 still commits to</span><span class="section-anchor"> <a rel="bookmark" href="#fieldsthatvariant1stillcommitsto"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<ul>
+<li>The transaction version and the version group ID, because they determine
+how every other field is interpreted.</li>
+<li>The lock time, because a signer chooses it on purpose. Unlike the expiry
+height, its usual value, zero, is independent of the signing time.</li>
+<li>The value pool delta map, and so the fee, because the fee is an effect of
+the transaction. A party that completes the transaction cannot change what
+the signer pays.</li>
+</ul>
+
+<h2 id="structureofthevariant1digest"><span class="section-heading">Structure of the variant 1 digest</span><span class="section-anchor"> <a rel="bookmark" href="#structureofthevariant1digest"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The variant 1 digest replaces one 32-byte input of the variant 0 digest with
+another, so the preimage of <code>signature_digest</code> keeps its layout and length.
+With one-byte encodings of the bundle type and variant, the fields before
+<code>signature_context</code> occupy 99 bytes. The digest for a shielded spend
+authorization signature therefore needs one BLAKE2b compression, as it does
+for variant 0.</p>
+
+<p><code>effects_sig_digest</code> is computed once per transaction, from the value pool
+delta digest and the effects bundles digest that the transaction identifier
+also uses. <code>header_sig_digest</code> has a 12-byte input and <code>effects_sig_digest</code>
+has a 96-byte input, so each needs one compression. Both have their own
+personalization strings because they hash different data from the
+corresponding digests of the transaction identifier.</p>
+
+<p>A signer that makes only variant 1 signatures does not need the transaction
+identifier, so it can sign before the consensus branch ID and the expiry
+height are known.</p>
+
+<p><code>effects_sig_digest</code> has the same value for every completion of a signed
+transaction. A wallet can use it to recognize a mined transaction as a
+completion of a transaction that it signed.</p>
+
+<h2 id="rationaleforbindingsignaturesusingvariant0"><span class="section-heading">Rationale for binding signatures using variant 0</span><span class="section-anchor"> <a rel="bookmark" href="#rationaleforbindingsignaturesusingvariant0"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>A party without key material can change a field of a transaction exactly when
+no signature in the transaction commits to that field. If every signature
+used variant 1, any party could change the consensus branch ID and the expiry
+height:</p>
+
+<ul>
+<li>The transaction identifier would be malleable by third parties, which
+ZIP 244 set out to prevent. <a href="#fn:9" title="see footnote" class="footnote"><sup>9</sup></a></li>
+<li>Any party could make an expired transaction valid again. A recipient could
+do this to a payment that the sender believed had been cancelled.</li>
+</ul>
+
+<p>One variant 0 signature is enough to prevent both. The binding signature is
+the natural choice:</p>
+
+<ul>
+<li>Making it requires the binding signing key and no spend authority, so a
+device that holds no spending key can make it.</li>
+<li>The binding signing key is derived from the value commitment randomness of
+the bundle. The party that creates the proofs already knows that
+randomness. No observer and no recipient knows it.</li>
+<li>The binding signing key is the discrete logarithm of a group element that
+anyone can compute from the transaction. Giving it to another party reveals
+nothing about notes or addresses.</li>
+<li>The binding signature is made last in any case.</li>
+</ul>
+
+<p>The restriction is a consensus rule and not a recommendation, so that every
+transaction that uses variant 1 with a shielded bundle has the same form. With
+a recommendation, two forms would appear on the block chain, and the form
+would reveal something about the wallet that produced the transaction.</p>
+
+<h2 id="thresholdsigningwithfrost"><span class="section-heading">Threshold signing with FROST</span><span class="section-anchor"> <a rel="bookmark" href="#thresholdsigningwithfrost"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>This section describes ZIP 312 <a href="#fn:11" title="see footnote" class="footnote"><sup>11</sup></a> as revised by two open proposals.
+<a href="#fn:20" id="fnref:20" title="see footnote" class="footnote"><sup>20</sup></a> <a href="#fn:21" id="fnref:21" title="see footnote" class="footnote"><sup>21</sup></a></p>
+
+<p>Variant 1 needs no change to the signing protocol. The randomizer is derived
+from the signing commitments and not from the message. The variant 1 digest
+commits to every randomized validating key, as the variant 0 digest does, so
+the Coordinator still completes the first round of every session before it
+derives a randomizer.</p>
+
+<p>Variant 1 removes one cause of failed sessions. With variant 0, a session that
+does not finish before the expiry height, or before a network upgrade
+activates, starts again with new nonces. New signing commitments give a new
+randomizer and a new randomized validating key, so the transaction and its
+proofs are built again. With variant 1, a session can finish at any time.</p>
+
+<p>Variant 1 also changes what an approval by a threshold of participants means:</p>
+
+<ul>
+<li>The approval has no time limit. The Coordinator can keep the aggregated
+signatures and broadcast the transaction at any later time. Only another
+signing session, which spends one of the inputs, cancels the approval.</li>
+<li>Each participant in the session can complete the transaction. The
+Coordinator sends each participant the openings of the value commitments, so
+that the participant can check the values that it authorizes. From them the
+participant can compute every binding signing key. Once the transaction has
+been broadcast, its spend authorization signatures and proofs are public.
+Any one participant can then complete it again after it expires, or on
+another consensus branch on which its anchor is valid. Each participant also
+holds the full viewing key and knows the randomizers, so it can create new
+proofs where the anchor is not valid.</li>
+</ul>
+
+<p>A threshold of participants is therefore still required to authorize the
+effects of a transaction. It is not required to choose when, or on which
+consensus branch, an authorized transaction is mined. <a href="#openissues">Open issues</a> lists the
+changes that ZIP 312 needs.</p>
+
+<h2 id="rationaleforpermittingtransparent-onlytransactions"><span class="section-heading">Rationale for permitting transparent-only transactions</span><span class="section-anchor"> <a rel="bookmark" href="#rationaleforpermittingtransparent-onlytransactions"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>A transaction with no shielded bundle has no binding signature. If all of its
+transparent inputs use variant 1, any party can change its consensus branch ID
+and expiry height. This draft permits such transactions because offline
+signing is common for transparent funds. <a href="#openissues">Open issues</a> lists stronger
+alternatives.</p>
+
+<p>A signer that holds the key for one transparent input at the time of
+completion can avoid this property: it signs that input with variant 0 at
+that time.</p>
+
+<h2 id="rationaleforthecompletionrequirements"><span class="section-heading">Rationale for the completion requirements</span><span class="section-anchor"> <a rel="bookmark" href="#rationaleforthecompletionrequirements"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h2>
+
+<p>The requirements in <a href="#requirementsforcompletingatransaction">Requirements for completing a transaction</a> give a
+completed transaction the consensus branch ID, expiry height, and anchors of a
+transaction that is signed at the same moment. An observer cannot distinguish
+the two by those fields.</p>
+
+<p>The recommendation to use variant 1 for every transaction that contains a
+shielded bundle puts transactions that are signed and broadcast immediately
+into the same set. For those transactions the cost is small, because the
+binding signatures still commit to both fields. The recommendation excludes
+transactions with no shielded bundle, where no signature would commit to
+them.</p>
+
+<h1 id="deployment"><span class="section-heading">Deployment</span><span class="section-anchor"> <a rel="bookmark" href="#deployment"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>This ZIP has not been scheduled for deployment. It depends on the v7
+transaction format <a href="#fn:6" title="see footnote" class="footnote"><sup>6</sup></a> and can activate in the network upgrade that
+activates that format, or in a later one. Before this ZIP activates, variant 1
+is not a defined sighash variant, and a transaction that uses it is invalid.</p>
+
+<h1 id="referenceimplementation"><span class="section-heading">Reference implementation</span><span class="section-anchor"> <a rel="bookmark" href="#referenceimplementation"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<p>None yet.</p>
+
+<h1 id="openissues"><span class="section-heading">Open issues</span><span class="section-anchor"> <a rel="bookmark" href="#openissues"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<ul>
+<li><strong>Transparent-only transactions.</strong> Should every v7 transaction be required
+to contain at least one variant 0 signature? That rule would make every v7
+transaction identifier non-malleable by parties without key material. It
+would also prevent deferred broadcast of a transaction that has a single
+signer and no shielded bundle. A narrower alternative defines variant 1 for
+transparent inputs only in transactions that contain a shielded bundle.</li>
+<li><strong>Rejection of undefined variants.</strong> ZIP 248 describes the set of sighash
+variants as closed, but states no consensus rule that rejects an undefined
+<code>sighashVariant</code> or a <code>sighashInfo</code> of the wrong length. This ZIP states
+that rule for the signatures that it covers. The general rule belongs in
+ZIP 248.</li>
+<li><strong>Variant registry.</strong> ZIP 248 has no registry for sighash variants. The
+number 1 is provisional until the ZIP Editors confirm it.</li>
+<li><strong>Choice of transaction format.</strong> ZIP 248 recommends that a wallet use the
+oldest transaction format that supports the features a transaction
+requires. Until v7 transactions are common, the use of the v7 format
+together with variant 1 can therefore suggest deferred broadcast.</li>
+<li><strong>Partially created transactions.</strong> ZIP 374 <a href="#fn:19" title="see footnote" class="footnote"><sup>19</sup></a> needs fields that
+record the sighash variant of each signature, and needs to say which role
+sets the consensus branch ID and the expiry height.</li>
+<li><strong>Threshold signing.</strong> ZIP 312 defines the message of a signing session as
+the SIGHASH transaction hash. <a href="#fn:11" title="see footnote" class="footnote"><sup>11</sup></a> For a v7 transaction it needs to
+say that the message is the digest for the sighash variant of the signature,
+and that each participant checks which variant it is asked to sign. Its
+proposed revision says that the sessions of one transaction sign the same
+message. <a href="#fn:21" title="see footnote" class="footnote"><sup>21</sup></a> That does not hold for a v7 transaction, because
+ZIP 248 puts the index of the spend in each digest. Its threat model needs
+to say that an approval made with variant 1 has no time limit, and which
+parties can complete the transaction. It is open whether a participant could
+check the values that it authorizes without the openings of the value
+commitments, so that only the Coordinator could complete the transaction.</li>
+<li><strong>Test vectors.</strong> Test vectors for the variant 1 signature digest are
+needed. They should show that the digest is unchanged when
+<code>nConsensusBranchId</code> or <code>nExpiryHeight</code> changes, that it changes when any
+other effecting data changes, and that it differs from the variant 0 digest
+of the same transaction.</li>
+</ul>
+
+<h1 id="references"><span class="section-heading">References</span><span class="section-anchor"> <a rel="bookmark" href="#references"><img width="24" height="24" class="section-anchor" src="assets/images/section-anchor.png" alt=""></a></span></h1>
+
+<div class="footnotes">
+<hr />
+<ol>
+
+<li id="fn:1">
+<p><a href="https://www.rfc-editor.org/info/bcp14">Information on BCP 14 — &#8220;RFC 2119: Key words for use in RFCs to Indicate Requirement Levels&#8221; and &#8220;RFC 8174: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words&#8221;</a> <a href="#fnref:1" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:2">
+<p><a href="protocol/protocol.pdf">Zcash Protocol Specification, Version 2026.9.1 [NU7] or later</a> <a href="#fnref:2" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:3">
+<p><a href="protocol/protocol.pdf#networks">Zcash Protocol Specification, Version 2026.9.1 [NU7]. Section 3.12: Mainnet and Testnet</a> <a href="#fnref:3" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:4">
+<p><a href="protocol/protocol.pdf#blockchain">Zcash Protocol Specification, Version 2026.9.1 [NU7]. Section 3.3: The Block Chain</a> <a href="#fnref:4" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:5">
+<p><a href="zip-0200">ZIP 200: Network Upgrade Mechanism</a> <a href="#fnref:5" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:6">
+<p><a href="zip-0248">ZIP 248: Extensible Transaction Format</a> <a href="#fnref:6" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:7">
+<p><a href="protocol/protocol.pdf#saplingbalance">Zcash Protocol Specification, Version 2026.9.1 [NU7]. Section 4.13: Balance and Binding Signature (Sapling)</a> <a href="#fnref:7" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:8">
+<p><a href="protocol/protocol.pdf#orchardbalance">Zcash Protocol Specification, Version 2026.9.1 [NU7]. Section 4.14: Balance and Binding Signature (Orchard)</a> <a href="#fnref:8" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:9">
+<p><a href="zip-0244">ZIP 244: Transaction Identifier Non-Malleability</a> <a href="#fnref:9" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:10">
+<p><a href="zip-0229">ZIP 229: Version 6 Transaction Format</a> <a href="#fnref:10" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:11">
+<p><a href="zip-0312">ZIP 312: FROST for Spend Authorization Multisignatures</a> <a href="#fnref:11" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:12">
+<p><a href="zip-0318">ZIP 318: Orchard to Ironwood Migration</a> <a href="#fnref:12" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:13">
+<p><a href="zip-0203">ZIP 203: Transaction Expiry</a> <a href="#fnref:13" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:14">
+<p><a href="protocol/protocol.pdf#txnconsensus">Zcash Protocol Specification, Version 2026.9.1 [NU7]. Section 7.1.2: Transaction Consensus Rules</a> <a href="#fnref:14" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:15">
+<p><a href="protocol/protocol.pdf#sighash">Zcash Protocol Specification, Version 2026.9.1 [NU7]. Section 4.10: SIGHASH Transaction Hashing</a> <a href="#fnref:15" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:16">
+<p><a href="protocol/protocol.pdf#transactions">Zcash Protocol Specification, Version 2026.9.1 [NU7]. Section 3.4: Transactions and Treestates</a> <a href="#fnref:16" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:17">
+<p><a href="protocol/protocol.pdf#spendstatement">Zcash Protocol Specification, Version 2026.9.1 [NU7]. Section 4.18.2: Spend Statement (Sapling)</a> <a href="#fnref:17" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:18">
+<p><a href="protocol/protocol.pdf#actionstatement">Zcash Protocol Specification, Version 2026.9.1 [NU7]. Section 4.18.4: Action Statement (Orchard)</a> <a href="#fnref:18" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:19">
+<p><a href="zip-0374">ZIP 374: Partially Created Zcash Transaction Format</a> <a href="#fnref:19" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:20">
+<p><a href="https://github.com/zcash/zips/pull/895">ZIP 312: Specify key generation, change randomizer handling (zcash/zips pull request 895)</a> <a href="#fnref:20" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+<li id="fn:21">
+<p><a href="https://github.com/zcash/zips/pull/1459">ZIP 312: Key generation: DKG base point, recovery data, several spends, clarifications (zcash/zips pull request 1459)</a> <a href="#fnref:21" title="return to body" class="reversefootnote">&#160;&#8617;&#xfe0e;</a></p>
+</li>
+
+</ol>
+</div>
+</body>
+</html>
