@@ -167,6 +167,11 @@ We also define the following notation here:
 
 - $\mathsf{length}(a)$ means the length of the sequence $a$.
 
+- For a transaction $\mathsf{tx}$ that has no $\mathsf{vActionsOrchard}$ (respectively
+  $\mathsf{vActionsIronwood}$) field, that is, with a version lower than 5 (respectively 6)
+  [#zip-0225]_ [#zip-0229]_, $\mathsf{tx.vActionsOrchard}$ (respectively
+  $\mathsf{tx.vActionsIronwood}$) denotes the empty sequence.
+
 
 Specification
 =============
@@ -217,7 +222,23 @@ A payment disclosure has the following fields:
   - $\mathsf{ock}$: The outgoing cipher key that allows this output to be recovered.
     [#protocol-saplingencrypt]_
 
-TODO: Add support for Orchard.
+- $\mathsf{orchardOutputs}$: A sequence of the Orchard-pool Actions whose outputs we are
+  disclosing $[0..\mathsf{length}(\mathsf{tx.vActionsOrchard})]$
+
+  - $\mathsf{index}$: An index into $\mathsf{tx.vActionsOrchard}$.
+  - $\mathsf{ock}$: The outgoing cipher key that allows the output of this Action to be
+    recovered. [#protocol-saplingencrypt]_
+
+- $\mathsf{ironwoodOutputs}$: A sequence of the Ironwood-pool Actions whose outputs we
+  are disclosing $[0..\mathsf{length}(\mathsf{tx.vActionsIronwood})]$
+
+  - $\mathsf{index}$: An index into $\mathsf{tx.vActionsIronwood}$.
+  - $\mathsf{ock}$: The outgoing cipher key that allows the output of this Action to be
+    recovered. [#protocol-saplingencrypt]_
+
+TODO: Add support for proving Orchard and Ironwood spend authority. Until then, a payment
+disclosure can only disclose Orchard or Ironwood outputs of a transaction that also has a
+transparent input or a Sapling spend.
 
 TODO: Decide on payment disclosure versioning.
 
@@ -231,7 +252,8 @@ The inputs to a payment disclosure are:
 - The transaction.
 - The SLIP-44 [#slip-0044]_ coin type.
 - The message $msg$ to be included (which may be empty).
-- A sequence of $(\mathsf{outputIndex}, \mathsf{ock})$ tuples (which may be empty).
+- For each of the Sapling, Orchard, and Ironwood pools, a sequence of
+  $(\mathsf{outputIndex}, \mathsf{ock})$ tuples (each of which may be empty).
 - A sequence of Sapling spend tuples (which may be empty) containing:
 
   - A Sapling spend index.
@@ -242,6 +264,12 @@ The inputs to a payment disclosure are:
 
   - $\mathsf{index}$: An index into $\mathsf{tx.vin}$.
   - The inputs to a BIP 322 signature (excluding `message_data`).
+
+For Orchard and Ironwood outputs, the sender computes
+$\mathsf{ock} = \mathsf{PRF^{ockOrchard}_{ovk}}(\mathtt{cv}, \mathtt{cmx}, \mathtt{ephemeralKey})$
+from the fields of the Action, where $\mathsf{ovk}$ is the (external or internal)
+outgoing viewing key that was used when the transaction was created.
+[#protocol-saplingencrypt]_
 
 The caller MUST provide at least one input tuple of any type (either a Sapling spend tuple
 or a transparent input tuple).
@@ -264,8 +292,9 @@ The payment disclosure is created as follows:
 
   - TODO: Prepare BIP 322 signature inputs using `msg` as the `message_data`.
 
-- Construct an unsigned payment disclosure from the disclosed Sapling outputs, and the
-  above data for the Sapling spends and transparent inputs. Define the encoding of this as
+- Construct an unsigned payment disclosure from the disclosed Sapling, Orchard, and
+  Ironwood outputs, and the above data for the Sapling spends and transparent inputs.
+  Define the encoding of this as
   $unsignedPaymentDisclosure$.
 
 - For each Sapling spend index:
@@ -300,12 +329,18 @@ by the caller), the verifier proceeds as follows:
   - Sequence length correctness:
 
     - $\mathsf{length}(\mathsf{pd.saplingOutputs}) \leq \mathsf{length}(\mathsf{tx.shieldedOutputs})$
+    - $\mathsf{length}(\mathsf{pd.orchardOutputs}) \leq \mathsf{length}(\mathsf{tx.vActionsOrchard})$
+    - $\mathsf{length}(\mathsf{pd.ironwoodOutputs}) \leq \mathsf{length}(\mathsf{tx.vActionsIronwood})$
     - $\mathsf{length}(\mathsf{pd.saplingSpends}) \leq \mathsf{length}(\mathsf{tx.shieldedSpends})$
     - $\mathsf{length}(\mathsf{pd.transparentInputs}) \leq \mathsf{length}(\mathsf{tx.vin})$
 
   - Index uniqueness:
 
     - For every $\mathsf{output}$ in $\mathsf{pd.saplingOutputs}$,
+      $\mathsf{output.index}$ only occurs once.
+    - For every $\mathsf{output}$ in $\mathsf{pd.orchardOutputs}$,
+      $\mathsf{output.index}$ only occurs once.
+    - For every $\mathsf{output}$ in $\mathsf{pd.ironwoodOutputs}$,
       $\mathsf{output.index}$ only occurs once.
     - For every $\mathsf{spend}$ in $\mathsf{pd.saplingSpends}$,
       $\mathsf{spend.index}$ only occurs once.
@@ -316,6 +351,10 @@ by the caller), the verifier proceeds as follows:
 
     - For every $\mathsf{output}$ in $\mathsf{pd.saplingOutputs}$,
       $\mathsf{output.index} < \mathsf{length}(\mathsf{tx.shieldedOutputs})$
+    - For every $\mathsf{output}$ in $\mathsf{pd.orchardOutputs}$,
+      $\mathsf{output.index} < \mathsf{length}(\mathsf{tx.vActionsOrchard})$
+    - For every $\mathsf{output}$ in $\mathsf{pd.ironwoodOutputs}$,
+      $\mathsf{output.index} < \mathsf{length}(\mathsf{tx.vActionsIronwood})$
     - For every $\mathsf{spend}$ in $\mathsf{pd.saplingSpends}$,
       $\mathsf{spend.index} < \mathsf{length}(\mathsf{tx.shieldedSpends})$
     - For every $\mathsf{input}$ in $\mathsf{pd.transparentInputs}$,
@@ -354,11 +393,28 @@ by the caller), the verifier proceeds as follows:
 
   - TODO: BIP 322 verification.
 
+In the following steps, "recover" means running the procedure specified in
+[#protocol-saplingdecryptovk]_ (for Ironwood-pool outputs, as specified in
+[#protocol-nu6-3-decryptovk]_, which includes the changes made by [#zip-2005]_), with
+$\mathsf{ock} = \mathsf{output.ock}$ in place of its first step,
+$\mathsf{BlockHeight} = height$, $\mathsf{TxVersion}$ set to the version of
+$\mathsf{tx}$, and $\mathsf{Pool}$ set to the pool of the disclosed output.
+
 - For every $\mathsf{output}$ in $\mathsf{pd.saplingOutputs}$:
 
-  - Recover the Sapling note in $\mathsf{tx.shieldedOutputs}[\mathsf{output.index}]$
-    via the process specified in [#protocol-saplingdecryptovk]_ with inputs
-    $(height, \mathsf{output.ock})$. If recovery returns $\bot$, return false.
+  - Recover the Sapling note in $\mathsf{tx.shieldedOutputs}[\mathsf{output.index}]$.
+    If recovery returns $\bot$, return false.
+
+- For every $\mathsf{output}$ in $\mathsf{pd.orchardOutputs}$:
+
+  - Recover the Orchard-pool note in $\mathsf{tx.vActionsOrchard}[\mathsf{output.index}]$.
+    If recovery returns $\bot$, return false.
+
+- For every $\mathsf{output}$ in $\mathsf{pd.ironwoodOutputs}$:
+
+  - Recover the Ironwood-pool note in
+    $\mathsf{tx.vActionsIronwood}[\mathsf{output.index}]$. If recovery returns
+    $\bot$, return false.
 
 - Return true.
 
@@ -382,6 +438,19 @@ $\bot$ for a specific Sapling output, then they are unable to subsequently creat
 payment disclosure that discloses that output. This maintains the semantics of
 $\mathsf{ovk}$, in that the sender explicitly chose to lose the capability to
 recover that output.
+
+The same applies to Orchard and Ironwood: an Action whose output was encrypted with
+$\mathsf{ovk} = \bot$ cannot be disclosed. Where a value of $\mathsf{ovk}$ was used,
+$\mathsf{ock}$ is derived from it and from the $\mathtt{cv}$, $\mathtt{cmx}$, and
+$\mathtt{ephemeralKey}$ fields of that Action [#protocol-saplingencrypt]_, so disclosing
+one $\mathsf{ock}$ reveals only the output of that Action.
+
+Orchard and Ironwood outputs are disclosed in separate sequences because their indices
+refer to different transaction fields; both use the same Action encoding [#zip-0229]_.
+
+From NU6.3 activation, no new value may enter the Orchard pool and Orchard-pool Actions
+cannot make cross-address transfers [#zip-0258]_. Disclosing an Orchard output is
+therefore mainly useful for transactions mined before NU6.3 activation.
 
 Payment disclosures that prove Sapling spend authority are not required to reveal a
 sender address. This is because it is impossible: we can "prove" the transaction came from
@@ -419,7 +488,7 @@ order to simplify the verification UX. In particular, if payment disclosures wit
 spends were considered valid, an invalid payment disclosure with invalid signatures (that
 would be shown as invalid by UIs) could be mutated into a payment disclosure that would be
 shown as valid by UIs, by stripping off the signatures. We do not believe that this
-prevents any useful use cases; meanwhile if someone is intent on obtaining Sapling output
+prevents any useful use cases; meanwhile if someone is intent on obtaining shielded output
 disclosures regardless of the validity of their source, they will do so without a common
 standard.
 
@@ -437,10 +506,15 @@ References
 .. [#RFC4648] `RFC 4648: The Base16, Base32, and Base64 Data Encodings <https://www.rfc-editor.org/rfc/rfc4648>`_
 .. [#protocol] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1] or later <protocol/protocol.pdf>`_
 .. [#protocol-spendstatement] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.15.2: Spend Statement (Sapling) <protocol/protocol.pdf#spendstatement>`_
-.. [#protocol-saplingencrypt] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. 4.19.1: Encryption (Sapling) <protocol/protocol.pdf#saplingencrypt>`_
-.. [#protocol-saplingdecryptovk] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.20.3: Decryption using an Outgoing Viewing Key (Sapling) <protocol/protocol.pdf#saplingdecryptovk>`_
+.. [#protocol-saplingencrypt] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.20.1: Encryption (Sapling and Orchard) <protocol/protocol.pdf#saplingandorchardencrypt>`_
+.. [#protocol-saplingdecryptovk] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 4.20.3: Decryption using an Outgoing Viewing Key (Sapling and Orchard) <protocol/protocol.pdf#decryptovk>`_
+.. [#protocol-nu6-3-decryptovk] `Zcash Protocol Specification, Version 2026.8.0 [NU6.3]. Section 4.20.3: Decryption using an Outgoing Viewing Key (Sapling and Orchard) <protocol/nu6_3.pdf#decryptovk>`_
 .. [#protocol-concretediversifyhash] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 5.4.1.6: DiversifyHash Hash Function <protocol/protocol.pdf#concretediversifyhash>`_
 .. [#protocol-concretespendauthsig] `Zcash Protocol Specification, Version 2025.6.1 [NU6.1]. Section 5.4.6.1: Spend Authorization Signature <protocol/protocol.pdf#concretespendauthsig>`_
 .. [#bip-0322] `BIP 322: Generic Signed Message Format <https://github.com/bitcoin/bips/blob/master/bip-0322.mediawiki>`_
 .. [#slip-0044] `SLIP-0044 : Registered coin types for BIP-0044 <https://github.com/satoshilabs/slips/blob/master/slip-0044.md>`_
+.. [#zip-0225] `ZIP 225: Version 5 Transaction Format <zip-0225.rst>`_
+.. [#zip-0229] `ZIP 229: Version 6 Transaction Format <zip-0229.md>`_
+.. [#zip-0258] `ZIP 258: Deployment of the NU6.3 Network Upgrade <zip-0258.md>`_
 .. [#zip-0304] `ZIP 304: Sapling Address Signatures <zip-0304.rst>`_
+.. [#zip-2005] `ZIP 2005: Ironwood Quantum Recoverability <zip-2005.md>`_
