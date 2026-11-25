@@ -242,8 +242,22 @@ signatures in the transaction. A transaction MAY contain both variant 0
 signatures and variant 1 signatures.
 
 This ZIP does not define variant 1 for any other bundle type or bundle variant.
-A ZIP that registers another bundle type or bundle variant specifies whether
+A ZIP that registers another bundle type or bundle variant MUST specify whether
 variant 1 is defined for its signatures.
+
+<details>
+<summary>
+Rationale for the signatures that can use variant 1
+</summary>
+
+A binding signature must use variant 0 so that every transaction with a
+shielded bundle has a signature that commits to the consensus branch ID and
+the expiry height. Without one, any party could change both fields, and with
+them the transaction identifier. See
+[Rationale for binding signatures using variant 0] and
+[Rationale for permitting transparent-only transactions].
+
+</details>
 
 ## Variant 1 signature digest
 
