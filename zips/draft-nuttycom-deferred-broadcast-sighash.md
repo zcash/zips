@@ -262,14 +262,14 @@ them the transaction identifier. See
 ## Variant 1 signature digest
 
 A signature that uses variant 1 commits to the digest defined in this section.
-The digest has the structure of the variant 0 signature digest of ZIP 248
-[^zip-0248], with `txid_digest` replaced by `effects_sig_digest`:
+This digest reuses much of the structure and content of the variant 0 signature
+digest of ZIP 248 [^zip-0248] with three nodes changed:
 
 ```
 signature_digest
-├── sighashVariant
-├── effects_sig_digest
-│   ├── header_sig_digest
+├── sighashVariant *
+├── effects_sig_digest *
+│   ├── header_sig_digest *
 │   ├── value_pool_deltas_digest
 │   └── effects_bundles_digest
 ├── amounts_sig_digest
@@ -279,65 +279,32 @@ signature_digest
 └── signature_context
 ```
 
-All digests are personalized BLAKE2b-256 hashes. All personalization strings
-are 16 bytes long.
+The nodes with a `*` have new definitions given below. All other nodes have
+the definitions given in ZIP 248 for a variant 0 signature of the same input,
+spend, or action. `signature_digest` itself is computed as in ZIP 248, with S.1
+and S.2 as defined below.
 
-The `nConsensusBranchId` and `nExpiryHeight` fields of the transaction are not
-inputs to any part of this digest. The consensus branch ID is also not part of
-any personalization string used in this digest.
+Neither the consensus branch ID nor the `nExpiryHeight` field is an input to
+this digest or to any of its personalization strings.
 
-### V1: signature_digest
+### S.1: sighashVariant
 
-A BLAKE2b-256 hash of the following values:
+The single byte `0x01`. For variant 0 this byte is `0x00`.
 
-```
-V1.1: sighashVariant            (1 byte, 0x01)
-V1.2: effects_sig_digest        (32-byte hash output)
-V1.3: amounts_sig_digest        (32-byte hash output)
-V1.4: scriptpubkeys_sig_digest  (32-byte hash output)
-V1.5: bundleType                (compactSize encoding)
-V1.6: bundleVariant             (compactSize encoding)
-V1.7: signature_context         (bundle-defined byte string)
-```
+### S.2: effects_sig_digest
 
-The personalization field of this hash is set to:
+`effects_sig_digest` takes the place of `txid_digest` as S.2 of the variant 0
+signature digest. It differs from `txid_digest` in two ways:
 
-```
-"ZcashSigHash_v7_" (2 underscore characters)
-```
+* `header_sig_digest` takes the place of `header_digest`.
+* The personalization does not include the consensus branch ID.
 
-This is the personalization of the variant 0 signature digest. The value of
-`sighashVariant` separates the two digests.
-
-`amounts_sig_digest` and `scriptpubkeys_sig_digest` are the digests of those
-names defined in ZIP 248. [^zip-0248] They commit to the values and to the
-script public keys of the coins spent by all transparent inputs of the
-transaction.
-
-`bundleType` and `bundleVariant` identify the bundle that contains the
-signature.
-
-`signature_context` is the byte string that ZIP 248 defines for a variant 0
-signature in the same position. It is the final field, with no length prefix.
-
-* For a transparent input, it is the concatenation of these fields of the
-  input being signed: `prevout` (36 bytes), `value` (8-byte signed
-  little-endian), `scriptPubKey` (with `compactSize` length prefix),
-  `nSequence` (4-byte unsigned little-endian), and `input_index` (2-byte
-  unsigned little-endian).
-* For `vSpendAuthSigsSapling[i]`, it is the 2-byte unsigned little-endian
-  encoding of $i$.
-* For `vSpendAuthSigsOrchard[i]` in an Orchard bundle or an Ironwood bundle,
-  it is the 2-byte unsigned little-endian encoding of $i$.
-
-### V1.2: effects_sig_digest
-
-A BLAKE2b-256 hash of the following values:
+`effects_sig_digest` is a BLAKE2b-256 hash of the following values:
 
 ```
-V1.2a: header_sig_digest         (32-byte hash output)
-V1.2b: value_pool_deltas_digest  (32-byte hash output)
-V1.2c: effects_bundles_digest    (32-byte hash output)
+S.2a: header_sig_digest *       (32-byte hash output)
+S.2b: value_pool_deltas_digest  (32-byte hash output; T.2 of ZIP 248)
+S.2c: effects_bundles_digest    (32-byte hash output; T.3 of ZIP 248)
 ```
 
 The personalization field of this hash is set to:
@@ -346,19 +313,19 @@ The personalization field of this hash is set to:
 "ZTxSigEffectHash"
 ```
 
-`value_pool_deltas_digest` and `effects_bundles_digest` are the values T.2 and
-T.3 of the transaction identifier digest defined in ZIP 248. [^zip-0248] They
-commit to the complete value pool delta map and to the effecting data of every
-bundle in the transaction.
+### S.2a: header_sig_digest
 
-### V1.2a: header_sig_digest
+`header_sig_digest` differs from `header_digest` (T.1 of ZIP 248) in two ways:
 
-A BLAKE2b-256 hash of the following values:
+* It omits `nConsensusBranchId` (T.1c) and `nExpiryHeight` (T.1e).
+* It has its own personalization.
+
+`header_sig_digest` is a BLAKE2b-256 hash of the following values:
 
 ```
-V1.2a.i:   version          (4-byte little-endian version identifier including overwintered flag)
-V1.2a.ii:  nVersionGroupId  (4-byte little-endian version group identifier)
-V1.2a.iii: lock_time        (4-byte little-endian nLockTime value)
+S.2a.i:   version          (4-byte little-endian version identifier including overwintered flag)
+S.2a.ii:  nVersionGroupId  (4-byte little-endian version group identifier)
+S.2a.iii: lock_time        (4-byte little-endian nLockTime value)
 ```
 
 The personalization field of this hash is set to:
