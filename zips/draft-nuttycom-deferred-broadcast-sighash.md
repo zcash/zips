@@ -53,6 +53,12 @@ Target height
 :   The height of the next block after the chain tip, as seen by a wallet at a
     given time.
 
+Signed transaction
+:   A v7 transaction for which signers have made variant 1 signatures,
+    considered apart from its `nConsensusBranchId` and `nExpiryHeight` fields.
+    A signed transaction can be completed more than once. Each completion is a
+    transaction with its own transaction identifier.
+
 Completing a transaction
 :   Carrying out the steps that make a signed v7 transaction ready to
     broadcast. The steps are: setting the `nConsensusBranchId` and
@@ -355,26 +361,28 @@ Full validators MUST enforce them.
   `OP_CHECKMULTISIG`, or `OP_CHECKMULTISIGVERIFY` when validating that input
   MUST be `SIGHASH_ALL` (`0x01`).
 
-## Requirements for signing
+## Guidance for wallets
 
 A variant 1 signature does not limit the consensus branch or the heights at
 which a transaction can be mined. In a transaction that contains a shielded
 bundle, the binding signatures commit to `nConsensusBranchId` and
 `nExpiryHeight`, so only a party that knows every binding signing key can
-choose them. In a transaction with no shielded bundle whose transparent inputs
-all use variant 1, no signature commits to these fields. Any party can change
-them, and with them the transaction identifier.
+choose them. In a transaction with no shielded bundle, a signature commits to
+these fields only if at least one transparent input uses variant 0. If none
+does, any party can change them, and with them the transaction identifier.
 
-In a threshold signing session, the requirements below apply to each
+In a threshold signing session, the rules for signers apply to each
 participant.
+
+### Signing
+
+The following rules keep a transaction from revealing whether its broadcast
+was deferred:
 
 * A wallet that supports deferred broadcast SHOULD use variant 1 for every
   spend authorization signature and transparent input signature of a v7
   transaction that contains a shielded bundle, whether or not it defers the
   broadcast of that transaction.
-
-* A signer SHOULD use variant 0 for a v7 transaction that contains no shielded
-  bundle, unless the broadcast of that transaction is deferred.
 
 * A signer SHOULD use the same sighash variant for every signature that it
   makes for a transaction.
@@ -382,14 +390,21 @@ participant.
 * A signer that uses variant 1 SHOULD sign only transactions with
   `lock_time = 0`, unless the purpose of the transaction requires a lock time.
 
+The following rules protect the signer:
+
+* A signer SHOULD use variant 0 for a v7 transaction that contains no shielded
+  bundle, unless the broadcast of that transaction is deferred.
+
 * A signer that asks a user to confirm the details of a transaction before it
   makes a variant 1 signature SHOULD tell the user that the signature does not
   limit when the transaction can be mined. It MUST NOT present an expiry height
   as a limit on the authorization.
 
-## Requirements for completing a transaction
+### Completing and broadcasting a transaction
 
-A wallet that completes a v7 transaction containing a variant 1 signature:
+The following rules keep a completed transaction from revealing when it was
+signed. A wallet that completes a v7 transaction containing a variant 1
+signature:
 
 * MUST set `nConsensusBranchId` to the consensus branch ID of the epoch that
   contains the target height.
@@ -403,42 +418,55 @@ A wallet that completes a v7 transaction containing a variant 1 signature:
   transaction that it creates at the time of completion, and SHOULD create the
   proofs of the bundle against that anchor.
 
-* MUST make the binding signature of each shielded bundle after it sets
-  `nConsensusBranchId` and `nExpiryHeight`.
+A wallet SHOULD broadcast a transaction as soon as it has completed it. A
+wallet that keeps a signed transaction for later completion SHOULD store it as
+a PCZT. [^zip-0374]
 
-A wallet SHOULD complete a transaction only when it is about to broadcast it.
+### After a transaction has been broadcast
 
-A completed transaction becomes invalid if it expires, or if a network upgrade
-activates, before it is mined. A wallet MAY then complete it again. Each
-completion has a different transaction identifier. All completions spend the
-same inputs, so at most one can be mined, and nodes handle them as they handle
-any transactions that spend the same input.
+Completing a transaction sets its `nConsensusBranchId` and `nExpiryHeight`
+fields, and so fixes its transaction identifier. Once the transaction has been
+broadcast, that identifier is public.
 
-## Requirements for wallets that hold variant 1 signatures
-
-A variant 1 signature stays valid until the transaction can no longer be
-mined. That happens when one of its inputs is spent, or when consensus stops
-accepting its transaction version or one of its bundle variants. The passing
-of an expiry height and the activation of a network upgrade do not end it.
+That transaction can expire, and it becomes invalid if a network upgrade
+activates before it is mined. [^zip-0203] The variant 1 signatures in it do
+not expire. They remain valid in any other completion of the same signed
+transaction, until one of its inputs is spent, or until consensus stops
+accepting its transaction version or one of its bundle variants. Each
+completion is a different transaction, with its own transaction identifier.
+All completions spend the same inputs, so at most one can be mined, and nodes
+handle them as they handle any transactions that spend the same input.
 
 The following requirements apply to a wallet that has made, or that stores,
-variant 1 signatures for a transaction. In them, the wallet decides that a
-transaction has been mined by its usual confirmation policy.
+variant 1 signatures for a signed transaction. In them, the wallet decides
+that a transaction has been mined by its usual confirmation policy.
 
-* The wallet MUST NOT treat the transaction as cancelled or failed because the
-  expiry height of a completion has passed.
+* The wallet SHOULD treat the transaction identifier of a broadcast
+  transaction as stable.
 
-* If the wallet creates another transaction to take its place, for example to
-  make the same payment, the new transaction MUST spend at least one input of
-  the transaction that it replaces. Then at most one of the two can be mined.
+* If the wallet completes a signed transaction again after a broadcast
+  completion has expired, the new transaction replaces the expired one. The
+  wallet SHOULD record that relationship.
 
-* To cancel the transaction, the wallet MUST spend at least one of its inputs
-  in another transaction. It MUST treat the cancellation as effective only
-  when that other transaction has been mined.
+* A completion that another party broadcasts has a transaction identifier
+  that the wallet has not seen. The wallet SHOULD recognize it as a completion
+  of the signed transaction by its `effects_sig_digest`, which is the same for
+  every completion.
 
-* Until the transaction is mined, the wallet SHOULD identify it by the
-  nullifiers and transparent outputs that it spends, and not by a transaction
-  identifier.
+* The wallet MUST NOT assume that the effects of an expired transaction can no
+  longer be applied while another party is able to complete the signed
+  transaction again. Any party can do so if no signature in the transaction
+  commits to `nConsensusBranchId` and `nExpiryHeight`. Otherwise, only a party
+  that knows the binding signing key of every shielded bundle can.
+
+* If the wallet creates a transaction with different effects for the same
+  purpose, for example to make the same payment, that transaction MUST spend
+  at least one input of the signed transaction. Then at most one of them can
+  be mined.
+
+* To cancel a signed transaction, the wallet MUST spend at least one of its
+  inputs in another transaction. It MUST treat the cancellation as effective
+  only when that other transaction has been mined.
 
 * The wallet SHOULD give a binding signing key, or the value commitment
   randomness from which it is derived, only to a party that needs it to check
@@ -702,10 +730,10 @@ transaction and would reveal the signing time, as a distant expiry height
 does.
 
 The cost of omitting the expiry height is that a signature stays valid until
-an input of the transaction is spent. Without the requirements in
-[Requirements for wallets that hold variant 1 signatures], a wallet could
-regard an expired payment as cancelled, make the payment again from different
-notes, and then see both payments mined.
+an input of the transaction is spent. Without the rules in
+[After a transaction has been broadcast], a wallet could regard an expired
+payment as cancelled, make the payment again from different notes, and then
+see both payments mined.
 
 ## Fields that variant 1 still commits to
 
@@ -822,7 +850,7 @@ that time.
 
 ## Rationale for the completion requirements
 
-The requirements in [Requirements for completing a transaction] give a
+The rules in [Completing and broadcasting a transaction] give a
 completed transaction the consensus branch ID, expiry height, and anchors of a
 transaction that is signed at the same moment. An observer cannot distinguish
 the two by those fields.
