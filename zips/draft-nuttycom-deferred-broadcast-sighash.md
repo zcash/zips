@@ -339,32 +339,21 @@ The personalization field of this hash is set to:
 The following rules apply to v7 transactions from the activation of this ZIP.
 Full validators MUST enforce them.
 
-* A signature whose `sighashInfo` is the single byte `0x01` MUST be verified
-  against the digest defined in [Variant 1 signature digest].
+* The `sighashVariant` of each transparent input, each Sapling spend
+  authorization signature, and each Orchard or Ironwood spend authorization
+  signature MUST be 0 or 1.
 
-* The `sighashInfo` of each `TransparentInputAuth`, of each element of
-  `vSpendAuthSigsSapling`, and of each element of `vSpendAuthSigsOrchard` in an
-  Orchard or Ironwood bundle MUST be an encoding that is defined for that
-  signature. ZIP 248 and this ZIP define two such encodings: the single byte
-  `0x00` and the single byte `0x01`.
+* The `sighashVariant` of each Sapling, Orchard, or Ironwood binding signature
+  MUST be 0.
 
-* The `sighashInfo` of `bindingSigSapling`, and of `bindingSigOrchard` in an
-  Orchard or Ironwood bundle, MUST be the single byte `0x00`.
+* A signature whose `sighashVariant` is 1 MUST have empty `associatedData`,
+  and MUST be verified against the digest defined in
+  [Variant 1 signature digest].
 
-* For each `TransparentInputAuth` whose `sighashInfo` specifies sighash
-  variant 1, the `hash_type` byte of every nonempty signature supplied to
-  `OP_CHECKSIG`, `OP_CHECKSIGVERIFY`, `OP_CHECKMULTISIG`, or
-  `OP_CHECKMULTISIGVERIFY` when validating that input MUST be `SIGHASH_ALL`
-  (`0x01`).
-
-* The `nConsensusBranchId` field of a v7 transaction MUST equal the consensus
-  branch ID of the epoch of the block that contains the transaction. This rule
-  applies whichever sighash variants the signatures of the transaction use.
-
-The consensus rules for `nExpiryHeight` in § 7.1.2 ‘Transaction Consensus
-Rules’ [^protocol-txnconsensus] are unchanged. The transaction identifier and
-the authorizing data commitment are computed as specified in ZIP 248
-[^zip-0248], so the transaction identifier still commits to both fields.
+* For each transparent input whose `sighashVariant` is 1, the `hash_type` byte
+  of every nonempty signature supplied to `OP_CHECKSIG`, `OP_CHECKSIGVERIFY`,
+  `OP_CHECKMULTISIG`, or `OP_CHECKMULTISIGVERIFY` when validating that input
+  MUST be `SIGHASH_ALL` (`0x01`).
 
 ## Requirements for signing
 
@@ -560,8 +549,8 @@ In ‘References’, add:
 
 ## Changes to the Protocol Specification
 
-These changes are written relative to the protocol specification as modified
-by ZIP 248. [^zip-0248] Each change applies from the activation of this ZIP.
+This change is written relative to the protocol specification as modified by
+ZIP 248. [^zip-0248] It applies from the activation of this ZIP.
 
 ### § 4.10 ‘SIGHASH Transaction Hashing’
 
@@ -576,21 +565,6 @@ After it, add:
 > field. The consensus branch ID of such a transaction is constrained by the
 > rule on its `nConsensusBranchId` field in § 7.1.2 ‘Transaction Consensus
 > Rules’.
-
-### § 7.1.2 ‘Transaction Consensus Rules’
-
-This section contains the following rule. [^protocol-txnconsensus]
-
-> [NU5 onward] If $\mathsf{effectiveVersion} \geq 5$, the `nConsensusBranchId`
-> field MUST match the consensus branch ID used for SIGHASH transaction hashes,
-> as specified in [ZIP-244].
-
-After it, add:
-
-> If $\mathsf{effectiveVersion} \geq 7$, the `nConsensusBranchId` field MUST
-> equal the consensus branch ID of the epoch of the block that contains the
-> transaction, whichever sighash variants the signatures of the transaction
-> use.
 
 ## Applicability
 
@@ -935,8 +909,6 @@ None yet.
 [^protocol-spendstatement]: [Zcash Protocol Specification, Version 2026.9.1 [NU7]. Section 4.18.2: Spend Statement (Sapling)](protocol/protocol.pdf#spendstatement)
 
 [^protocol-actionstatement]: [Zcash Protocol Specification, Version 2026.9.1 [NU7]. Section 4.18.4: Action Statement (Orchard)](protocol/protocol.pdf#actionstatement)
-
-[^protocol-txnconsensus]: [Zcash Protocol Specification, Version 2026.9.1 [NU7]. Section 7.1.2: Transaction Consensus Rules](protocol/protocol.pdf#txnconsensus)
 
 [^zip-0200]: [ZIP 200: Network Upgrade Mechanism](zip-0200.rst)
 
