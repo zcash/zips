@@ -437,9 +437,15 @@ completion is a different transaction, with its own transaction identifier.
 All completions spend the same inputs, so at most one can be mined, and nodes
 handle them as they handle any transactions that spend the same input.
 
+As with any transaction, a signed transaction can no longer be completed once
+one of its inputs has been spent. A transaction that spends at least one of
+the same inputs conflicts with every completion of the signed transaction, so
+at most one of them can be mined. A transaction that spends none of the same
+inputs does not conflict with it. A wallet that makes the same payment again
+from other inputs can therefore see both payments mined.
+
 The following requirements apply to a wallet that has made, or that stores,
-variant 1 signatures for a signed transaction. In them, the wallet decides
-that a transaction has been mined by its usual confirmation policy.
+variant 1 signatures for a signed transaction.
 
 * The wallet SHOULD treat the transaction identifier of a broadcast
   transaction as stable.
@@ -458,15 +464,6 @@ that a transaction has been mined by its usual confirmation policy.
   transaction again. Any party can do so if no signature in the transaction
   commits to `nConsensusBranchId` and `nExpiryHeight`. Otherwise, only a party
   that knows the binding signing key of every shielded bundle can.
-
-* If the wallet creates a transaction with different effects for the same
-  purpose, for example to make the same payment, that transaction MUST spend
-  at least one input of the signed transaction. Then at most one of them can
-  be mined.
-
-* To cancel a signed transaction, the wallet MUST spend at least one of its
-  inputs in another transaction. It MUST treat the cancellation as effective
-  only when that other transaction has been mined.
 
 * The wallet SHOULD give a binding signing key, or the value commitment
   randomness from which it is derived, only to a party that needs it to check
@@ -731,9 +728,9 @@ does.
 
 The cost of omitting the expiry height is that a signature stays valid until
 an input of the transaction is spent. Without the rules in
-[After a transaction has been broadcast], a wallet could regard an expired
-payment as cancelled, make the payment again from different notes, and then
-see both payments mined.
+[After a transaction has been broadcast], a wallet could assume that an
+expired payment will never be made, make the payment again from different
+notes, and then see both payments mined.
 
 ## Fields that variant 1 still commits to
 
@@ -779,7 +776,7 @@ height:
 * The transaction identifier would be malleable by third parties, which
   ZIP 244 set out to prevent. [^zip-0244]
 * Any party could make an expired transaction valid again. A recipient could
-  do this to a payment that the sender believed had been cancelled.
+  do this to a payment that the sender believed had expired.
 
 One variant 0 signature is enough to prevent both. The binding signature is
 the natural choice:
@@ -819,8 +816,8 @@ proofs are built again. With variant 1, a session can finish at any time.
 Variant 1 also changes what an approval by a threshold of participants means:
 
 * The approval has no time limit. The Coordinator can keep the aggregated
-  signatures and broadcast the transaction at any later time. Only another
-  signing session, which spends one of the inputs, cancels the approval.
+  signatures and broadcast the transaction at any later time. The approval
+  ends only when another signing session spends one of the inputs.
 * Each participant in the session can complete the transaction. The
   Coordinator sends each participant the openings of the value commitments, so
   that the participant can check the values that it authorizes. From them the
